@@ -982,3 +982,56 @@ def test_plot_pitfall_warnings_flag_bare_legend_and_best(tmp_path):
     )
     ws = _plot_pitfall_warnings(tmp_path)
     assert sum("P20" in w for w in ws) >= 2
+
+
+def test_figure_table_context_warnings(tmp_path):
+    """W9 图表上下文：前无引导/后无解释 → 预警；规范写法（前引出后解释）不触发。"""
+    from docx.enum.style import WD_STYLE_TYPE
+    from tools.docx.core.paper_format import CAPTION_STYLE
+    from tools.docx.core.structure_validation import _figure_table_context_warnings
+
+    def build(lead, explain):
+        doc = Document()
+        try:
+            doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
+        except (KeyError, ValueError):
+            pass
+        doc.add_paragraph("一、问题重述")
+        if lead:
+            doc.add_paragraph(lead)
+        doc.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
+        if explain:
+            doc.add_paragraph(explain)
+        doc.add_paragraph("表1 符号说明", style=CAPTION_STYLE)
+        tb = doc.add_table(rows=2, cols=2)
+        tb.rows[0].cells[0].text = "符号"
+        tb.rows[1].cells[0].text = "x"
+        if explain:
+            doc.add_paragraph("表1 给出全文符号体系，含义与单位逐列对应。")
+        return doc
+
+    bad = build(None, None)
+    ws = _figure_table_context_warnings(bad)
+    assert any("图1" in w and "后置解释" in w for w in ws)
+    assert any("表1" in w and "前置引导" in w for w in ws)
+    assert any("表1" in w and "后置解释" in w for w in ws)
+
+    good = build("图1 展示两种方案的误差对比结果。",
+                 "图1 中方案 A 在前 10 轮误差下降最快，原因是学习率设置更保守。")
+    assert _figure_table_context_warnings(good) == []
+
+def test_figure_table_lead_in_warnings(tmp_path):
+    """W9 图表引出：紧跟标题/连续图表/紧跟标题后首图 → 预警；正常引出→解释不触发。"""
+    from tools.docx.core.structure_validation import _figure_table_lead_in_warnings
+    doc = Document()
+    doc.add_paragraph("一、问题重述")
+    doc.add_paragraph("图1 结果对比")            # 标题后直接图题 → 缺引出
+    doc.add_paragraph("图2 灵敏度曲线")          # 连续图表 → 缺引出
+    doc.add_paragraph("表1 主要符号说明")        # 仍连续 → 缺引出
+    doc.add_paragraph("为评估模型稳健性，图3 给出扰动下的目标函数变化。")  # 引出
+    doc.add_paragraph("图3 灵敏度分析")
+    doc.add_paragraph("图3 显示扰动 ±20% 内目标函数波动小于 2%，模型稳健。")     # 解释
+    doc.add_paragraph("为对比各方案的优劣，表2 汇总了关键指标。")                             # 引出
+    doc.add_paragraph("表2 方案对比")
+    issues = _figure_table_lead_in_warnings(doc)
+    assert len(issues) == 3 and all("缺引出" in i for i in issues)

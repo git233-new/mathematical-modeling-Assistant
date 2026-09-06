@@ -1693,10 +1693,85 @@ def _data_file_warnings(project_root):
     return issues
 
 
+# W9 图表上下文：每张图/表前必须有一行引导、后必须有一段解释（全文逻辑连贯）
+_CAPTION_RE = re.compile(r'^[图表]\s*\d+')
+
+
+def _figure_table_context_warnings(doc):
+    seq = []
+    for child in doc.element.body.iterchildren():
+        if child.tag == qn('w:p'):
+            para = next((p for p in doc.paragraphs if p._p is child), None)
+            if para is None:
+                continue
+            style = para.style.name if para.style is not None else ''
+            seq.append(('p', para.text.strip(), style))
+        elif child.tag == qn('w:tbl'):
+            seq.append(('tbl', '', ''))
+    def is_caption(kind, text, style):
+        # 题注只按样式判定：正文引导句常以"图N"开头，文本正则会误伤
+        return kind == 'p' and style == CAPTION_STYLE
+    def is_heading(style):
+        return 'Heading' in style or '标题' in style
+    issues = []
+    for idx, (kind, text, style) in enumerate(seq):
+        if not is_caption(kind, text, style):
+            continue
+        label = re.match(r'^[图表]\s*\d+', text).group(0).replace(' ', '')
+        # 前引导：上一个非空条目必须是普通正文段（不能是题注、标题、另一张表或开头）
+        prev = None
+        for pk, ptext, pstyle in reversed(seq[:idx]):
+            if ptext or pk == 'tbl':
+                prev = (pk, ptext, pstyle)
+                break
+        if prev is None or prev[0] != 'p' or is_caption(*prev) or is_heading(prev[2]):
+            issues.append(f'{label} 缺少前置引导：图/表前需一行正文引出（说明该图表展示什么），不能紧跟标题或另一图表')
+        # 后解释：图——下一非空段；表——跳过表格实体后的第一非空段；须为实质解释（≥15 字、非题注）
+        after = seq[idx + 1:]
+        skip_table = False
+        nxt = None
+        for ak, atext, astyle in after:
+            if ak == 'tbl':
+                skip_table = True
+                continue
+            if not atext or is_caption(ak, atext, astyle):
+                if is_caption(ak, atext, astyle) and not skip_table:
+                    break
+                continue
+            nxt = (atext, astyle)
+            break
+        if nxt is None or is_heading(nxt[1]) or len(nxt[0]) < 15:
+            issues.append(f'{label} 缺少后置解释：图/表后需一段读数与原因分析（≥15 字，不能只写"如图N所示"或连续堆图）')
+    return issues
+
+
+# W9 图表引出：每个 图N/表N 前必须有一行文字引出（说明展示什么、为何此处出现），禁止紧跟标题或连续堆图
+def _figure_table_lead_in_warnings(doc):
+    cap = re.compile(r'^[图表]\s*\d+')  # 题注 = 图/表N 开头且不超过 30 字（引出句是完整长句）
+    heading = re.compile(r'^(附录|参考文献|[一二三四五六七八九十]+、)')
+    issues = []
+    paras = doc.paragraphs
+    for i, p in enumerate(paras):
+        text = p.text.strip()
+        if not cap.match(text) or len(text) > 30:
+            continue
+        # 向上找最近一个有文字的段落（跳过纯图片段）
+        j = i - 1
+        while j >= 0 and not paras[j].text.strip():
+            j -= 1
+        prev = paras[j].text.strip() if j >= 0 else ""
+        if not prev or heading.match(prev) or (cap.match(prev) and len(prev) <= 30):
+            label = "图" if text.startswith("图") else "表"
+            reason = "紧跟标题或上一张图表" if not prev else ("紧跟标题" if heading.match(prev) else "连续图表无引出")
+            issues.append(f'{text[:12]}… 前缺引出文字（{reason}）：先一行说明该{label}展示什么、为何此处出现，再放{label}，之后给出解释')
+    return issues
+
+
 def _soft_quality_warnings(doc, project_root):
     """聚合 W 类预警，统一加“预警：”前缀（不阻断交付）。"""
     ws = []
     ws += _no_duplicate_figure_warnings(doc)
+    ws += _figure_table_context_warnings(doc)
     ws += _formula_explanation_warnings(doc)
     ws += _flowchart_caption_warnings(doc)
     ws += _no_image_formula_warnings(doc)
@@ -1704,6 +1779,7 @@ def _soft_quality_warnings(doc, project_root):
     ws += _plot_pitfall_warnings(project_root)
     ws += _plagiarism_warnings(doc, project_root)
     ws += _data_file_warnings(project_root)
+    ws += _figure_table_lead_in_warnings(doc)
     ws += _abstract_number_density_warnings(doc)
     return ['预警：' + w for w in ws]
 
