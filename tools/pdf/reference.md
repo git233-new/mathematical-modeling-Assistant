@@ -111,18 +111,6 @@ qpdf --fix-qdf damaged.pdf repaired.pdf
 qpdf --show-all-pages input.pdf > structure.txt
 ```
 
-#### 高级加密
-```bash
-# 添加带特定权限的密码保护
-qpdf --encrypt user_pass owner_pass 256 --print=none --modify=none -- input.pdf encrypted.pdf
-
-# 检查加密状态
-qpdf --show-encryption encrypted.pdf
-
-# 移除密码保护（需要密码）
-qpdf --password=secret123 --decrypt encrypted.pdf decrypted.pdf
-```
-
 ## 高级 Python 技巧
 
 ### pdfplumber 高级功能
