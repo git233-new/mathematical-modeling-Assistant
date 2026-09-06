@@ -1670,6 +1670,27 @@ def _plagiarism_warnings(doc, project_root, corpus_dir=None):
     return issues
 
 
+# W8 数据文件格式：csv 必须 UTF-8-SIG（Excel 直开乱码）；数据佐证优先 xlsx/csv，json 仅工具链登记
+_TOOLCHAIN_JSON = {"spss_outputs.json", "文献检索.json"}
+
+
+def _data_file_warnings(project_root):
+    if not project_root:
+        return []
+    data_dir = Path(project_root).resolve() / 'results' / '数据'
+    if not data_dir.is_dir():
+        return []
+    issues = []
+    for f in sorted(data_dir.glob('*.csv')):
+        with open(f, 'rb') as fh:
+            if fh.read(3) != b'\xef\xbb\xbf':
+                issues.append(f'结果 CSV 应使用 UTF-8-SIG 编码保存（否则 Excel 直接打开乱码）：{f.name}；pandas 写法 to_csv(..., encoding="utf-8-sig")')
+    for f in sorted(data_dir.glob('*.json')):
+        if f.name not in _TOOLCHAIN_JSON:
+            issues.append(f'数据佐证优先 xlsx 或 UTF-8-SIG CSV；json 仅限工具链登记（{sorted(_TOOLCHAIN_JSON)}），若必须使用请在评审 md 说明原因：{f.name}')
+    return issues
+
+
 def _soft_quality_warnings(doc, project_root):
     """聚合 W 类预警，统一加“预警：”前缀（不阻断交付）。"""
     ws = []
@@ -1680,6 +1701,7 @@ def _soft_quality_warnings(doc, project_root):
     ws += _plot_font_warnings(project_root)
     ws += _plot_pitfall_warnings(project_root)
     ws += _plagiarism_warnings(doc, project_root)
+    ws += _data_file_warnings(project_root)
     ws += _abstract_number_density_warnings(doc)
     return ['预警：' + w for w in ws]
 

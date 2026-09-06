@@ -952,3 +952,18 @@ def test_plagiarism_warnings_include_literature_log(tmp_path):
     doc.add_paragraph("参考文献")
     ws = _plagiarism_warnings(doc, str(tmp_path))
     assert len(ws) == 1 and "连续 20 字雷同" in ws[0]
+
+
+def test_data_file_warnings_flag_bom_and_extra_json(tmp_path):
+    """W8 数据文件格式：csv 缺 UTF-8-SIG BOM、数据目录多余 json → 预警；合规文件不触发。"""
+    from tools.docx.core.structure_validation import _data_file_warnings
+    data = tmp_path / "results" / "数据"
+    data.mkdir(parents=True)
+    (data / "no_bom.csv").write_text("a,b\n1,2\n", encoding="utf-8")  # 无 BOM
+    (data / "good.csv").write_text("a,b\n1,2\n", encoding="utf-8-sig")  # 带 BOM
+    (data / "spss_outputs.json").write_text("{}", encoding="utf-8")  # 工具链白名单
+    (data / "result.json").write_text("{}", encoding="utf-8")  # 多余 json
+    ws = _data_file_warnings(str(tmp_path))
+    assert len(ws) == 2
+    assert any(w.startswith("结果 CSV") and "no_bom.csv" in w for w in ws)
+    assert any(w.startswith("数据佐证") and w.endswith("result.json") for w in ws)
