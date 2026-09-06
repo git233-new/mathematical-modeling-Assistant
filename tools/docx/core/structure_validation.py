@@ -1616,6 +1616,41 @@ def _plot_pitfall_warnings(project_root):
     return issues
 
 
+# W7 查重预警：正文与优秀论文案例库连续雷同片段（对照 SKILL.md 铁律 3/6：只学方法，不抄文字）
+_PLAGIARISM_SHINGLE = 20  # 连续 20 字（去标点空白后）判雷同，短于常见术语组合，误报率低
+
+
+def _plagiarism_warnings(doc, project_root, corpus_dir=None):
+    if project_root is None:
+        return []
+    skill_root = Path(__file__).resolve().parents[3]
+    corpus = Path(corpus_dir) if corpus_dir else skill_root / '知识库' / '优秀论文案例'
+    if not corpus.is_dir():
+        return []
+    corpus_text = chr(10).join(
+        f.read_text(encoding='utf-8', errors='replace')
+        for f in sorted(corpus.glob('*.md')))
+    norm = lambda s: re.sub(r'[\s，。；：、（）()\[\]""'']', '', s)
+    corpus_norm = norm(corpus_text)
+    corpus_shingles = {corpus_norm[i:i + _PLAGIARISM_SHINGLE]
+                       for i in range(0, max(len(corpus_norm) - _PLAGIARISM_SHINGLE, 1), 5)}
+    starts = [i for i, p in enumerate(doc.paragraphs) if _is_reference_start(p.text) or _is_appendix_start(p.text)]
+    body_paras = doc.paragraphs[:starts[0]] if starts else doc.paragraphs
+    issues = []
+    seen = set()
+    for para in body_paras:
+        text = norm(para.text)
+        if len(text) < _PLAGIARISM_SHINGLE:
+            continue
+        for i in range(0, len(text) - _PLAGIARISM_SHINGLE + 1):
+            shingle = text[i:i + _PLAGIARISM_SHINGLE]
+            if shingle in corpus_shingles and shingle not in seen:
+                seen.add(shingle)
+                issues.append(f'正文与优秀论文案例库存在连续 {_PLAGIARISM_SHINGLE} 字雷同：「{shingle[:30]}…」——只可迁移方法，文字必须重写（铁律 3/6）')
+                break
+    return issues
+
+
 def _soft_quality_warnings(doc, project_root):
     """聚合 W 类预警，统一加“预警：”前缀（不阻断交付）。"""
     ws = []
@@ -1625,6 +1660,7 @@ def _soft_quality_warnings(doc, project_root):
     ws += _no_image_formula_warnings(doc)
     ws += _plot_font_warnings(project_root)
     ws += _plot_pitfall_warnings(project_root)
+    ws += _plagiarism_warnings(doc, project_root)
     ws += _abstract_number_density_warnings(doc)
     return ['预警：' + w for w in ws]
 

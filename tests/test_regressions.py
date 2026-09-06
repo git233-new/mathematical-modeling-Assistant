@@ -917,3 +917,23 @@ def test_soft_doc_structure_markers():
     assert "题型防错速查" in general and "2analysis-modeling" not in general
     design = (root / "知识库/方法库/设计原则.md").read_text(encoding="utf-8")
     assert "分层方法卡模板" in design
+
+
+def test_plagiarism_warnings_detects_corpus_overlap(tmp_path):
+    """W7 查重：论文含案例库连续 20 字片段 → 预警；干净论文与参考文献后内容不触发。"""
+    from tools.docx.core.structure_validation import _plagiarism_warnings
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "case.md").write_text(
+        "这是一个用于查重测试的案例库文本，其中包含一段足够长的独特句子用来触发雷同检测逻辑。", encoding="utf-8")
+    doc = Document()
+    doc.add_paragraph("开头引用其中包含一段足够长的独特句子用来触发雷同检测逻辑的原文内容。")
+    doc.add_paragraph("参考文献")
+    doc.add_paragraph("这是一个用于查重测试的案例库文本，其中包含一段足够长的独特句子用来触发雷同检测逻辑。")
+    ws = _plagiarism_warnings(doc, str(tmp_path), corpus_dir=corpus)
+    assert len(ws) == 1 and "连续 20 字雷同" in ws[0]
+    clean = Document()
+    clean.add_paragraph("本文构建独立模型并完成验证，措辞与案例库完全不同。")
+    clean.add_paragraph("参考文献")
+    clean.add_paragraph("这是一个用于查重测试的案例库文本，其中包含一段足够长的独特句子用来触发雷同检测逻辑。")
+    assert _plagiarism_warnings(clean, str(tmp_path), corpus_dir=corpus) == []
