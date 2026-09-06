@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.pytest_cache/
+
+# matplotlib 运行时字体缓存（tools/figure/runtime 旧位置；新默认 ~/.modex/mplconfig）
+tools/figure/runtime/.mplconfig/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 中间文件不入库：压缩备份与一次性脚本
+*.original.md
+.*_tmp.py
