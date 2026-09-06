@@ -311,11 +311,3 @@ def run_three_layer_audit(
     return result
 
 
-def save_audit_result(
-    result: ThreeLayerAuditResult,
-    output_path: Path,
-) -> None:
-    """保存审计结果到 JSON 文件"""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)

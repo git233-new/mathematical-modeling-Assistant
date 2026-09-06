@@ -16,6 +16,8 @@ from datetime import datetime
 from pathlib import Path
 
 from docx.enum.text import WD_LINE_SPACING
+
+from tools.common.io_utils import sha256_file
 from docx.oxml.ns import qn
 
 from .contest_profile import (
@@ -587,7 +589,7 @@ def _result_figure_issues(doc, project_root):
     images = [path for path in image_root.rglob('*') if path.is_file() and path.suffix.lower() in {'.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp'}]
     missing = []
     for path in images:
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest = sha256_file(path)
         if embedded[digest]:
             embedded[digest] -= 1
         else:
@@ -714,7 +716,7 @@ def _manifest_checked_file(project, issues, relative, expected_hash, label, star
     if path is None or not is_within(path, project) or (not path.is_file()) or (require_run_path and (not relative.startswith(run_prefix))):
         issues.append(f"{label}不存在、越界或不属于 results/: {relative or '<空>'}")
         return None
-    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    actual = sha256_file(path)
     if str(expected_hash or '').lower() != actual:
         issues.append(f'{label}哈希与本次运行清单不一致: {relative}')
     if check_time and started is not None and completed is not None:
@@ -785,7 +787,7 @@ def _manifest_figure_issues(doc, project, manifest, issues, started, completed, 
         _manifest_check_script(project, issues, scripts, item, f'图片[{index}]', started, completed)
         if path is not None:
             relative = str(item.get('path', '')).replace('\\', '/')
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            digest = sha256_file(path)
             if relative in seen_paths:
                 issues.append(f'同一图片路径在运行清单中重复登记: {relative}')
             if digest in seen_hashes:

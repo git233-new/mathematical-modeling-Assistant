@@ -396,11 +396,7 @@ def abstract_title(doc):
 def body(doc, text):
     return paragraph(doc, text, style_name=BODY_STYLE, preserve_line_breaks=_appendix_is_active(doc))
 def _latex2omml(latex):
-    try:
-        from .equations import latex2omml
-    except ImportError:
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        from equations import latex2omml
+    from .equations import latex2omml
     return latex2omml(latex)
 def _set_equation_layout(doc, paragraph, number):
     paragraph.paragraph_format.line_spacing = 1.5
@@ -515,14 +511,6 @@ def page_break(doc):
     p = paragraph(doc)
     p.add_run().add_break(WD_BREAK.PAGE)
     return p
-def section_break(doc):
-    section = doc.add_section(WD_SECTION.NEW_PAGE)
-    if hasattr(doc, '_mathmodeling_insert_cursor'):
-        body = doc._element.body
-        break_paragraph = next((child for child in reversed(list(body)[:-1]) if child.tag == qn('w:p') and child.find(qn('w:pPr') + '/' + qn('w:sectPr')) is not None), None)
-        if break_paragraph is not None:
-            _place_body_element(doc, break_paragraph)
-    return section
 def _clear_element_children(element):
     for child in list(element):
         element.remove(child)
@@ -584,16 +572,6 @@ def table_caption(doc, text):
 def count_chinese_chars(doc):
     text = '\n'.join((p.text for p in doc.paragraphs))
     return len(re.findall('[\\u4e00-\\u9fff]', text))
-def _iter_runs(doc):
-    for paragraph in doc.paragraphs:
-        for run in paragraph.runs:
-            yield run
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    for run in paragraph.runs:
-                        yield run
 def _story_roots(doc):
     """全部故事部分的 XML 根（lxml）：正文 + 各节页眉页脚。
 
@@ -973,35 +951,6 @@ def _set_table_appendix_borders(table):
         tbl_pr.insert(tbl_pr.index(tbl_look), borders)
 
 
-def appendix_table(doc, rows, *, with_header=True):
-    """附录专用表（闭合方框 + 横向分隔线），与正文三线表区分。"""
-    table = doc.add_table(rows=len(rows), cols=len(rows[0]))
-    _place_body_element(doc, table._tbl)
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    _set_table_appendix_borders(table)
-    _set_table_fixed_layout(table)
-    _assign_three_line_widths(table, doc)
-    for row_i, row in enumerate(rows):
-        tr_pr = table.rows[row_i]._tr.get_or_add_trPr()
-        tr_pr.append(OxmlElement('w:cantSplit'))
-        if row_i == 0 and with_header:
-            repeat = OxmlElement('w:tblHeader')
-            repeat.set(qn('w:val'), 'true')
-            tr_pr.append(repeat)
-        for col_i, text in enumerate(row):
-            cell = table.cell(row_i, col_i)
-            cell.text = ''
-            _set_cell_vcenter(cell)
-            p = cell.paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(sanitize_text(str(text)))
-            set_run_font(run, size=10.5, bold=(row_i == 0 and with_header))
-            run.font.italic = False
-    for row in table.rows:
-        for cell in row.cells:
-            _reorder_tcpr(cell._tc.get_or_add_tcPr())
-    _reorder_tblpr(table._tbl.tblPr)
-    return table
 def _set_cell_width(cell, twips):
     tc_pr = cell._tc.get_or_add_tcPr()
     tc_w = tc_pr.find(qn('w:tcW'))
@@ -1629,44 +1578,18 @@ def save_document(
                       'auto_sweep': len(sweep_notes)}), file=sys.stderr, flush=True)
     return output
 
-def render_and_count_pages(doc, pdf_path, *, contest='cumcm', pdf_backend='auto', soffice_timeout=SOFFICE_DEFAULT_TIMEOUT):
-    import tempfile
-    from pathlib import Path as _P
-    with tempfile.TemporaryDirectory() as tmp:
-        docx_path = _P(tmp) / 'paper.docx'
-        ensure_page_numbers(doc)
-        doc.save(docx_path)
-        return _render_docx_and_count_pages(docx_path, pdf_path, pdf_backend=pdf_backend, soffice_timeout=soffice_timeout)
 def preflight_check(outline):
-    try:
-        from .paper_workflow import preflight_check as _preflight_check
-    except ImportError:
-        from paper_workflow import preflight_check as _preflight_check
+    from .paper_workflow import preflight_check as _preflight_check
     return _preflight_check(outline)
 def progress_snapshot(doc, stage='writing', rendered_pages=None):
-    try:
-        from .paper_workflow import progress_snapshot as _progress_snapshot
-    except ImportError:
-        from paper_workflow import progress_snapshot as _progress_snapshot
+    from .paper_workflow import progress_snapshot as _progress_snapshot
     return _progress_snapshot(doc, stage, rendered_pages)
 def emit_progress(doc, stage='writing', rendered_pages=None, stream=None):
-    try:
-        from .paper_workflow import emit_progress as _emit_progress
-    except ImportError:
-        from paper_workflow import emit_progress as _emit_progress
+    from .paper_workflow import emit_progress as _emit_progress
     return _emit_progress(doc, stage, rendered_pages, stream)
 def rebuild_from_docx(docx_path, output_path=None):
-    try:
-        from .paper_workflow import rebuild_from_docx as _rebuild_from_docx
-    except ImportError:
-        from paper_workflow import rebuild_from_docx as _rebuild_from_docx
+    from .paper_workflow import rebuild_from_docx as _rebuild_from_docx
     return _rebuild_from_docx(docx_path, output_path)
-def export_paper_structure(docx_path, output_path=None):
-    try:
-        from .paper_workflow import export_paper_structure as _export_paper_structure
-    except ImportError:
-        from paper_workflow import export_paper_structure as _export_paper_structure
-    return _export_paper_structure(docx_path, output_path)
 if __name__ == '__main__':
     doc = new_document()
     title(doc, '论文题目')
@@ -1679,40 +1602,14 @@ if __name__ == '__main__':
     three_line_table(doc, [['符号', '说明', '单位'], ['x', '变量', '-']])
     doc.save('paper_format_demo.docx')
 
-# 验证子系统（拆分至 structure_validation，重导出以保持公共 API 不变）
 # 验证子系统（拆分至 structure_validation）。为保持公共 API 兼容，
-# 用 PEP 562 模块级 __getattr__ 惰性重导出；本模块加载期不再 import
-# structure_validation，消除循环导入（structure_validation 可直接首引）。
+# 用 PEP 562 模块级 __getattr__ 惰性重导出实际被外部消费的 4 个名字；
+# 本模块加载期不再 import structure_validation，消除循环导入
+# （structure_validation 可直接首引）。
 _VALIDATION_REEXPORTS = (
-    '_ai_usage_details_issues',
     '_clipped_object_issues',
-    '_appendix_size_issues',
-    '_docx_geometry_issues',
-    '_early_visual_issues',
-    '_embedded_image_hashes',
-    '_estimated_length_issues',
-    '_find_symbol_table',
-    '_body_filename_issues',
-    '_flowchart_caption_count',
-    '_formula_chain_issues',
-    '_formula_explanation_issues',
-    '_formula_layout_issues',
-    '_fragmented_prose_issues',
-    '_manual_body_break_issues',
-    '_numbered_object_issues',
     '_paragraph_style_issues',
-    '_plain_language_issues',
-    '_problem_analysis_visual_issues',
-    '_reference_issues',
-    '_result_analysis_structure_issues',
-    '_result_figure_issues',
     '_run_manifest_issues',
-    '_shortage_message',
-    '_symbol_table_issues',
-    '_symbol_variant_issues',
-    '_three_line_table_issues',
-    '_undeclared_numeric_claim_issues',
-    '_uses_ai_tools',
     'validate_paper_structure',
 )
 
