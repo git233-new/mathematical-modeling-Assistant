@@ -25,7 +25,6 @@ HEADING1_STYLE = 'Heading 1'
 HEADING2_STYLE = 'Heading 2'
 HEADING3_STYLE = 'Heading 3'
 CAPTION_STYLE = '图表标题'
-GENERATION_REPLACEMENTS = {'我们': '本研究', '本文': '本研究'}
 DEFAULT_CUMCM_TEMPLATE = (SKILL_ROOT / '文档' / '模板' / '2026数学建模国赛标准论文Word模板.docx').resolve()
 PROJECT_TEMPLATE_FILENAME = '论文模板.docx'
 def set_run_font(run, font='宋体', size=12, bold=False, color=BLACK):
@@ -748,10 +747,8 @@ AI_TASTE_PATTERNS = [
     (r'既非.{0,4}也非.{0,4}', '整齐对仗句'),
 ]
 
-def sanitize_text(text, *, replacements=None):
+def sanitize_text(text):
     value = str(text)
-    for source, target in (replacements or GENERATION_REPLACEMENTS).items():
-        value = value.replace(source, target)
     remaining = [word for word in FORBIDDEN_WORDS if re.search(re.escape(word), value, re.IGNORECASE)]
     if remaining:
         raise ValueError(f'正文写入被拦截：检测到禁用词 {remaining[:3]}；请改写后重试')

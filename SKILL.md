@@ -29,7 +29,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 6. **摘要数字密度**：摘要数字字符占比 >18% 拒存、>10% 预警。
 7. **结果与版式规则**：统一执行 `文档/论文写作.md`；机器校验统一执行 `tools/docx/core/paper_format.py`，运行结果统一执行 `tools/docx/core/result_contract.py`。本文件只规定流程，不重复阈值和校验细则。
 
-写作阶段还会拦截 `智能体`、`我们`、`本文` 等身份泄露或口语词；`我们`、`本文`自动规范为“本研究”，其余禁用词直接报错。正文生成前必须运行 `pf.preflight_check(outline)`，其中题目画像、公式计划和图表计划用于指导写作，不把所有题强行套进 A/B/C 或固定模型组合。生成中用 `pf.emit_progress` 观察字数、图数和缺口。
+写作阶段还会拦截 `智能体`、`我们`、`本文` 等身份泄露或口语词，命中直接报错（不自动改写，措辞标准以 `知识库/写作增强/去AI味指南.md` 为准）。正文生成前必须运行 `pf.preflight_check(outline)`，其中题目画像、公式计划和图表计划用于指导写作，不把所有题强行套进 A/B/C 或固定模型组合。生成中用 `pf.emit_progress` 观察字数、图数和缺口。
 
 > 对应代码：`tools/docx/core/paper_format.py`（`check_black_fonts` / `scan_forbidden_words` / `check_abstract_page` / `validate_paper_structure`）；工具链自检脚本：`tools/docx/scripts/self_check.py`；最终 DOCX 交付自检入口统一见 `文档/论文写作.md`。
 
