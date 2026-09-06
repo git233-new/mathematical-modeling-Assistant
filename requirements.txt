@@ -1,0 +1,29 @@
+# 数学建模核心工作流依赖
+numpy>=1.24
+# 解题代码常用（code/Q<序号>_*.py 用），skill 自身代码不直接 import：
+scipy>=1.10
+pandas>=2.0
+matplotlib>=3.7
+openpyxl>=3.1
+
+# DOCX / PDF 生成与校验
+python-docx>=1.1
+lxml>=4.9
+defusedxml>=0.7
+# PDF 库分工（避免重复引入）：
+#   PyMuPDF(fitz)   — 页面渲染 / PDF 转图片 / 文本抽取（无系统依赖）
+#   pypdf           — 表单填写 / 结构（pypdf.generic/annotations）
+#   pdfplumber      — 仅 PDF 表单结构分析（extract_form_structure.py）
+pypdf>=4.0
+PyMuPDF>=1.23
+pdfplumber>=0.11
+Pillow>=10.0
+
+# 项目契约与证据闸门回归检查
+pytest>=8.0
+
+# 扩展依赖（统一纳入本清单，运行时按功能使用）
+# pywin32              — 仅 Windows；Word COM 版面检查 + PDF 导出
+# rapidocr_onnxruntime — 仅建「优秀论文案例库」或对扫描版 PDF 做 OCR 时需要
+pywin32>=306; platform_system == "Windows"
+rapidocr_onnxruntime>=1.4
