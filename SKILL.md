@@ -78,17 +78,18 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 - **没给题时**：若只说"解答题目"但没附赛题，先向你索取赛题原文（PDF 或文本），**绝不凭空编造题目或数据**。
 - **建库学习**：发优秀论文 PDF → `tools/paperingest/` 解析沉淀到 `知识库/优秀论文案例/`，供后续建模参考；新增论文后再跑 `python tools/paperingest/distill.py --raw <PDF目录>` 刷新全库模板与创新点蒸馏（`知识库/写作增强/获奖论文模板与创新点.md`）。
 
-## 完整执行流程（Step 1 → 6，必须自动走完，直到产出终稿论文）
+## 完整执行流程（Step 0 → 6，必须自动走完，直到产出终稿论文）
 
-> **铁律：用户发来赛题（PDF/文本）即视为"完整解题"请求；任何含"解答题目 / 解题 / 做这道题 / 开做"的指令 + 题目，同样视同完整解题请求。必须自动跑完 Step 1→6，不得停在中间、不得等用户说"生成论文"。除非用户明确"只分析/只写代码/只评审"。**
+> **铁律：用户发来赛题（PDF/文本）即视为"完整解题"请求；任何含"解答题目 / 解题 / 做这道题 / 开做"的指令 + 题目，同样视同完整解题请求。必须自动跑完 Step 0→6，不得停在中间、不得等用户说"生成论文"。除非用户明确"只分析/只写代码/只评审"。**
 
+0. **开跑自检（约 10 秒，防旧版本白跑一整轮）**：① 若本 skill 为 git 仓库，先 `git pull` 同步到最新（旧版缺新闸门 = 白跑）；② `python tools/docx/scripts/self_check.py` 秒级确认工具链健康；③ 确认 `PROJECT_ROOT` 不在 skill 仓库内、`files/` 已放赛题。任何一步失败先修复，不带病开跑。
 1. **读题与附件**：从 `PROJECT_ROOT/files/`（兼容根层散置的历史附件）枚举赛题 PDF、赛题 DOCX 及全部附件（CSV、XLSX、DOCX 等），通过 `tools.project_ops.case_retrieval.load_input_bundle()` 全量读取 CSV/XLSX；DOCX 附件的全文、表格文本和对象清单都进入题目分析输入，并保留附件路径。读取失败抛 `InputBundleError`，携带出问题的文件路径与原始异常类型，便于定位；非致命附件预览失败仅记 warning 不阻断整包读取。只读取原生文本、表格和 OOXML 对象，不启用 OCR（`pdf_utils` 入口 `allow_ocr=False` 默认禁止）；DOCX 附件中的 WMF/EMF、VML 和 OLE 公式用 `tools/docx/scripts/extract_docx_content.py` 提取并按对象清单逐项视觉检查。**填表类赛题：读取 `files/` 原表后只在其副本上填值——保留原行列结构、表头、合并单元格与格式，结果写 `results/数据/`，绝不回写 `files/`**。优秀论文 PDF 建库才允许使用 `tools/paperingest/` 的 OCR，且必须显式传 `allow_ocr=True`。读取校验无误后立即删除临时资产，`PROJECT_ROOT` 不产生读题过程文件。
-2. **赛题分析**：运行 `python tools/project_ops/case_retrieval.py --query-file <赛题 PDF> --query-file <赛题 DOCX> --top-k 5` 合并两个赛题版本检索优秀论文案例，先按宽题目画像，再按方法、约束和题目词精排；检索输出的匹配依据、可迁移方法和本题化候选**仅进入会话上下文**用于模型设计，**不落盘任何检索报告或分析 md**（赛题详解/结果分析内容并入论文正文与 `results/论文评审与分析.md`，杜绝多余过程文件）。
+2. **赛题分析**：运行 `python tools/project_ops/case_retrieval.py --query-file <赛题 PDF> --query-file <赛题 DOCX> --top-k 5` 合并两个赛题版本检索优秀论文案例，先按宽题目画像，再按方法、约束和题目词精排；检索输出的匹配依据、可迁移方法和本题化候选**仅进入会话上下文**用于模型设计，**不落盘任何检索报告或分析 md**（赛题详解/结果分析内容并入论文正文与 `results/论文评审与分析.md`，杜绝多余过程文件）。解题计划/技术方案如需暂存只能放 `.paper_work/`——**项目根层禁止出现任何过程 md**（历史事故：`B技术方案.md` 堆根层）。
 3. **全 Python 解题代码**：按 `文档/代码规范.md` 生成 `code/Q1.py`、`Q2.py`…（各小问独立运行入口）；**通用核心算法与核心模型放 `solve_common.py`**（可选：仅当确有赛题公共求解逻辑才建，只被 `Q<序号>.py` 复用；不放字体/颜色等样式配置）；**统一生图配置放 `viz.py`**（配色、字号、尺寸、导出格式的唯一入口，各问 import 调用，禁止各自另写绘图样式；确无图可免）；逻辑过重可拆 `Q<序号>_<描述>.py` 子模块，纯理论小问可无代码。**非解答脚本（`build_paper.py` 等）不以 `Q` 开头、不依赖 `solve_common.py`、不 import 任何 skill 模块（`python-docx` 排版就地内联，完全自包含）**；图片与结果文件一律中文命名。
 4. **真实运行与落盘**：Python 跑出的图片和数值写入 `results/图片/` 与 `results/数据/`，按 `文档/代码规范.md` 调用 `write_run_manifest()` 生成 `results/run_manifest.json`（同时传入 `manual_stats=load_spss_outputs(project)` 登记 SPSS 结果）；重跑覆盖。**SPSS 等人工工具**：人按赛题所需分析（配对 T、ANOVA 等）点菜单跑出统计量后，将数值登记进 `results/数据/spss_outputs.json`（`name/value/unit/tool`；如 t/p、F/η²、回归系数、Cohen's d）。登记细则与 gate 核对规则见**铁律 8**（唯一权威），此处不重复。
 5. **生成论文**：**动笔前必须先通读 `知识库/写作增强/去AI味指南.md`**（写法阶段自动加载，主语具体化/禁空泛主语等措辞规则以它为准）。按 `文档/论文写作.md` 组织内容，**写作必须有依据**——每个关键数字、图表与结论必须对应 `run_manifest.json` 登记的结果（或 `manual_stats`/SPSS 来源），无登记依据的表述一律不得写入，gate 会逐字核对并拒存。调用 `pf.preflight_check(outline)` 和 `save_document()`；论文文件交付由 `latex_export.export_latex_source` 同快照生成、**先落位的 `完整论文.tex`** 与随后原子发布的 `完整论文.docx`，不依赖 Word/LibreOffice 渲染。`save_document()` 按项目交付下限和内容等效篇幅执行硬校验，任何要求未达标都拒绝保存。模板提供版式基底（A4/边距/页码）与章节槽位，标题与正文的字体字号规格由 `paper_format._ensure_paper_styles` 统一注入（按模板要求：标题一律黑体），题目需要时允许增删改标题。`code/build_paper.py` **完全自包含**（`python-docx` 排版逻辑就地内联），不 import 任何 skill 模块，运行时不依赖 SKILL_ROOT；**不得 import 赛题 `solve_common.py` 或 `Q<序号>.py`**。
    - 附录只保留**附录A 支撑材料清单**：由 `pf.append_code_files(project_root)` 按 `run_manifest.json` 的 `source_scripts` + 数据文件自动生成（`solve_common.py` 等公共模块与数据文件一并登记，排除 build_paper.py），代码本体不入论文、全部保留在 `code/` 目录。整题纯理论（无解题代码）时附录A 段仍保留并登记数据/说明。
-6. **评审—修改循环与收尾**：生成评审文件（`results/论文评审与分析.md`），依据评审修改并重新校验。最终 DOCX 写入并通过终态校验后，才清理中间文件并删除赛题目录中的 `论文模板.docx`；清理器按瘦身白名单收尾（`code/` 与 `results/数据/` 登记外文件清除，`.paper_work/` 整目录删除），保留 `results/` 登记产物、`code/` 白名单脚本、`files/` 原件和最终论文。完成这些步骤后，整个解题流程才结束。**收尾证据语言**：验证状态只允许引用 `project_audit.py` 与 `self_check.py` 的 exit code 和结论输出；禁止以任何叙述（"已通过/已完成/已核对"）作为完成依据——产物的机器校验结果是唯一权威。
+6. **评审—修改循环与收尾**：生成评审文件（`results/论文评审与分析.md`），依据评审修改并重新校验。最终 DOCX 写入并通过终态校验后，才清理中间文件并删除赛题目录中的 `论文模板.docx`；清理器按瘦身白名单收尾（`code/` 与 `results/数据/` 登记外文件清除，`.paper_work/` 整目录删除），保留 `results/` 登记产物、`code/` 白名单脚本、`files/` 原件和最终论文。保存时输出的每条软预警（缺后置解释/缺前置引导/超预算等）必须逐条修复或人工确认，未清零不得进入收尾。完成这些步骤后，整个解题流程才结束。**收尾证据语言**：验证状态只允许引用 `project_audit.py` 与 `self_check.py` 的 exit code 和结论输出；禁止以任何叙述（"已通过/已完成/已核对"）作为完成依据——产物的机器校验结果是唯一权威。
 
 ### 用户建模思路优先
 
