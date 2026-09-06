@@ -145,6 +145,6 @@ python scripts/office/validate.py "<PROJECT_ROOT>/完整论文.docx"
 - `python scripts/extract_docx_content.py <docx> --asset-dir <tmp/assets> --manifest <tmp/docx_manifest.json> --render-dir <tmp/pages>`：无 OCR 提取赛题 DOCX 的原生文本、表格、WMF/EMF、VML 和 OLE 公式对象，并将完整页面渲染为 PNG 供视觉检查；提取的资产和页面均为临时文件，验收后删除。
 - `pf.rebuild_from_docx(docx_path)`：在项目的 `code/` 中生成可运行的 `build_paper.py` 与图片资源目录，反向恢复结构骨架。生成脚本路径使用正斜杠，字符串使用 `json.dumps` 编码；公式保留原始 OMML。
 
-论文生成脚本固定放在 `PROJECT_ROOT/code/build_paper.py`；它是可重复生成脚本，不属于临时文件，项目清理器会排除它。生成链为“写暂存 DOCX → 重开校验 → 原子发布 DOCX”。
+生成链为“写暂存 DOCX → 重开校验 → 原子发布 DOCX”；`build_paper.py` 位置约定见上文与根 `SKILL.md` 交付契约，不重复。
 
-Windows 环境 checklist：覆盖前关闭正在打开目标 DOCX 的 Word；不要把 `build_paper.py` 当临时文件删除。
+Windows 环境 checklist：覆盖前关闭正在打开目标 DOCX 的 Word。

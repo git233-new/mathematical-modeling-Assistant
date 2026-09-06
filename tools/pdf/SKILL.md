@@ -1,6 +1,6 @@
 ---
 name: mathmodel-pdf
-description: 数学建模流程中的 PDF 处理：从赛题 PDF 读取或提取文本/表格、合并/拆分 PDF、旋转页面、添加水印、创建 PDF、填写表单、加密/解密、提取图像，以及对扫描版 PDF 进行 OCR 使其可搜索。用户在数学建模流程中提及 .pdf 文件或要求处理 PDF 时使用。
+description: 数学建模流程中的 PDF 读取与提取：赛题 PDF 文本/表格提取、扫描版 OCR、提取图像。本项目不生成、不交付 PDF（见根 SKILL.md），创建/水印/加密/表单类能力已移除。
 license: Proprietary. LICENSE.txt has complete terms
 ---
 
@@ -8,7 +8,7 @@ license: Proprietary. LICENSE.txt has complete terms
 
 ## 概述
 
-本指南涵盖使用 Python 库和命令行工具进行的基本 PDF 处理操作。有关高级功能、JavaScript 库以及详细示例，请参阅 REFERENCE.md。如果你需要填写 PDF 表单，请阅读 FORMS.md 并遵循其中的说明。
+本项目只用 PDF 做**读题**：提取文本、表格、图像与扫描版 OCR。创建 PDF、水印、加密、表单填写不在本项目流程内（`SKILL.md` 明确不生成或交付 PDF 副本），相关章节已移除；需要时查 git 历史或 pypdf/reportlab 官方文档。
 
 ## 快速开始
 
@@ -118,74 +118,6 @@ if all_tables:
     combined_df.to_excel("extracted_tables.xlsx", index=False)
 ```
 
-### reportlab - 创建 PDF
-
-#### 基本 PDF 创建
-```python
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-
-c = canvas.Canvas("hello.pdf", pagesize=letter)
-width, height = letter
-
-# 添加文本
-c.drawString(100, height - 100, "Hello World!")
-c.drawString(100, height - 120, "This is a PDF created with reportlab")
-
-# 添加一条线
-c.line(100, height - 140, 400, height - 140)
-
-# 保存
-c.save()
-```
-
-#### 创建多页 PDF
-```python
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet
-
-doc = SimpleDocTemplate("report.pdf", pagesize=letter)
-styles = getSampleStyleSheet()
-story = []
-
-# 添加内容
-title = Paragraph("Report Title", styles['Title'])
-story.append(title)
-story.append(Spacer(1, 12))
-
-body = Paragraph("This is the body of the report. " * 20, styles['Normal'])
-story.append(body)
-story.append(PageBreak())
-
-# 第 2 页
-story.append(Paragraph("Page 2", styles['Heading1']))
-story.append(Paragraph("Content for page 2", styles['Normal']))
-
-# 构建 PDF
-doc.build(story)
-```
-
-#### 下标与上标
-
-**重要提示**：切勿在 ReportLab 的 PDF 中使用 Unicode 上标/下标字符（₀₁₂₃₄₅₆₇₈₉，⁰¹²³⁴⁵⁶⁷⁸⁹）。内置字体不包含这些字形，会导致它们渲染为实心黑色方块。
-
-应改用 ReportLab 在 Paragraph 对象中的 XML 标记标签：
-```python
-from reportlab.platypus import Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
-
-styles = getSampleStyleSheet()
-
-# 下标：使用 <sub> 标签
-chemical = Paragraph("H<sub>2</sub>O", styles['Normal'])
-
-# 上标：使用 <super> 标签
-squared = Paragraph("x<super>2</super> + y<super>2</super>", styles['Normal'])
-```
-
-对于 canvas 绘制的文本（非 Paragraph 对象），应手动调整字体大小和位置，而不是使用 Unicode 上标/下标。
-
 ## 命令行工具
 
 ### pdftotext（poppler-utils）
@@ -249,48 +181,12 @@ for i, image in enumerate(images):
 print(text)
 ```
 
-### 添加水印
-```python
-from pypdf import PdfReader, PdfWriter
-
-# 创建水印（或加载已有的水印）
-watermark = PdfReader("watermark.pdf").pages[0]
-
-# 应用到所有页面
-reader = PdfReader("document.pdf")
-writer = PdfWriter()
-
-for page in reader.pages:
-    page.merge_page(watermark)
-    writer.add_page(page)
-
-with open("watermarked.pdf", "wb") as output:
-    writer.write(output)
-```
-
 ### 提取图像
 ```bash
 # 使用 pdfimages（poppler-utils）
 pdfimages -j input.pdf output_prefix
 
 # 这将把所有图像提取为 output_prefix-000.jpg、output_prefix-001.jpg 等。
-```
-
-### 密码保护
-```python
-from pypdf import PdfReader, PdfWriter
-
-reader = PdfReader("input.pdf")
-writer = PdfWriter()
-
-for page in reader.pages:
-    writer.add_page(page)
-
-# 添加密码
-writer.encrypt("userpassword", "ownerpassword")
-
-with open("encrypted.pdf", "wb") as output:
-    writer.write(output)
 ```
 
 ## 快速参考
@@ -301,23 +197,17 @@ with open("encrypted.pdf", "wb") as output:
 | 拆分 PDF | pypdf | 每个文件一页 |
 | 提取文本 | pdfplumber | `page.extract_text()` |
 | 提取表格 | pdfplumber | `page.extract_tables()` |
-| 创建 PDF | reportlab | Canvas 或 Platypus |
 | 命令行合并 | qpdf | `qpdf --empty --pages ...` |
 | OCR 扫描版 PDF | pytesseract | 先转换为图像 |
-| 填写 PDF 表单 | pdf-lib 或 pypdf（见 FORMS.md） | 见 FORMS.md |
 
 ## 后续步骤
 
-- 有关 pypdfium2 的高级用法，请参阅 REFERENCE.md
-- 有关 JavaScript 库（pdf-lib），请参阅 REFERENCE.md
-- 如果你需要填写 PDF 表单，请遵循 FORMS.md 中的说明
-- 有关故障排查指南，请参阅 REFERENCE.md
+- 提取异常时按 REFERENCE.md 排查；本项目流程内不需要创建/表单能力
 
 ## 执行检查点
 
 1. **输入保护**：操作前确认输入 PDF 可被目标库打开（`pypdf` / `pdfplumber` / `fitz`）；打不开时先诊断文件是否损坏或加密，不静默跳过。
 2. **提取完整性**：文本或表格提取后核对页数与关键内容；空提取时区分"扫描版（需 OCR）"与"真无内容"，不把扫描版误判为空文档。
 3. **合并/拆分验证**：合并或拆分后重新打开输出文件，核对页数与页面顺序；页数不符即回退重做。
-4. **表单填写校验**：填写 PDF 表单后重开输出文件，确认字段值已写入且文档未损坏（参考 FORMS.md 与 `check_fillable_fields.py`）。
 5. **OCR 门禁**：扫描版 OCR 后抽查至少一页文本质量，乱码或大量缺字时提高 DPI 重跑，不交付低质量 OCR 结果。
 6. **输出覆盖保护**：不覆盖输入文件与 Skill 文件；输出一律写用户 `PROJECT_ROOT`。
