@@ -529,10 +529,19 @@ def _appendix_doc_with_table(borders_kwargs):
     return doc
 
 
-def test_appendix_boxed_table_passes_h10():
+def test_appendix_boxed_table_fails_h10():
+    """方框代码表已取消：附录表只认三线表。"""
     doc = _appendix_doc_with_table(dict(
         top='single', bottom='single', left='single', right='single',
         insideH='single', insideV='nil'))
+    issues = _appendix_boxed_table_issues(doc)
+    assert len(issues) == 1 and "三线表" in issues[0]
+
+
+def test_appendix_three_line_table_passes_h10():
+    doc = _appendix_doc_with_table(dict(
+        top='single', bottom='single', left='nil', right='nil',
+        insideH='nil', insideV='nil'))
     assert _appendix_boxed_table_issues(doc) == []
 
 
@@ -546,4 +555,4 @@ def test_appendix_three_line_table_passes_h10():
 def test_appendix_borderless_table_fails_h10():
     doc = _appendix_doc_with_table(None)
     issues = _appendix_boxed_table_issues(doc)
-    assert len(issues) == 1 and "方框表或三线表" in issues[0]
+    assert len(issues) == 1 and "三线表" in issues[0]

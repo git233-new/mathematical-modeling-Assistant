@@ -25,7 +25,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 1. **篇幅与排版硬闸门**：须通过 `validate_paper_structure`，版式数值唯一权威见 `文档/样式统一规定.md`，阈值统一见 `文档/论文写作.md` 与 `contest_profile.py`（经 `paper_format.py` 重导出），本文件不再展开数值。
 2. **全文字体黑色**：所有 run 的**有效颜色**必须为黑色 RGB(0,0,0)——含样式继承链、超链接、文本框与页眉页脚；非黑即报错（修复"字体混乱/蓝标题"根因）。
 3. **身份/痕迹禁用词 0 命中（硬）**：全文（含表格）扫描 `FORBIDDEN_WORDS`（skill / WorkBuddy / 智能体 / 合并 / 融合两 / 两套解 / 底版 / 参考解 …），命中即拒；竞赛要求的 AI 工具使用声明（按 `文档/合规检查清单.md 附录 A`）不受此项拦截。口语主语词（我们/本文/该模型）**不是硬闸门**，属软规则，由去AI味指南在写作阶段约束。
-4. **表格形态**：正文表默认完整三线表（顶线+表头线+底线），三线表不宜呈现的大型数据表允许闭合方框表（四边外框、无内部竖线）；两线表、带竖线的网格表一律拒存。**附录**：代码表（附录B/C/D）用闭合方框表，附录A 支撑材料清单用三线表；附录表两种形态均合规，缺表线即拒（H10 闸门）。图表题注/公式/正文边界等其他格式细节的唯一权威见《文档/论文写作.md》。
+4. **表格形态**：正文表默认完整三线表（顶线+表头线+底线），三线表不宜呈现的大型数据表允许闭合方框表（四边外框、无内部竖线）；两线表、带竖线的网格表一律拒存。**附录**：只保留附录A 支撑材料清单，用三线表；缺表线即拒（H10 闸门）。代码不入论文。图表题注/公式/正文边界等其他格式细节的唯一权威见《文档/论文写作.md》。
 5. **模型建立节公式**：标题含"建立/建模"的小节必须 ≥1 个 oMath 公式，空缺即拒。
 6. **摘要数字密度**：摘要数字字符占比 >18% 拒存、>10% 预警。
 7. **结果与版式规则**：统一执行 `文档/论文写作.md`；机器校验统一执行 `tools/docx/core/paper_format.py`，运行结果统一执行 `tools/docx/core/result_contract.py`。本文件只规定流程，不重复阈值和校验细则。
@@ -87,7 +87,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 3. **全 Python 解题代码**：按 `文档/代码规范.md` 生成 `code/Q1.py`、`Q2.py`…（各小问独立运行入口）；**通用核心算法与核心模型放 `solve_common.py`**（可选：仅当确有赛题公共求解逻辑才建，只被 `Q<序号>.py` 复用；不放字体/颜色等样式配置）；**统一生图配置放 `viz.py`**（配色、字号、尺寸、导出格式的唯一入口，各问 import 调用，禁止各自另写绘图样式；确无图可免）；逻辑过重可拆 `Q<序号>_<描述>.py` 子模块，纯理论小问可无代码。**非解答脚本（`build_paper.py` 等）不以 `Q` 开头、不依赖 `solve_common.py`、不 import 任何 skill 模块（`python-docx` 排版就地内联，完全自包含）**；图片与结果文件一律中文命名。
 4. **真实运行与落盘**：Python 跑出的图片和数值写入 `results/图片/` 与 `results/数据/`，按 `文档/代码规范.md` 调用 `write_run_manifest()` 生成 `results/run_manifest.json`（同时传入 `manual_stats=load_spss_outputs(project)` 登记 SPSS 结果）；重跑覆盖。**SPSS 等人工工具**：人按赛题所需分析（配对 T、ANOVA 等）点菜单跑出统计量后，将数值登记进 `results/数据/spss_outputs.json`（`name/value/unit/tool`；如 t/p、F/η²、回归系数、Cohen's d）。登记细则与 gate 核对规则见**铁律 8**（唯一权威），此处不重复。
 5. **生成论文**：**动笔前必须先通读 `知识库/写作增强/去AI味指南.md`**（写法阶段自动加载，主语具体化/禁空泛主语等措辞规则以它为准）。按 `文档/论文写作.md` 组织内容，**写作必须有依据**——每个关键数字、图表与结论必须对应 `run_manifest.json` 登记的结果（或 `manual_stats`/SPSS 来源），无登记依据的表述一律不得写入，gate 会逐字核对并拒存。调用 `pf.preflight_check(outline)` 和 `save_document()`；论文文件交付由 `latex_export.export_latex_source` 同快照生成、**先落位的 `完整论文.tex`** 与随后原子发布的 `完整论文.docx`，不依赖 Word/LibreOffice 渲染。`save_document()` 按项目交付下限和内容等效篇幅执行硬校验，任何要求未达标都拒绝保存。模板提供版式基底（A4/边距/页码）与章节槽位，标题与正文的字体字号规格由 `paper_format._ensure_paper_styles` 统一注入（按模板要求：标题一律黑体），题目需要时允许增删改标题。`code/build_paper.py` **完全自包含**（`python-docx` 排版逻辑就地内联），不 import 任何 skill 模块，运行时不依赖 SKILL_ROOT；**不得 import 赛题 `solve_common.py` 或 `Q<序号>.py`**。
-   - 附录分两层：附录A 支撑材料（由 `run_manifest.json` 的 `source_scripts` + 数据文件自动生成清单）+ 附录B/C/D… 各小问核心代码（按 Q<序号> 聚类，代码表前补"表N"题注）。代码必须调用 `pf.append_code_files(project_root)` 自动渲染（按 `run_manifest.json` 的 `source_scripts` 反推被结果引用的 `code/*.py`，`solve_common.py`/`viz.py` 等公共模块一并入录；manifest 缺失时退回扫描 `code/Q*.py`），禁止用文字描述替代。整题纯理论（无解题代码）时附录B… 可空，但附录A 支撑材料段仍保留。
+   - 附录只保留**附录A 支撑材料清单**：由 `pf.append_code_files(project_root)` 按 `run_manifest.json` 的 `source_scripts` + 数据文件自动生成（`solve_common.py` 等公共模块与数据文件一并登记，排除 build_paper.py），代码本体不入论文、全部保留在 `code/` 目录。整题纯理论（无解题代码）时附录A 段仍保留并登记数据/说明。
 6. **评审—修改循环与收尾**：生成评审文件（`results/论文评审与分析.md`），依据评审修改并重新校验。最终 DOCX 写入并通过终态校验后，才清理中间文件并删除赛题目录中的 `论文模板.docx`；清理器按瘦身白名单收尾（`code/` 与 `results/数据/` 登记外文件清除，`.paper_work/` 整目录删除），保留 `results/` 登记产物、`code/` 白名单脚本、`files/` 原件和最终论文。完成这些步骤后，整个解题流程才结束。**收尾证据语言**：验证状态只允许引用 `project_audit.py` 与 `self_check.py` 的 exit code 和结论输出；禁止以任何叙述（"已通过/已完成/已核对"）作为完成依据——产物的机器校验结果是唯一权威。
 
 ### 用户建模思路优先

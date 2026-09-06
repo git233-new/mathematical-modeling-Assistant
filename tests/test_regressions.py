@@ -886,9 +886,11 @@ def test_appendix_support_materials_renders_three_line_table(tmp_path):
     doc = paper_format.new_document()
     assert paper_format._appendix_support_materials(doc, str(tmp_path)) is True
     table = doc.tables[-1]
-    assert [c.text for c in table.rows[0].cells] == ["文件/路径", "类型"]
+    assert [c.text for c in table.rows[0].cells] == ["文件/路径", "类型", "sha256（前 16 位）"]
     rows = [[c.text for c in r.cells] for r in table.rows[1:]]
-    assert ["code/Q1.py", "源码"] in rows and ["results/数据/result.csv", "数据"] in rows
+    assert ["code/Q1.py", "源码", "x"] in rows
+    csv_row = next(r for r in rows if r[0] == "results/数据/result.csv")
+    assert csv_row[1] == "数据" and len(csv_row[2]) == 16
     borders = table._tbl.tblPr.find(qn("w:tblBorders"))
     vals = {n.tag.rsplit("}", 1)[-1]: n.get(qn("w:val")) for n in borders}
     assert vals.get("top") == "single" and vals.get("bottom") == "single"

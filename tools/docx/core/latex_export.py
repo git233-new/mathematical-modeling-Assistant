@@ -12,7 +12,7 @@ DOCX 权威见 ``文档/样式统一规定.md``；本导出器只做结构级映
   无侧通道时回退拼接 m:oMath 文本，不转义）
 - 图片           → figure 环境 + \\includegraphics（文件名来自 DOCX 关系部件）
 - 题注           → \\caption*{图N …}，编号文字原样保留
-- 三线表         → booktabs 表格；附录代码方框表 → verbatim 块
+- 三线表         → booktabs 表格（附录仅支撑材料清单，无代码方框表）
 - 参考文献       → thebibliography 环境
 """
 import re
@@ -113,16 +113,6 @@ def _emit_table(tbl, caption=None):
     return '\n'.join(lines)
 
 
-def _emit_appendix_table(tbl):
-    lines = [r'\begin{verbatim}']
-    for row in tbl.rows:
-        text = ' '.join(cell.text.strip() for cell in row.cells)
-        if text:
-            lines.append(text)
-    lines.append(r'\end{verbatim}')
-    return '\n'.join(lines)
-
-
 def export_latex_source(doc, out_path, *, graphics_dir='results/图片'):
     """把 DOCX 内容快照导出为 LaTeX 源码文件；返回写出路径。"""
     items = []
@@ -132,7 +122,6 @@ def export_latex_source(doc, out_path, *, graphics_dir='results/图片'):
         elif child.tag == qn('w:tbl'):
             items.append(Table(child, doc._body))
     lines = [PREAMBLE.replace('{graphics_dir}', graphics_dir)]
-    in_appendix = False
     in_references = False
     bib_count = 0
     pending_figure = None
@@ -155,10 +144,7 @@ def export_latex_source(doc, out_path, *, graphics_dir='results/图片'):
     for item in items:
         if isinstance(item, Table):
             _flush_figure(lines)
-            if in_appendix:
-                lines.append(_emit_appendix_table(item))
-            else:
-                lines.append(_emit_table(item, pending_table_caption))
+            lines.append(_emit_table(item, pending_table_caption))
             pending_table_caption = None
             continue
         text = item.text.strip()
@@ -172,10 +158,6 @@ def export_latex_source(doc, out_path, *, graphics_dir='results/图片'):
             elif level == 1 and in_references:
                 lines.append(r'\end{thebibliography}')
                 in_references = False
-                if text.startswith('附录'):
-                    in_appendix = True
-            elif level == 1 and text.startswith('附录'):
-                in_appendix = True
             continue
         if in_references:
             if text:

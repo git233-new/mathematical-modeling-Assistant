@@ -1163,17 +1163,6 @@ def _docx_geometry_issues(doc):
     return issues
 
 
-def _project_has_code(project_root):
-    """赛题是否含解题代码：code/ 下存在非 build_paper 的 .py 即视为有代码。"""
-    if not project_root:
-        return False
-    code_dir = Path(project_root).resolve() / 'code'
-    if not code_dir.is_dir():
-        return False
-    return any(p.is_file() and p.name != 'build_paper.py' and p.suffix == '.py'
-               for p in code_dir.iterdir())
-
-
 def _appendix_size_issues(doc, project_root=None, *args, **kwargs):
     paragraphs = list(doc.paragraphs)
     start = next((i for i, p in enumerate(paragraphs) if _is_appendix_start(p.text)), None)
@@ -1188,18 +1177,20 @@ def _appendix_size_issues(doc, project_root=None, *args, **kwargs):
                 if t:
                     cell_texts.append(t)
     appendix_text = '\n'.join(para_texts + cell_texts)
-    has_code = _project_has_code(project_root)
+    # 2026 口径：附录只保留附录A 支撑材料清单，代码不入论文（全部在 code/ 目录）。
+    # 支撑材料清单条目以"· "开头，由 pf.append_code_files 从 run_manifest 自动生成。
     if not appendix_text:
-        if has_code:
-            return ['附录为空；附录应只放各小问最终核心代码']
-        return []
-    # 附录A 支撑材料段（含"· "清单条目）视为有效内容；代码检测聚焦附录B… 区
+        return ['附录为空；须含附录A 支撑材料清单（由 pf.append_code_files 自动生成）']
     has_support = any(p.text.strip().startswith('· ') for p in paragraphs[start + 1:])
-    has_code_table = any(p.text.strip().startswith('表') and '：' in p.text for p in paragraphs[start + 1:])
-    code_tokens = ('def ', 'class ', 'import ', 'return', ' = ', 'self.', 'for ', 'if ')
-    has_code_tokens = any(tok in appendix_text for tok in code_tokens)
-    if has_code and not has_code_tokens and not has_code_table:
-        return ['附录仅含文字说明，缺少核心代码（须用 pf.append_code_files 渲染真实代码）']
+    if not has_support:
+        # 附录A 清单两种合法形态：'· '条目段落，或 _appendix_support_materials 生成的三线表（表头'文件/路径'）
+        for table in doc.tables:
+            cells = table.rows[0].cells if table.rows and table.rows[0].cells else []
+            if cells and cells[0].text.strip() == '文件/路径':
+                has_support = True
+                break
+    if not has_support:
+        return ['附录缺少附录A 支撑材料清单（由 pf.append_code_files 从 run_manifest 自动生成）']
     return []
 
 
@@ -1491,13 +1482,12 @@ def _appendix_boxed_table_issues(doc):
         vals = {}
         if borders is not None:
             vals = {node.tag.rsplit('}', 1)[-1]: node.get(qn('w:val')) for node in borders}
-        boxed = vals.get('left') == 'single' and vals.get('right') == 'single'
         three_line = (
             vals.get('top') == 'single' and vals.get('bottom') == 'single'
             and vals.get('left') in (None, 'none', 'nil') and vals.get('right') in (None, 'none', 'nil')
         )
-        if not (boxed or three_line):
-            issues.append(f'附录表 {ti} 须为闭合方框表或三线表（缺外框/表线即拒）')
+        if not three_line:
+            issues.append(f'附录表 {ti} 须为三线表（附录只保留支撑材料清单，方框代码表已取消）')
     return issues
 
 
@@ -1767,6 +1757,37 @@ def _figure_table_lead_in_warnings(doc):
     return issues
 
 
+# W10 章节预算双向约束：各节字数超出预算表区间（±20% 容差）→ 预警（注水与偷工都拦）
+_SECTION_BUDGETS = (
+    (r"^一、\s*问题重述", 800, 1000, "问题重述"),
+    (r"^二、\s*问题分析", 1000, 1200, "问题分析"),
+    (r"^三、\s*模型假设", 300, 600, "模型假设"),
+    (r"^五、\s*模型建立与求解", 5000, 6000, "模型建立与求解"),
+    (r"^六、\s*模型检验与分析", 1300, 1500, "模型检验与分析"),
+    (r"^七、\s*模型评价与改进", 800, 1000, "模型评价与改进"),
+)
+_BUDGET_SLACK = 1.2
+
+
+def _section_budget_warnings(doc):
+    paras = [p.text.strip() for p in doc.paragraphs]
+    idx = [(i, tx) for i, tx in enumerate(paras) if re.match(r"^[一二三四五六七八九十]+、", tx)]
+    issues = []
+    for pi, (pattern, lo, hi, name) in enumerate(_SECTION_BUDGETS):
+        start = next((i for i, tx in idx if re.match(pattern, tx)), None)
+        if start is None:
+            continue
+        end = next((i for i, tx in idx if i > start and (pi + 1 >= len(_SECTION_BUDGETS) or i < idx[-1][0])), None)
+        nxt = next((i for i, tx in idx if i > start), None)
+        end = nxt if nxt is not None else len(paras)
+        chars = sum(len(x) for x in paras[start + 1:end])
+        if chars > hi * _BUDGET_SLACK:
+            issues.append(f"「{name}」约 {chars} 字，超出预算上限 {hi}（±20% 容差）——删减重复表述与空话，向预算表收敛；字数下限由全文 12222 统一兜底")
+        elif chars < lo / _BUDGET_SLACK:
+            issues.append(f"「{name}」约 {chars} 字，低于预算下限 {lo}（±20% 容差）——补实质推导/分析，不要等收尾凑字")
+    return issues
+
+
 def _soft_quality_warnings(doc, project_root):
     """聚合 W 类预警，统一加“预警：”前缀（不阻断交付）。"""
     ws = []
@@ -1780,6 +1801,7 @@ def _soft_quality_warnings(doc, project_root):
     ws += _plagiarism_warnings(doc, project_root)
     ws += _data_file_warnings(project_root)
     ws += _figure_table_lead_in_warnings(doc)
+    ws += _section_budget_warnings(doc)
     ws += _abstract_number_density_warnings(doc)
     return ['预警：' + w for w in ws]
 

@@ -1029,12 +1029,30 @@ def _appendix_support_materials(doc, project_root):
                          [p.relative_to(root).as_posix() for p in sorted((root / 'results' / '数据').glob('*')) if p.is_file()]
     heading2(doc, '附录A 支撑材料')
     if scripts or data_files:
-        rows = [['文件/路径', '类型']]
+        script_hash = {}
+        if isinstance(data, dict):
+            for item in data.get('source_scripts', []) or []:
+                if isinstance(item, dict):
+                    pth = str(item.get('path', '')).replace(chr(92), '/')
+                    if pth:
+                        script_hash[pth] = str(item.get('sha256', ''))[:16]
+
+        def _hash(rel):
+            h = script_hash.get(rel)
+            if not h:
+                fp = root / rel
+                if fp.is_file():
+                    h = _file_sha256(fp)[:16]
+            return h or '—'
+        rows = [['文件/路径', '类型', 'sha256（前 16 位）']]
         for entry in sorted(set(scripts)):
-            rows.append([entry, '源码'])
+            rows.append([entry, '源码', _hash(entry)])
         for entry in sorted(set(data_files)):
-            rows.append([entry, '工具链' if entry.endswith('.json') else '数据'])
+            kind = '工具链' if entry.endswith('.json') else '数据'
+            rows.append([entry, kind, _hash(entry)])
         three_line_table(doc, rows)
+        paragraph(doc, '注：完整哈希与来源脚本见 results/run_manifest.json；核心代码以文件形式保留于 code/ 目录，不随论文排版。',
+                  style_name=BODY_STYLE)
         return True
     paragraph(doc, '（支撑材料清单由 run_manifest.json 自动生成；此处暂无登记，请作者补充可运行源码与数据文件清单）',
               style_name=BODY_STYLE)
@@ -1042,68 +1060,15 @@ def _appendix_support_materials(doc, project_root):
 
 
 def append_code_files(doc, project_root, patterns=('code/Q*.py',)):
-    """将各小问核心代码渲染进附录（附录代码的唯一正规来源），按附录A/B/C/D 分区。
+    """渲染论文附录：只写附录A 支撑材料清单（2026 口径，代码附录已取消）。
 
-    结构：
-    - 附录A 支撑材料：由 `results/run_manifest.json` 的 source_scripts + 数据文件自动生成清单
-      （调用 `_appendix_support_materials`），非空赛题必有实质内容。
-    - 附录B/C/D… 各小问核心代码：按文件名 Q<序号> 聚类（规范命名 Q1.py、Q2.py…），每个题区下挂 heading3 文件名 +
-      带行号等宽代码表，表前补居中"表N：<文件名>核心代码"题注（满足 H11 题注格式、消除跳号感）。
-
-    优先按 run_manifest.source_scripts 反推被结果实际引用过的 code/*.py（公共模块 solve_common.py、
-    viz.py 若被引用也进附录），排除 build_paper.py；manifest 缺失或无脚本时退回按 patterns 扫描
-    （默认 code/Q*.py）。
-    逐文件去除空行与整行注释后渲染。禁止用文字说明替代真实代码。
+    附录A 由 `results/run_manifest.json` 的 source_scripts + 数据文件自动生成清单
+    （调用 `_appendix_support_materials`），非空赛题必有实质内容。
+    各小问核心代码**不再进入论文**，全部保留在 PROJECT_ROOT/code/ 目录
+    （Q<序号>_*.py + solve_common.py 等），支撑材料清单会登记其文件名与哈希。
+    保留函数名与签名以兼容既有调用方；patterns 参数已无效（仅保留签名兼容）。
     """
-    root = Path(project_root)
-    files = []
-    manifest = root / 'results' / 'run_manifest.json'
-    if manifest.is_file():
-        try:
-            data = json.loads(manifest.read_text(encoding='utf-8'))
-        except (OSError, ValueError):
-            data = None
-        if data and isinstance(data.get('source_scripts'), list):
-            scripts = []
-            for item in data['source_scripts']:
-                if isinstance(item, str):
-                    scripts.append(item)
-                elif isinstance(item, dict):
-                    p = str(item.get('path', '')).replace('\\', '/')
-                    if p:
-                        scripts.append(p)
-            files = [root / s for s in scripts
-                     if s.startswith('code/') and not s.endswith('build_paper.py')]
-            files = sorted(set(files))
-    if not files:
-        for pat in patterns:
-            files.extend(sorted(root.glob(pat)))
-    # 附录A 支撑材料（始终先写，与代码区隔离）
     _appendix_support_materials(doc, project_root)
-    if not files:
-        return
-    # 按 Q 序号聚类到 附录B/C/D…
-    groups = {}
-    for f in files:
-        m = re.match(r'Q(\d+)', f.name)
-        q = m.group(1) if m else '0'
-        groups.setdefault(q, []).append(f)
-    for gi, q in enumerate(sorted(groups, key=lambda x: (x == '0', x)), start=1):
-        label = '附录' + chr(ord('A') + gi) if gi <= 27 else f'附录{gi}'
-        heading2(doc, f'{label} Q{q}核心代码' if q != '0' else f'{label} 核心代码')
-        for f in groups[q]:
-            heading3(doc, f.name)
-            src = f.read_text(encoding='utf-8', errors='ignore').splitlines()
-            core = [ln.rstrip() for ln in src if ln.strip() and not ln.strip().startswith('#')]
-            # 表前补"表N"题注（H11 格式：表N：xxx）
-            # 表前补"表N"题注（H11 格式：表N：xxx）；样式不存在时降级为普通段落
-            try:
-                caption = paragraph(doc, f'表{_next_table_index(doc)}：{f.name}核心代码',
-                                    style_name=CAPTION_STYLE)
-            except KeyError:
-                caption = paragraph(doc, f'表{_next_table_index(doc)}：{f.name}核心代码')
-            caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            code_listing_table(doc, core, with_lineno=True)
 
 
 def _next_table_index(doc):
