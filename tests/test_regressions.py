@@ -1,5 +1,6 @@
 import io
 import json
+import pathlib
 import subprocess
 import sys
 import zipfile
@@ -702,7 +703,7 @@ def test_export_latex_source_covers_core_elements(tmp_path):
     assert r"\end{document}" in text
 
 
-def test_save_document_writes_latex_source_first(tmp_path, monkeypatch):
+def test_save_document_writes_latex_source_first(tmp_path, monkeypatch, capsys):
     """save_document 在 DOCX 交付前先写出完整论文.tex（同一内容快照）。"""
     import tools.docx.core.structure_validation as sv
 
@@ -716,6 +717,32 @@ def test_save_document_writes_latex_source_first(tmp_path, monkeypatch):
     assert tex.exists()
     assert "论文题目" in tex.read_text(encoding="utf-8")
     assert r"\end{document}" in tex.read_text(encoding="utf-8")
+    err_lines = [l for l in capsys.readouterr().err.splitlines() if l.strip()]
+    assert len(err_lines) == 1
+    payload = json.loads(err_lines[0])
+    assert payload["stage"] == "delivered" and payload["path"].endswith("完整论文.docx")
+
+
+def test_save_document_tex_publish_is_atomic(tmp_path, monkeypatch):
+    """tex 落位用 os.replace 原子替换：replace 失败时旧 tex 完整保留、无 .tmp 残留。"""
+    import os
+    import tools.docx.core.structure_validation as sv
+
+    monkeypatch.setattr(sv, "validate_paper_structure", lambda *a, **k: [])
+    doc = paper_format.new_document()
+    paper_format.title(doc, "论文题目")
+    paper_format.body(doc, "正文内容。")
+    paper_format.save_document(doc, tmp_path, overwrite=True)
+    tex = tmp_path / "完整论文.tex"
+    old_content = tex.read_text(encoding="utf-8")
+
+    def _blocked(src, dst):
+        raise PermissionError("目标被占用")
+    monkeypatch.setattr(os, "replace", _blocked)
+    with pytest.raises(PermissionError):
+        paper_format.save_document(doc, tmp_path, overwrite=True)
+    assert tex.read_text(encoding="utf-8") == old_content
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 def test_reference_year_gate_ignores_doi_and_page_digits():
@@ -836,3 +863,55 @@ def test_plot_pitfall_warnings_flags_pie_twinx_jet(tmp_path):
     )
     ws2 = _plot_pitfall_warnings(tmp_path)
     assert len(ws2) == 3 and all("viz.py" in w for w in ws2)
+
+
+# ===== 新版契约补充覆盖 =====
+
+def test_appendix_support_materials_renders_three_line_table(tmp_path):
+    """附录A 支撑材料清单渲染为三线表（表头 文件/路径|类型），过 H10 与三线闸门。"""
+    from tools.docx.core.structure_validation import (
+        _appendix_boxed_table_issues,
+        _three_line_table_issues,
+    )
+    manifest_dir = tmp_path / "results" / "数据"
+    manifest_dir.mkdir(parents=True)
+    (tmp_path / "results" / "run_manifest.json").write_text(
+        json.dumps({"schema_version": 1,
+                    "source_scripts": [{"path": "code/Q1.py", "sha256": "x"}]}), encoding="utf-8")
+    (manifest_dir / "result.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    doc = paper_format.new_document()
+    assert paper_format._appendix_support_materials(doc, str(tmp_path)) is True
+    table = doc.tables[-1]
+    assert [c.text for c in table.rows[0].cells] == ["文件/路径", "类型"]
+    rows = [[c.text for c in r.cells] for r in table.rows[1:]]
+    assert ["code/Q1.py", "源码"] in rows and ["results/数据/result.csv", "数据"] in rows
+    borders = table._tbl.tblPr.find(qn("w:tblBorders"))
+    vals = {n.tag.rsplit("}", 1)[-1]: n.get(qn("w:val")) for n in borders}
+    assert vals.get("top") == "single" and vals.get("bottom") == "single"
+    assert vals.get("left") in (None, "none", "nil") and vals.get("right") in (None, "none", "nil")
+    assert _three_line_table_issues(doc) == []
+    assert _appendix_boxed_table_issues(doc) == []
+
+
+def test_nine_step_verification_no_report_by_default(tmp_path):
+    """9 步验收默认不落盘（瘦身）；显式 write_report=True 才写报告。"""
+    from tools.project_ops.nine_step_verification import run_verification
+    (tmp_path / "results").mkdir()
+    run_verification(tmp_path, paper_text="一、问题重述\n测试正文。")
+    assert not (tmp_path / "results" / "论文验收报告.md").exists()
+    run_verification(tmp_path, paper_text="一、问题重述\n测试正文。", write_report=True)
+    assert (tmp_path / "results" / "论文验收报告.md").exists()
+
+
+def test_soft_doc_structure_markers():
+    """软文档结构标记：去AI味 8 节无 humanizer 附录；算法资料 7 卡；建模通用规范=防错速查；模板并入设计原则。"""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    deai = (root / "知识库/写作增强/去AI味指南.md").read_text(encoding="utf-8")
+    assert "## 八、通用去 AI 味模式速查" in deai and "humanizer 附录" not in deai
+    algo_cards = list((root / "知识库/算法资料").glob("*.md"))
+    assert len(algo_cards) == 7
+    assert all("选型卡" in f.read_text(encoding="utf-8") for f in algo_cards)
+    general = (root / "知识库/建模通用规范.md").read_text(encoding="utf-8")
+    assert "题型防错速查" in general and "2analysis-modeling" not in general
+    design = (root / "知识库/方法库/设计原则.md").read_text(encoding="utf-8")
+    assert "分层方法卡模板" in design

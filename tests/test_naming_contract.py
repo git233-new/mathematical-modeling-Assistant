@@ -47,6 +47,7 @@ class TestAppendCodeFilesPattern:
         code.mkdir()
         (code / "Q1.py").write_text("# c\ndef solve():\n    return 1\n", encoding="utf-8")
         (code / "Q2.py").write_text("def f():\n    return 2\n", encoding="utf-8")
+        (code / "Q1_求解.py").write_text("def g():\n    return 3\n", encoding="utf-8")  # 合法子模块
         (code / "viz.py").write_text("def plot():\n    pass\n", encoding="utf-8")  # 生图配置，不进附录
         (code / "build_paper.py").write_text("print('x')\n", encoding="utf-8")
         (code / "common.py").write_text("def u():\n    return 3\n", encoding="utf-8")
@@ -56,6 +57,7 @@ class TestAppendCodeFilesPattern:
         headings = [p.text for p in doc.paragraphs if p.text]
         assert 'Q1.py' in headings
         assert 'Q2.py' in headings
+        assert any('Q1_求解.py' in h for h in headings)
         assert '附录A 支撑材料' in headings
         assert any('附录B' in h for h in headings)
         assert any('表' in h and '核心代码' in h for h in headings)

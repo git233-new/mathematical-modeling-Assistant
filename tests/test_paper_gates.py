@@ -17,6 +17,7 @@ from docx.shared import RGBColor
 from tools.docx.core import paper_format as pf
 from tools.docx.core.structure_validation import (
     _three_line_table_issues,
+    _appendix_boxed_table_issues,
     _abstract_number_density_issues,
     _abstract_number_density_warnings,
     _model_section_formula_issues,
@@ -157,7 +158,8 @@ def test_full_horizontal_grid_flagged():
     assert len(issues) == 1 and '表 1' in issues[0]
 
 
-def test_boxed_appendix_table_passes():
+def test_boxed_table_passes_anywhere():
+    # 方框表在正文/附录均合规（大型数据表场景）；位置无关
     doc = Document()
     t = doc.add_table(rows=2, cols=2)
     set_borders(t, top='single', bottom='single', left='single', right='single',
@@ -495,3 +497,53 @@ def test_clipped_object_gate_allows_multiple_spacing_objects():
     pf.equation(doc, "y = kx + b", number="(1)")
     issues = pf._clipped_object_issues(doc)
     assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# 禁用词硬/软边界（口语主语词放行，痕迹词硬拦）
+# ---------------------------------------------------------------------------
+
+def test_sanitize_text_blocks_trace_words():
+    """痕迹词（合规红线）必须拒写。"""
+    for bad in ("本方案由 skill 生成", "两套解取最优", "这是标准解", "内容有合并", "WorkBuddy 辅助"):
+        with pytest.raises(ValueError, match="禁用词"):
+            pf.sanitize_text(bad)
+
+
+def test_sanitize_text_allows_subject_words():
+    """我们/本文/该模型/本研究 已移出硬闸门——交由去AI味指南软约束。"""
+    for ok in ("我们通过实验验证了模型", "本文建立双层优化模型", "该模型收敛较快", "本研究采用控制变量法"):
+        assert pf.sanitize_text(ok) == ok  # 无替换逻辑，原样通过
+
+
+# ---------------------------------------------------------------------------
+# H10 附录表形态三态（方框 PASS / 三线 PASS / 缺线 FAIL）
+# ---------------------------------------------------------------------------
+
+def _appendix_doc_with_table(borders_kwargs):
+    doc = Document()
+    doc.add_paragraph("附录A 支撑材料")
+    t = doc.add_table(rows=2, cols=2)
+    if borders_kwargs:
+        set_borders(t, **borders_kwargs)
+    return doc
+
+
+def test_appendix_boxed_table_passes_h10():
+    doc = _appendix_doc_with_table(dict(
+        top='single', bottom='single', left='single', right='single',
+        insideH='single', insideV='nil'))
+    assert _appendix_boxed_table_issues(doc) == []
+
+
+def test_appendix_three_line_table_passes_h10():
+    doc = _appendix_doc_with_table(dict(
+        top='single', bottom='single', left='nil', right='nil',
+        insideH='nil', insideV='nil'))
+    assert _appendix_boxed_table_issues(doc) == []
+
+
+def test_appendix_borderless_table_fails_h10():
+    doc = _appendix_doc_with_table(None)
+    issues = _appendix_boxed_table_issues(doc)
+    assert len(issues) == 1 and "方框表或三线表" in issues[0]

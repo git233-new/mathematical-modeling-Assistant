@@ -1026,7 +1026,7 @@ def _appendix_support_materials(doc, project_root):
                     scripts.append(p)
             data_files = [d.get('source') or d.get('path') for d in (data.get('tables', []) or [])
                           if isinstance(d, dict)] + \
-                         [str(p) for p in sorted((root / 'results' / '数据').glob('*')) if p.is_file()]
+                         [p.relative_to(root).as_posix() for p in sorted((root / 'results' / '数据').glob('*')) if p.is_file()]
     heading2(doc, '附录A 支撑材料')
     if scripts or data_files:
         rows = [['文件/路径', '类型']]
@@ -1085,7 +1085,7 @@ def append_code_files(doc, project_root, patterns=('code/Q*.py',)):
     # 按 Q 序号聚类到 附录B/C/D…
     groups = {}
     for f in files:
-        m = re.match(r'code[/\\\\]Q(\d+)', str(f).replace('\\', '/'))
+        m = re.match(r'Q(\d+)', f.name)
         q = m.group(1) if m else '0'
         groups.setdefault(q, []).append(f)
     for gi, q in enumerate(sorted(groups, key=lambda x: (x == '0', x)), start=1):
