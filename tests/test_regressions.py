@@ -1,5 +1,7 @@
 import io
 import json
+
+from docx.oxml.ns import qn
 import pathlib
 import subprocess
 import sys
