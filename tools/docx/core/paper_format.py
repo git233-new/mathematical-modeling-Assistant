@@ -711,7 +711,7 @@ def force_black_fonts(doc):
                 color_el.attrib.pop(qn('w:themeColor'), None)
             fixed += 1
     return fixed
-FORBIDDEN_WORDS = ('WorkBuddy', 'workbuddy', 'skill', 'Skill', '智能体', '合并', '融合两', '两套解', '两份解', '两个解', '底版', '取舍', '另一份', '参考解', '标准解', '对着标准', '对着参考', '我们', '本文', '本研究', '该模型')
+FORBIDDEN_WORDS = ('WorkBuddy', 'workbuddy', 'skill', 'Skill', '智能体', '合并', '融合两', '两套解', '两份解', '两个解', '底版', '取舍', '另一份', '参考解', '标准解', '对着标准', '对着参考', '我们', '本文', '该模型')
 
 # AI 味通用痕迹正则（K1–K5，全题通用，不针对某一题）
 AI_TASTE_PATTERNS = [
