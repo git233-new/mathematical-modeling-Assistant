@@ -53,7 +53,7 @@ PROCESS_NAME_MARKERS = (
 # 瘦身白名单（只对 code/ 与 results/数据/ 生效）：非白名单项即过程物，交付时清理。
 # files/ 与项目根层永不适用白名单。与 SKILL.md 交付契约保持一致。
 CODE_KEEP_RE = re.compile(r"^(Q\d+(?:_.+)?\.py|solve_common\.py|viz\.py|build_paper\.py|requirements\.txt)$")
-DATA_ALWAYS_KEEP = {"spss_outputs.json"}
+DATA_ALWAYS_KEEP = {"spss_outputs.json", "文献检索.json"}
 REPRODUCIBLE_SCRIPT_NAME = "build_paper.py"
 # 解题公共模块名：仅被 Q<序号>.py 复用，build_paper.py 等非解答脚本不得依赖
 SOLUTION_COMMON_NAME = "solve_common.py"

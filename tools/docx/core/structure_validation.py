@@ -1630,6 +1630,25 @@ def _plagiarism_warnings(doc, project_root, corpus_dir=None):
     corpus_text = chr(10).join(
         f.read_text(encoding='utf-8', errors='replace')
         for f in sorted(corpus.glob('*.md')))
+    # 网络检索所得文献的登记文件（标题+摘要）一并纳入查重语料：网查内容只可少量引用，禁止整段照搬
+    lit_log = Path(project_root).resolve() / 'results' / '数据' / '文献检索.json'
+    if lit_log.is_file():
+        try:
+            payload = json.loads(lit_log.read_text(encoding='utf-8', errors='replace'))
+        except (OSError, ValueError):
+            payload = {}
+        strings = []
+        def _collect(node):
+            if isinstance(node, str):
+                strings.append(node)
+            elif isinstance(node, dict):
+                for v in node.values():
+                    _collect(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _collect(v)
+        _collect(payload)
+        corpus_text += chr(10) + chr(10).join(strings)
     norm = lambda s: re.sub(r'[\s，。；：、（）()\[\]""'']', '', s)
     corpus_norm = norm(corpus_text)
     corpus_shingles = {corpus_norm[i:i + _PLAGIARISM_SHINGLE]

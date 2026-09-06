@@ -937,3 +937,18 @@ def test_plagiarism_warnings_detects_corpus_overlap(tmp_path):
     clean.add_paragraph("参考文献")
     clean.add_paragraph("这是一个用于查重测试的案例库文本，其中包含一段足够长的独特句子用来触发雷同检测逻辑。")
     assert _plagiarism_warnings(clean, str(tmp_path), corpus_dir=corpus) == []
+
+
+def test_plagiarism_warnings_include_literature_log(tmp_path):
+    """W7 语料含 results/数据/文献检索.json：网查文献摘要被整段照搬 → 预警。"""
+    from tools.docx.core.structure_validation import _plagiarism_warnings
+    lit = tmp_path / "results" / "数据"
+    lit.mkdir(parents=True)
+    quote = "网络检索所得文献的独特摘要句子，用于验证查重语料扩展逻辑是否覆盖登记文件。"
+    (lit / "文献检索.json").write_text(
+        json.dumps({"verified": [{"title": "某文献", "abstract": quote}]}), encoding="utf-8")
+    doc = Document()
+    doc.add_paragraph("本文直接照搬：" + quote)
+    doc.add_paragraph("参考文献")
+    ws = _plagiarism_warnings(doc, str(tmp_path))
+    assert len(ws) == 1 and "连续 20 字雷同" in ws[0]
