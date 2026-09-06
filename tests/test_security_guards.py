@@ -3,6 +3,7 @@
 这些函数是 skill 的安全边界，此前零测试覆盖；本文件锁定其契约行为，
 防止后续改动引入越权删除、路径误判或解析面回归。
 """
+import warnings
 import zipfile
 from pathlib import Path
 
@@ -193,9 +194,12 @@ def test_completeness_fails_on_missing_contract_file(tmp_path):
 
 def test_zip_rejects_duplicate_members(tmp_path):
     zp = tmp_path / "dup.zip"
-    with zipfile.ZipFile(zp, "w") as zf:
-        zf.writestr("a/b.xml", "1")
-        zf.writestr("a/b.xml", "2")
+    with warnings.catch_warnings():
+        # 重复条目是本用例故意构造的，zipfile 的 UserWarning 属预期噪音
+        warnings.simplefilter("ignore", UserWarning)
+        with zipfile.ZipFile(zp, "w") as zf:
+            zf.writestr("a/b.xml", "1")
+            zf.writestr("a/b.xml", "2")
     with zipfile.ZipFile(zp) as zf:
         with pytest.raises(ValueError, match="重名成员"):
             safe_extract_zip(zf, tmp_path / "out")
