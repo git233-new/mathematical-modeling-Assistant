@@ -131,7 +131,7 @@ def _is_process_script(path: Path) -> bool:
     return any(marker in stem for marker in PROCESS_NAME_MARKERS)
 
 
-def collect_candidates(project: Path) -> list[Path]:
+def collect_candidates(project: Path, whitelist=frozenset()) -> list[Path]:
     candidates = []
     for path in project.iterdir():
         if path.name in ROOT_FILES:
@@ -155,7 +155,7 @@ def collect_candidates(project: Path) -> list[Path]:
             candidates.append(path)
         elif path.is_file() and _is_process_script(path):
             candidates.append(path)
-    candidates += _collect_whitelist_overruns(project)
+    candidates += whitelist
     paper_work = project / PAPER_WORK_DIR
     if paper_work.is_dir():
         candidates.append(paper_work)
@@ -244,12 +244,12 @@ def plan_cleanup(project: Path) -> tuple[list[Path], list[str]]:
     杜绝"预览列出受保护文件、执行时却跳过"的误导。
     """
     protected = tuple(project / name for name in PROTECTED_ITEMS)
-    candidates = collect_candidates(project)
+    whitelist = frozenset(p.resolve() for p in _collect_whitelist_overruns(project))
+    candidates = collect_candidates(project, whitelist)
     template = project / DELIVERY_TEMPLATE_NAME
     if template.is_file():
         candidates.append(template)
 
-    whitelist = frozenset(p.resolve() for p in _collect_whitelist_overruns(project))
     targets: list[Path] = []
     rejected: list[str] = []
     for path in candidates:

@@ -1532,7 +1532,7 @@ def save_document(
     manifest_image_paths = _manifest_figure_paths(project)
     ensure_page_numbers(doc)
     force_black_fonts(doc)
-    sweep_notes = list(auto_clean_code(project))
+    sweep_count = len(auto_clean_code(project))
     issues = validate_paper_structure(doc, contest, require_rendered_pages=False, project_root=project)
     hard_errors = [i for i in issues if not i.startswith('预警：')]
     warnings = [w for w in issues if w.startswith('预警：')]
@@ -1577,7 +1577,7 @@ def save_document(
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
     print(json.dumps({'stage': 'delivered', 'path': str(output), 'warnings': len(warnings),
-                      'auto_sweep': len(sweep_notes)}), file=sys.stderr, flush=True)
+                      'auto_sweep': sweep_count}), file=sys.stderr, flush=True)
     return output
 
 def preflight_check(outline):
