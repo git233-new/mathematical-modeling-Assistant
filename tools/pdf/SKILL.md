@@ -202,7 +202,7 @@ pdfimages -j input.pdf output_prefix
 
 ## 后续步骤
 
-- 提取异常时按 REFERENCE.md 排查；本项目流程内不需要创建/表单能力
+- 提取异常时按 reference.md 排查；本项目流程内不需要创建/表单能力
 
 ## 执行检查点
 
