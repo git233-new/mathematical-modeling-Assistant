@@ -1491,8 +1491,13 @@ def _appendix_boxed_table_issues(doc):
         vals = {}
         if borders is not None:
             vals = {node.tag.rsplit('}', 1)[-1]: node.get(qn('w:val')) for node in borders}
-        if vals.get('left') != 'single' or vals.get('right') != 'single':
-            issues.append(f'附录表 {ti} 须使用闭合方框样式（含左右外框），与正文三线表区分')
+        boxed = vals.get('left') == 'single' and vals.get('right') == 'single'
+        three_line = (
+            vals.get('top') == 'single' and vals.get('bottom') == 'single'
+            and vals.get('left') in (None, 'none', 'nil') and vals.get('right') in (None, 'none', 'nil')
+        )
+        if not (boxed or three_line):
+            issues.append(f'附录表 {ti} 须为闭合方框表或三线表（缺外框/表线即拒）')
     return issues
 
 

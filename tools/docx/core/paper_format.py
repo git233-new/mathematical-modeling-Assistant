@@ -1029,9 +1029,12 @@ def _appendix_support_materials(doc, project_root):
                          [str(p) for p in sorted((root / 'results' / '数据').glob('*')) if p.is_file()]
     heading2(doc, '附录A 支撑材料')
     if scripts or data_files:
-        listing = sorted(set(scripts + data_files))
-        for entry in listing:
-            paragraph(doc, f'· {entry}', style_name=BODY_STYLE)
+        rows = [['文件/路径', '类型']]
+        for entry in sorted(set(scripts)):
+            rows.append([entry, '源码'])
+        for entry in sorted(set(data_files)):
+            rows.append([entry, '数据'])
+        three_line_table(doc, rows)
         return True
     paragraph(doc, '（支撑材料清单由 run_manifest.json 自动生成；此处暂无登记，请作者补充可运行源码与数据文件清单）',
               style_name=BODY_STYLE)
