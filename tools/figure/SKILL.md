@@ -22,7 +22,7 @@ figure/
 
 ## 快速路径
 
-1. 在 `references/figure-catalog.md` 中匹配所请求的图表。
+1. 在 `references/图表选型与论证.md` 匹配所请求的图表（先答论证意图，再选图型；避坑对照 `references/画图避坑清单.md`）。
 2. 从仓库根目录运行渲染器，并带上模板 id 与项目目录：
 
 ```bash
@@ -94,11 +94,11 @@ python tools/figure/runtime/audit_pdf_text.py <图件.pdf> --min-pt 5
 - PNG/PDF/SVG 导出。
 - 清晰可读的标签、图例以及高 DPI 输出。
 
-实现模式可参考 `references/figure-catalog.md` 中的模板配方。
+实现模式可参考 `references/图表选型与论证.md` 中的模板目录。
 
 ## 执行检查点
 
-1. **模板匹配**：先在 `references/figure-catalog.md` 匹配请求的图表；无匹配模板时告知用户并给出最接近候选，不硬套无关模板。
+1. **模板匹配**：先在 `references/图表选型与论证.md` 匹配请求的图表；无匹配模板时告知用户并给出最接近候选，不硬套无关模板。
 2. **渲染成功门禁**：`runtime/render_template.py` 运行后确认 PNG/PDF/SVG 三种输出均生成；缺失任一格式则修复后重跑。
 3. **定制保留项**：编辑工作区副本时保留 `MPLCONFIGDIR` 设置、确定性随机种子、三格式导出和高 DPI；缺少任一保留项视为定制失败，回退到打包脚本重做。
 4. **数据声明**：打包脚本使用确定性的模拟数据，不声称模拟数值精确复现某项源研究。

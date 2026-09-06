@@ -1594,6 +1594,28 @@ def _plot_font_warnings(project_root):
     return issues
 
 
+# W6 出图经典坑预警（对照 tools/figure/references/画图避坑清单.md：P2 双 Y 轴 / P3 饼图 / P14 jet 色图）
+def _plot_pitfall_warnings(project_root):
+    if not project_root:
+        return []
+    root = Path(project_root).resolve()
+    code_dir = root / 'code'
+    if not code_dir.is_dir():
+        return []
+    checks = (
+        (r'twinx\s*\(', 'P2 双 Y 轴——两轴尺度可任意调，对比结论不可信；改散点或上下双子图'),
+        (r'\.pie\s*\(', 'P3 饼图——人眼辨长度比角度准，改横向柱状/堆叠柱状'),
+        (r"cmap\s*=\s*['\"]?(jet|rainbow|hsv|nipy_spectral)", 'P14 rainbow/jet 色图——感知不均匀产生虚假边界；改 viridis/RdBu_r'),
+    )
+    issues = []
+    for py in code_dir.glob('*.py'):
+        text = py.read_text(encoding='utf-8', errors='replace')
+        for pattern, advice in checks:
+            if re.search(pattern, text):
+                issues.append(f'绘图脚本 {py.name} 命中画图避坑清单：{advice}')
+    return issues
+
+
 def _soft_quality_warnings(doc, project_root):
     """聚合 W 类预警，统一加“预警：”前缀（不阻断交付）。"""
     ws = []
@@ -1602,6 +1624,7 @@ def _soft_quality_warnings(doc, project_root):
     ws += _flowchart_caption_warnings(doc)
     ws += _no_image_formula_warnings(doc)
     ws += _plot_font_warnings(project_root)
+    ws += _plot_pitfall_warnings(project_root)
     ws += _abstract_number_density_warnings(doc)
     return ['预警：' + w for w in ws]
 

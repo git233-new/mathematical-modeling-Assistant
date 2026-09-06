@@ -17,7 +17,8 @@ figure/
 ├── templates/               # 可运行图表模板
 └── references/              # 通用图表目录、教程、配方和 Nature-inspired 契约
     ├── 中文可视化指南.md
-    ├── figure-catalog.md
+    ├── 图表选型与论证.md（含模板目录）
+    ├── 画图避坑清单.md
     └── nature-figure-contract.md
 ```
 

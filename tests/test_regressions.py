@@ -16,6 +16,7 @@ from tools.project_ops.case_retrieval import (
 )
 from tools.common.io_utils import safe_extract_zip
 from tools.docx.core import paper_format
+from tools.docx.core.structure_validation import _plot_pitfall_warnings
 from tools.docx.core import paper_workflow
 from tools.paper_search.scripts.hybrid_scholar import (
     CrossrefMetadata,
@@ -815,3 +816,23 @@ def test_cleanup_removes_paper_work_dir(tmp_path):
 
     targets, _ = plan_cleanup(tmp_path)
     assert pw in targets
+
+
+def test_plot_pitfall_warnings_flags_pie_twinx_jet(tmp_path):
+    """W6 画图坑预警：饼图/双Y轴/jet 色图触发 W 级预警，干净脚本不触发。"""
+    code = tmp_path / "code"
+    code.mkdir()
+    (code / "viz.py").write_text(
+        "import matplotlib.pyplot as plt\n"
+        "plt.pie([1, 2])\n"
+        "ax = plt.gca().twinx()\n"
+        "cmap = 'jet'\n",
+        encoding="utf-8",
+    )
+    ws = _plot_pitfall_warnings(tmp_path)
+    assert len(ws) == 3 and all("画图避坑清单" in w for w in ws)
+    (code / "clean.py").write_text(
+        "import matplotlib.pyplot as plt\nplt.plot([1, 2], cmap_v='viridis')\n", encoding="utf-8"
+    )
+    ws2 = _plot_pitfall_warnings(tmp_path)
+    assert len(ws2) == 3 and all("viz.py" in w for w in ws2)

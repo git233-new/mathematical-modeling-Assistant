@@ -107,7 +107,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 | 文献检索 | `tools/paper_search/`（OpenAlex 发现 + Crossref 书目信息核验；仅 `citation_ready=true` 条目进入参考文献，正文观点仍须核对原文） |
 | 题目 PDF | `tools/pdf/` |
 | 数据处理 / Excel | `tools/xlsx/` |
-| 出图（全中文） | `tools/figure/`（`registry.py` 按名发现/渲染、`tools/figure/runtime/mm_style.py` 中文样式、`tools/figure/runtime/audit_figures.py` 自检、`tools/figure/references/nature-figure-contract.md` 规范与质量门禁、`知识库/方法库/图表规范.md`） |
+| 出图（全中文） | `tools/figure/`（`references/图表选型与论证.md` 先答论证意图再选图、`references/画图避坑清单.md` 18 条坑对照、`registry.py` 按名发现/渲染、`tools/figure/runtime/mm_style.py` 中文样式、`tools/figure/runtime/audit_figures.py` 自检、`tools/figure/references/nature-figure-contract.md` 规范与质量门禁、`知识库/方法库/图表规范.md`） |
 | 论文生成 | `tools/docx/` |
 | 竞赛合规 | `文档/合规检查清单.md`（核验，含附录 A 官方 AI 规定原文） |
 
