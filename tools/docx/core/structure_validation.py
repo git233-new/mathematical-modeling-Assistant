@@ -1747,20 +1747,20 @@ def _figure_table_context_warnings(doc):
 
 # W9 图表引出：每个 图N/表N 前必须有一行文字引出（说明展示什么、为何此处出现），禁止紧跟标题或连续堆图
 def _figure_table_lead_in_warnings(doc):
-    cap = re.compile(r'^[图表]\s*\d+')  # 题注 = 图/表N 开头且不超过 30 字（引出句是完整长句）
+    cap = re.compile(r'^[图表]\s*\d+')  # 题注 = 图/表N 开头且不超过 25 字（引出句是完整长句）
     heading = re.compile(r'^(附录|参考文献|[一二三四五六七八九十]+、)')
     issues = []
     paras = doc.paragraphs
     for i, p in enumerate(paras):
         text = p.text.strip()
-        if not cap.match(text) or len(text) > 30:
+        if not cap.match(text) or len(text) > 25:
             continue
         # 向上找最近一个有文字的段落（跳过纯图片段）
         j = i - 1
         while j >= 0 and not paras[j].text.strip():
             j -= 1
         prev = paras[j].text.strip() if j >= 0 else ""
-        if not prev or heading.match(prev) or (cap.match(prev) and len(prev) <= 30):
+        if not prev or heading.match(prev) or (cap.match(prev) and len(prev) <= 25):
             label = "图" if text.startswith("图") else "表"
             reason = "紧跟标题或上一张图表" if not prev else ("紧跟标题" if heading.match(prev) else "连续图表无引出")
             issues.append(f'{text[:12]}… 前缺引出文字（{reason}）：先一行说明该{label}展示什么、为何此处出现，再放{label}，之后给出解释')
