@@ -923,33 +923,6 @@ def three_line_table(doc, rows):
     return table
 
 
-def _set_table_appendix_borders(table):
-    """附录专用样式：闭合外框 + 内部横向分隔线，无内部竖线。
-    与正文三线表（顶线+表头线+底线、无竖线无左右框）明显区分；
-    通过含 left/right 外框与内部竖线为 nil 的边框组合，不会触发
-    正文三线表告警（附录表由 H10 `_appendix_boxed_table_issues` 专查）。"""
-    borders = OxmlElement('w:tblBorders')
-    for name, val, size in [('top', 'single', '12'), ('bottom', 'single', '12'),
-                            ('left', 'single', '8'), ('right', 'single', '8'),
-                            ('insideH', 'single', '6'), ('insideV', 'nil', '0'),
-                            ('start', 'nil', '0'), ('end', 'nil', '0')]:
-        elem = OxmlElement(f'w:{name}')
-        elem.set(qn('w:val'), val)
-        elem.set(qn('w:sz'), size)
-        elem.set(qn('w:space'), '0')
-        elem.set(qn('w:color'), '000000' if val != 'nil' else 'auto')
-        borders.append(elem)
-    tbl_pr = table._tbl.tblPr
-    old = tbl_pr.find(qn('w:tblBorders'))
-    if old is not None:
-        tbl_pr.remove(old)
-    tbl_look = tbl_pr.find(qn('w:tblLook'))
-    if tbl_look is None:
-        tbl_pr.append(borders)
-    else:
-        tbl_pr.insert(tbl_pr.index(tbl_look), borders)
-
-
 def _set_cell_width(cell, twips):
     tc_pr = cell._tc.get_or_add_tcPr()
     tc_w = tc_pr.find(qn('w:tcW'))

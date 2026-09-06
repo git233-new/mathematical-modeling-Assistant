@@ -950,8 +950,7 @@ def _manifest_table_issues(doc, project, manifest, issues, started, completed, s
         issues.append('run_manifest.json 缺少 tables 列表')
         return
     captions = [p.text.strip() for p in doc.paragraphs if re.match('^表\\s*\\d+', p.text.strip())]
-    # 附录代码表（"表N：xxx核心代码"）为展示性，不进 run_manifest.tables，对账时排除
-    formal_captions = [c for c in captions if '核心代码' not in c]
+    formal_captions = captions
     if len(tables) != len(formal_captions):
         issues.append(f'DOCX中有 {len(formal_captions)} 个正式表，但运行清单只登记 {len(tables)} 个')
     for index, item in enumerate(tables, start=1):
