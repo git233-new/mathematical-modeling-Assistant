@@ -967,3 +967,18 @@ def test_data_file_warnings_flag_bom_and_extra_json(tmp_path):
     assert len(ws) == 2
     assert any(w.startswith("结果 CSV") and "no_bom.csv" in w for w in ws)
     assert any(w.startswith("数据佐证") and w.endswith("result.json") for w in ws)
+
+
+def test_plot_pitfall_warnings_flag_bare_legend_and_best(tmp_path):
+    """W6 扩展：裸 legend() 与 loc='best' 触发 P20 图例遮挡预警。"""
+    from tools.docx.core.structure_validation import _plot_pitfall_warnings
+    code = tmp_path / "code"
+    code.mkdir()
+    (code / "fig.py").write_text(
+        "import matplotlib.pyplot as plt\n"
+        "plt.legend()\n"
+        "ax.legend(loc='best')\n",
+        encoding="utf-8",
+    )
+    ws = _plot_pitfall_warnings(tmp_path)
+    assert sum("P20" in w for w in ws) >= 2

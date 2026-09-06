@@ -1594,7 +1594,7 @@ def _plot_font_warnings(project_root):
     return issues
 
 
-# W6 出图经典坑预警（对照 tools/figure/references/画图避坑清单.md：P2 双 Y 轴 / P3 饼图 / P14 jet 色图）
+# W6 出图经典坑预警（对照 画图避坑清单.md：P2 双Y轴 / P3 饼图 / P14 jet色图 / P20 图例遮挡）
 def _plot_pitfall_warnings(project_root):
     if not project_root:
         return []
@@ -1606,6 +1606,8 @@ def _plot_pitfall_warnings(project_root):
         (r'twinx\s*\(', 'P2 双 Y 轴——两轴尺度可任意调，对比结论不可信；改散点或上下双子图'),
         (r'\.pie\s*\(', 'P3 饼图——人眼辨长度比角度准，改横向柱状/堆叠柱状'),
         (r"cmap\s*=\s*['\"]?(jet|rainbow|hsv|nipy_spectral)", 'P14 rainbow/jet 色图——感知不均匀产生虚假边界；改 viridis/RdBu_r'),
+        (r"(?<![_\w])legend\s*\(\s*\)", "P20 裸 legend() 默认画在图内会遮挡数据——放图外：下侧横排 loc='upper center', bbox_to_anchor=(0.5, -0.12) 或右侧竖排 bbox_to_anchor=(1.02, 0.5)"),
+        (r"loc\s*=\s*['\"]best['\"]", "P20 loc='best' 仍是图内布局——图例放图外（下侧横排或右侧竖排），禁止压在画面上"),
     )
     issues = []
     for py in code_dir.glob('*.py'):
