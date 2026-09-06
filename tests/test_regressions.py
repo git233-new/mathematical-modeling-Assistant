@@ -740,11 +740,13 @@ def test_save_document_tex_publish_is_atomic(tmp_path, monkeypatch):
 
     def _blocked(src, dst):
         raise PermissionError("目标被占用")
+    docx_before = (tmp_path / "完整论文.docx").read_bytes()
     monkeypatch.setattr(os, "replace", _blocked)
     with pytest.raises(PermissionError):
         paper_format.save_document(doc, tmp_path, overwrite=True)
-    assert tex.read_text(encoding="utf-8") == old_content
-    assert not list(tmp_path.glob("*.tmp"))
+    assert tex.read_text(encoding="utf-8") == old_content  # 旧 tex 完整
+    assert (tmp_path / "完整论文.docx").read_bytes() == docx_before  # tex 先落位失败 → docx 不动
+    assert not list(tmp_path.glob("*.tmp"))  # 无临时残留
 
 
 def test_reference_year_gate_ignores_doi_and_page_digits():

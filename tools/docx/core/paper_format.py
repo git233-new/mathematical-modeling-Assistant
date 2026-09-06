@@ -1474,8 +1474,8 @@ def _manifest_figure_paths(project):
     return paths
 
 
-def _stage_and_publish(doc, contest, project, output, manifest_image_paths, staged_docx):
-    """暂存 → 终态二次校验 → 图片保全 → 原子发布 → 交付清理。"""
+def _stage_and_publish(doc, contest, project, output, manifest_image_paths, staged_docx, staged_tex=None):
+    """暂存 → 终态二次校验 → 图片保全 → tex 先落位 → DOCX 原子发布 → 交付清理。"""
     from .structure_validation import validate_paper_structure
 
     doc.save(staged_docx)
@@ -1495,6 +1495,17 @@ def _stage_and_publish(doc, contest, project, output, manifest_image_paths, stag
     missing_after = [path for path in manifest_image_paths if not path.is_file()]
     if missing_after:
         raise RuntimeError('论文生成过程中结果图片被删除，已拒绝发布: ' + '、'.join((str(p) for p in missing_after[:5])))
+    # 先 tex 后 docx：终态校验与图片保全通过后，tex 先落位（同卷临时名 + os.replace
+    # 原子替换，目标被占用时抛错、旧文件完整保留），DOCX 随后原子发布
+    if staged_tex is not None:
+        latex_path = output.with_suffix('.tex')
+        tmp_tex = latex_path.with_name(latex_path.name + '.tmp')
+        try:
+            shutil.move(str(staged_tex), str(tmp_tex))
+            os.replace(tmp_tex, latex_path)
+        finally:
+            if tmp_tex.exists():
+                tmp_tex.unlink()
     # 跨文件系统（如 C: 暂存 → D: 项目输出）时 os.replace 会抛 WinError 17，
     # 改用 shutil.move：同盘走原子重命名，跨盘自动回退为复制+删除。
     shutil.move(str(staged_docx), str(output))
@@ -1550,8 +1561,7 @@ def save_document(
     if overwrite and output.exists():
         _check_docx_not_locked(output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    # LaTeX 源码版与 DOCX 同一内容快照；tex 同走暂存原子发布（先锁预检、
-    # DOCX 发布成功后再落位），只交付源码、不编译不产出 PDF，
+    # LaTeX 源码版与 DOCX 同一内容快照；暂存后先 tex 落位、DOCX 随后原子发布（先锁预检），只交付源码、不编译不产出 PDF，
     # 规范见 文档/样式统一规定.md §十二
     from .latex_export import export_latex_source
     latex_path = output.with_suffix('.tex')
@@ -1564,16 +1574,8 @@ def save_document(
     staged_tex = staging_dir / latex_path.name
     try:
         export_latex_source(doc, staged_tex, graphics_dir='results/图片')
-        _stage_and_publish(doc, contest, project, output, manifest_image_paths, staged_docx)
-        # 原子落位：先移入目标目录同卷临时名，再 os.replace 原子替换旧 tex；
-        # 目标被占用时 replace 抛错、旧 tex 完整保留（杜绝 unlink 后 move 失败的交付物丢失）
-        tmp_tex = latex_path.with_name(latex_path.name + '.tmp')
-        try:
-            shutil.move(str(staged_tex), str(tmp_tex))
-            os.replace(tmp_tex, latex_path)
-        finally:
-            if tmp_tex.exists():
-                tmp_tex.unlink()
+        _stage_and_publish(doc, contest, project, output, manifest_image_paths,
+                           staged_docx, staged_tex)
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
     print(json.dumps({'stage': 'delivered', 'path': str(output), 'warnings': len(warnings),
