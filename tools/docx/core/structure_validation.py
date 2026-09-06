@@ -1633,7 +1633,7 @@ def _plagiarism_warnings(doc, project_root, corpus_dir=None):
     norm = lambda s: re.sub(r'[\s，。；：、（）()\[\]""'']', '', s)
     corpus_norm = norm(corpus_text)
     corpus_shingles = {corpus_norm[i:i + _PLAGIARISM_SHINGLE]
-                       for i in range(0, max(len(corpus_norm) - _PLAGIARISM_SHINGLE, 1), 5)}
+                       for i in range(0, len(corpus_norm) - _PLAGIARISM_SHINGLE + 1, 5)}
     starts = [i for i, p in enumerate(doc.paragraphs) if _is_reference_start(p.text) or _is_appendix_start(p.text)]
     body_paras = doc.paragraphs[:starts[0]] if starts else doc.paragraphs
     issues = []
