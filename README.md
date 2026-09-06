@@ -40,7 +40,7 @@ modex/
 │   └── 模板/                    # 2026 数学建模国赛标准论文 Word 模板（sha256 锁定）
 ├── 知识库/
 │   ├── 优秀论文案例/            # 国奖论文五维方法卡（case_retrieval 检索，篇数随建库增长）
-│   ├── 写作增强/                # 去AI味指南(中文正文+humanizer 35类通用模式附录) / 七轮自审(含42项反模式) / 摘要范式 / 获奖论文模板与创新点(全库蒸馏)
+│   ├── 写作增强/                # 去AI味指南(中文正文+35类通用模式速查) / 七轮自审(含42项反模式) / 摘要范式 / 获奖论文模板与创新点(全库蒸馏)
 │   ├── 建模增强/ 方法库/ 算法索引.md + 算法资料/ 评审增强/ 建模通用规范.md
 ├── tools/                      # 工具链（SKILL_ROOT，解题时只读）
 │   ├── docx/                   # 论文生成核心：paper_format(样式/防重排/save_document)、structure_validation(硬闸门)、latex_export(完整论文.tex)、equations(OMML)、contest_profile(阈值)
