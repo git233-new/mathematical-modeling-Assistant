@@ -960,50 +960,6 @@ def _set_cell_width(cell, twips):
     tc_w.set(qn('w:type'), 'dxa')
 
 
-def code_listing_table(doc, lines, *, with_lineno=True):
-    """将代码行渲染为三线制表（行号 + 代码，等宽字体）。调用方需先去除注释与空行。"""
-    cols = 2 if with_lineno else 1
-    table = doc.add_table(rows=max(len(lines), 1), cols=cols)
-    _place_body_element(doc, table._tbl)
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    _set_table_appendix_borders(table)
-    _set_table_fixed_layout(table)
-    section = doc.sections[0]
-    available = int((section.page_width - section.left_margin - section.right_margin) / 914400 * 1440)
-    lineno_twips = 453 if with_lineno else 0
-    code_twips = available - lineno_twips
-    for row_i, line in enumerate(lines):
-        cells = table.rows[row_i].cells
-        if with_lineno:
-            ln, code = cells[0], cells[1]
-            _set_cell_vcenter(ln)
-            _set_cell_no_wrap(ln)
-            p0 = ln.paragraphs[0]
-            p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            r0 = p0.add_run(str(row_i + 1))
-            set_run_font(r0, size=9)
-            r0.font.italic = False
-            _set_cell_vcenter(code)
-            p1 = code.paragraphs[0]
-            r1 = p1.add_run(line if line else ' ')
-            set_run_font(r1, size=9, font='宋体')
-            r1.font.italic = False
-            _set_cell_width(ln, lineno_twips)
-            _set_cell_width(code, code_twips)
-        else:
-            _set_cell_vcenter(cells[0])
-            p = cells[0].paragraphs[0]
-            r = p.add_run(line if line else ' ')
-            set_run_font(r, size=9, font='宋体')
-            r.font.italic = False
-            _set_cell_width(cells[0], code_twips)
-    for row in table.rows:
-        for cell in row.cells:
-            _reorder_tcpr(cell._tc.get_or_add_tcPr())
-    _reorder_tblpr(table._tbl.tblPr)
-    return table
-
-
 def _appendix_support_materials(doc, project_root):
     """附录A 支撑材料：自动列出 run_manifest 登记的可运行源码与数据文件清单。
 
@@ -1069,16 +1025,6 @@ def append_code_files(doc, project_root, patterns=('code/Q*.py',)):
     保留函数名与签名以兼容既有调用方；patterns 参数已无效（仅保留签名兼容）。
     """
     _appendix_support_materials(doc, project_root)
-
-
-def _next_table_index(doc):
-    """返回文档中下一个连续表编号（基于已有'表N'题注计数 + 已有表格数取大）。"""
-    idx = len(doc.tables)
-    for p in doc.paragraphs:
-        m = re.match(r'^表\s*(\d+)', p.text.strip())
-        if m:
-            idx = max(idx, int(m.group(1)))
-    return idx + 1
 
 
 def _set_table_fixed_layout(table):
