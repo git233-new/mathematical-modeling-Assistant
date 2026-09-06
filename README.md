@@ -41,11 +41,13 @@ modex/
 ├── 知识库/
 │   ├── 优秀论文案例/            # 国奖论文五维方法卡（case_retrieval 检索，篇数随建库增长）
 │   ├── 写作增强/                # 去AI味指南(中文正文+35类通用模式速查) / 七轮自审(含42项反模式) / 摘要范式 / 获奖论文模板与创新点(全库蒸馏)
-│   ├── 建模增强/ 方法库/ 算法索引.md + 算法资料/ 评审增强/ 建模通用规范.md
+│   ├── 算法索引.md + 算法资料/   # 选型路由 + 7 张算法选型卡（适用/前提/坑/验证/依赖）
+│   ├── 建模增强/ 评审增强/       # 冠军挑战者流程、选型决策矩阵、证据可复现审计 / 国赛评审标准
+│   ├── 方法库/ 建模通用规范.md    # 设计原则(含分层方法卡模板) / 图表规范 / 问题分类 / 质检清单
 ├── tools/                      # 工具链（SKILL_ROOT，解题时只读）
-│   ├── docx/                   # 论文生成核心：paper_format(样式/防重排/save_document)、structure_validation(硬闸门)、latex_export(完整论文.tex)、equations(OMML)、contest_profile(阈值)
+│   ├── docx/                   # 论文生成核心：paper_format(样式/防重排/save_document)、structure_validation(硬闸门)、latex_export(完整论文.tex)、equations(OMML)、contest_profile(阈值)、paper_workflow(大纲/进度/重建)
 │   ├── paperingest/            # 优秀论文建库：pipeline(单篇方法卡)、distill(跨论文模板/创新点蒸馏)
-│   ├── project_ops/            # 案例检索、交付清理、统一审计、四件评审工具
+│   ├── project_ops/            # 案例检索、瘦身白名单清理、统一审计、四件评审工具、证据核验
 │   ├── figure/ pdf/ xlsx/ paper_search/ common/   # 出图 / 读题 / 表格 / 文献 / 共享底座
 └── tests/                      # 契约与闸门回归测试
 ```
