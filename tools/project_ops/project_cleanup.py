@@ -44,7 +44,7 @@ SKILL_TRACE_DIR_NAMES = {"tools", "common", "figure", "paper_search", "paperinge
 SKILL_TRACE_MARKER_RELS = (
     ("SKILL.md",),
     ("docx", "core", "paper_format.py"),
-    ("pdf", "SKILL.md"),
+    ("pdf", "TOOLGUIDE.md"),
 )
 PROCESS_NAME_MARKERS = (
     "generate_paper", "write_paper", "render_paper", "paper_generation",
