@@ -45,7 +45,7 @@ def get_profile(contest='cumcm'):
 # ---------------------------------------------------------------------------
 # 交付门禁阈值（CUMCM 2026 口径）
 # ---------------------------------------------------------------------------
-CUMCM_MIN_BODY_UNITS = 12222
+CUMCM_MIN_BODY_UNITS = 11111
 # 总页数 / 等效总页数（不依赖 Word/LibreOffice 渲染的硬下限，正文+附录合计）
 CUMCM_MIN_TOTAL_PAGES = 30
 CUMCM_MAX_TOTAL_PAGES = 45

@@ -42,6 +42,7 @@ PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
 \captionsetup{labelsep=space,font={small}}
 \setlength{\parindent}{2em}
 \linespread{1.5}
+\newcommand{\res}[1]{\textbf{#1}}
 \graphicspath{{{graphics_dir}/}}
 \begin{document}'''
 
