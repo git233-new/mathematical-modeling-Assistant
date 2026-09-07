@@ -735,7 +735,7 @@ def test_export_latex_source_covers_core_elements(tmp_path):
     assert r"\section{一、问题重述}" in text
     assert r"\begin{equation}y = k x + b\tag{1}\end{equation}" in text
     assert r"\noindent\textbf{关键词：}" in text
-    assert r"\begin{tabular}{ll}" in text and r"\toprule" in text
+    assert r"\begin{tabularx}{\textwidth}{cX}" in text and r"\toprule" in text
     assert r"\end{document}" in text
 
 

@@ -9,52 +9,25 @@ LLM 直接写 LaTeX 比调用 python-docx API 更自然，公式零转换（原�
 import re
 from pathlib import Path
 
-from .latex_export import _escape
-
-PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
-% 字体集 fandol（TeX Live 自带，Overleaf 开箱可用）。推荐 XeLaTeX 编译。
-% 与 DOCX 母版对应（唯一权威：文档/样式统一规定.md）。正文小四、首行缩进 2 字符、
-% 行距 ≈1.5 倍基线；竞赛排版以 DOCX 交付版为准，本文件是源码版主产物。
-\usepackage[top=2.54cm,bottom=2.54cm,left=3.18cm,right=3.18cm]{geometry}
-\usepackage{amsmath,amssymb}
-\usepackage{amsthm}
-\usepackage{graphicx}
-\usepackage{booktabs}
-\usepackage{multirow}
-\usepackage{caption}
-\usepackage{subcaption}
-\usepackage{setspace}
-\usepackage{fancyhdr}
-\usepackage{enumitem}
-\usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue]{hyperref}
-\usepackage{cleveref}
-\ctexset{
-  section/name={,},
-  section/number=\chinese{section}、,
-  section/format=\large\bfseries\centering,
-  subsection/number=\arabic{subsection},
-  subsection/format=\bfseries,
-  subsubsection/number=\arabic{subsection}.\arabic{subsubsection},
-  subsubsection/format=\itshape
-}
-\newtheorem{definition}{定义}[section]
-\newtheorem{theorem}{定理}[section]
-\newtheorem{lemma}{引理}[section]
-\pagestyle{fancy}
-\fancyhf{}
-\fancyfoot[C]{\thepage}
-\renewcommand{\headrulewidth}{0pt}
-\captionsetup{justification=centering,labelsep=space,font={small}}
-\captionsetup[table]{position=above}
-\captionsetup[figure]{position=below}
-\setlength{\parindent}{2em}
-\linespread{1.5}
-\setlist{nosep,leftmargin=2em}
-\newcommand{\res}[1]{\textbf{#1}}
-\graphicspath{{graphics_dir}/}
-\begin{document}'''
+from .latex_export import _escape, PREAMBLE
 
 END = r'\end{document}'
+
+
+def _escape_preserving_math(text):
+    """转义 LaTeX 特殊字符，但保留 $...$ 行内数学原样输出。"""
+    parts = []
+    i = 0
+    while i < len(text):
+        if text[i] == '$':
+            j = text.find('$', i + 1)
+            if j != -1:
+                parts.append(text[i:j + 1])
+                i = j + 1
+                continue
+        parts.append(_escape(text[i]))
+        i += 1
+    return ''.join(parts)
 
 
 class PaperLatexBuilder:
@@ -79,7 +52,7 @@ class PaperLatexBuilder:
     def body(self, text):
         stripped = text.strip()
         if stripped:
-            self._body.append(_escape(stripped))
+            self._body.append(_escape_preserving_math(stripped))
 
     def keywords(self, text):
         text = re.sub(r'^关键词\s*[:：]\s*', '', text or '')
@@ -99,17 +72,15 @@ class PaperLatexBuilder:
 
     def equation(self, latex, number=None, explanation=None):
         if explanation:
-            self._body.append(_escape(explanation))
+            self._body.append(_escape_preserving_math(explanation))
         if number is not None:
             tag_text = str(number).strip()
             if tag_text.startswith('（') and tag_text.endswith('）'):
                 tag_text = tag_text[1:-1].strip()
             elif tag_text.startswith('(') and tag_text.endswith(')'):
                 tag_text = tag_text[1:-1].strip()
-            self._body.append(r'\begin{equation}')
-            self._body.append(latex)
-            self._body.append(rf'\tag{{{tag_text}}}')
-            self._body.append(r'\end{equation}')
+            self._body.append(
+                r'\begin{equation}' + latex + rf'\tag{{{tag_text}}}' + r'\end{equation}')
         else:
             self._body.append(r'\[ ' + latex + r' \]')
 
@@ -117,11 +88,12 @@ class PaperLatexBuilder:
         if not rows:
             return
         cols = max(len(r) for r in rows)
+        col_spec = 'c' + ('X' * (cols - 1)) if cols > 1 else 'X'
         self._body.append(r'\begin{table}[htbp]')
         self._body.append(r'\centering')
         if caption:
             self._body.append(rf'\caption*{{{_escape(caption)}}}')
-        self._body.append(rf'\begin{{tabular}}{{{"l" * cols}}}')
+        self._body.append(rf'\begin{{tabularx}}{{\textwidth}}{{{col_spec}}}')
         self._body.append(r'\toprule')
         for i, row in enumerate(rows):
             cells = list(row) + [''] * (cols - len(row))
@@ -130,7 +102,7 @@ class PaperLatexBuilder:
             if i == 0:
                 self._body.append(r'\midrule')
         self._body.append(r'\bottomrule')
-        self._body.append(r'\end{tabular}')
+        self._body.append(r'\end{tabularx}')
         self._body.append(r'\end{table}')
 
     def add_figure(self, image_path, caption, width_cm=12):

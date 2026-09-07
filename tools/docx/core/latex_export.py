@@ -29,28 +29,48 @@ LATEX_ESCAPE_MAP = {
 }
 
 PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
-% 字体集固定 fandol（随 TeX Live 分发，Overleaf/本地 TeX Live 开箱可用，pdfLaTeX/XeLaTeX 皆可；
-% 勿改 windows——Overleaf 无 SimSun/SimHei 真字体）。推荐 XeLaTeX 编译。
+% 字体集 fandol（TeX Live 自带，Overleaf 开箱可用）。推荐 XeLaTeX 编译。
+% 若系统有 SimSun/SimHei（Windows），可改 fontset=windows 获得规范字体。
 % 与 DOCX 母版对应（唯一权威：文档/样式统一规定.md）。正文小四、首行缩进 2 字符、
-% 行距 18 磅/12pt=1.5 倍基线在此近似；竞赛排版以 DOCX 交付版为准，本文件是源码版。
+% 行距 ≈1.43 倍基线；竞赛排版以 DOCX 交付版为准，本文件是源码版。
+\IfFontExistsTF{SimSun}{\setmainfont{Times New Roman}}{}
+\IfFontExistsTF{Consolas}{\setmonofont{Consolas}}{}
 \usepackage[top=2.54cm,bottom=2.54cm,left=3.18cm,right=3.18cm]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{amsthm}
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\small,backgroundcolor=\color{black!3},frame=single,
+  framesep=6pt,rulecolor=\color{black!30},framerule=0.8pt,breaklines=true,
+  showstringspaces=false,columns=fullflexible,keepspaces=true}
 \usepackage{caption}
 \usepackage{setspace}
 \usepackage{fancyhdr}
 \usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue]{hyperref}
+\usepackage{tocloft}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftsubsecleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftsubsubsecleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftsecfont}{\bfseries}
 \ctexset{
   section/name={,},
   section/number=\chinese{section}、,
-  section/format=\large\bfseries\centering,
   subsection/number=\arabic{subsection},
-  subsection/format=\bfseries,
   subsubsection/number=\arabic{subsection}.\arabic{subsubsection},
-  subsubsection/format=\itshape
 }
+\usepackage{titlesec}
+\titleformat{\section}{\centering\large\bfseries}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\bfseries}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\itshape}{\thesubsubsection}{0.5em}{}
+\titlespacing{\section}{0pt}{1.25em}{0.82em}
+\titlespacing{\subsection}{0pt}{1.15em}{0.55em}
+\titlespacing{\subsubsection}{0pt}{1.15em}{0.55em}
 \newtheorem{definition}{定义}[section]
 \newtheorem{theorem}{定理}[section]
 \newtheorem{lemma}{引理}[section]
@@ -59,9 +79,12 @@ PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
 \fancyfoot[C]{\thepage}
 \renewcommand{\headrulewidth}{0pt}
 \captionsetup{labelsep=space,font={small}}
+\captionsetup[table]{position=above}
+\captionsetup[figure]{position=below}
 \setlength{\parindent}{2em}
-\linespread{1.5}
+\linespread{1.43}
 \newcommand{\res}[1]{\textbf{#1}}
+\newcommand{\papertitle}[1]{{\centering\large\bfseries #1\par}\vspace{1em}}
 \graphicspath{{{graphics_dir}/}}
 \begin{document}'''
 
@@ -146,16 +169,17 @@ def _emit_table(tbl, caption=None):
     if not matrix:
         return ''
     cols = max(len(r) for r in matrix)
+    col_spec = 'c' + ('X' * (cols - 1)) if cols > 1 else 'X'
     lines = [r'\begin{table}[htbp]', r'\centering']
     if caption:
         lines.append(caption)
-    lines += [rf'\begin{{tabular}}{{{"l" * cols}}}', r'\toprule']
+    lines += [rf'\begin{{tabularx}}{{\textwidth}}{{{col_spec}}}', r'\toprule']
     for index, row in enumerate(matrix):
         cells = row + [''] * (cols - len(row))
         lines.append(' & '.join(cells) + r' \\')
         if index == 0:
             lines.append(r'\midrule')
-    lines += [r'\bottomrule', r'\end{tabular}', r'\end{table}']
+    lines += [r'\bottomrule', r'\end{tabularx}', r'\end{table}']
     return '\n'.join(lines)
 
 
