@@ -25,6 +25,7 @@ class BaseSchemaValidator:
     IGNORED_VALIDATION_ERRORS = [
         "hyphenationZone",
         "purl.org/dc/terms",
+        "dublincore.org",
     ]
 
     UNIQUE_ID_REQUIREMENTS = {

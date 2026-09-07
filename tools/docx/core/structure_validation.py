@@ -1522,8 +1522,13 @@ def _model_assumption_issues(doc):
         return []
     assumes = [p for p in paras if re.match(r'^假设\d+[:：]', p.text.strip())]
     if len(assumes) < 3:
-        return [f'模型假设须逐条以“假设N：”编号，当前仅 {len(assumes)} 条（建议 ≥ 3）']
-    return []
+        return [f'模型假设须逐条以”假设N：”编号，当前仅 {len(assumes)} 条（建议 ≥ 3）']
+    issues = []
+    for p in assumes:
+        text = p.text.strip()
+        if '检验' not in text:
+            issues.append(f'”{text[:20]}...” 缺少”检验：”环节（假设三链：依据→检验→回退）')
+    return issues
 
 
 # H8 符号说明题注后不写描述段
