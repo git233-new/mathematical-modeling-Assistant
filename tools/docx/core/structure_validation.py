@@ -87,6 +87,14 @@ def _result_chapter_prefix(doc):
             return _cn_to_int(match.group(1))
     return 5
 
+
+def _paragraph_texts(doc, skip_empty=False):
+    """提取文档所有段落的文本列表。skip_empty=True 时过滤空串。"""
+    if skip_empty:
+        return [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    return [p.text.strip() for p in doc.paragraphs]
+
+
 def _symbol_table_issues(doc):
     issues = []
     table = _find_symbol_table(doc)
@@ -231,7 +239,7 @@ def _reference_issues(paragraphs):
 
 
 def _plain_language_issues(doc):
-    paragraphs = [paragraph.text.strip() for paragraph in doc.paragraphs]
+    paragraphs = _paragraph_texts(doc)
     n = _result_chapter_prefix(doc)
     starts = []
     for index, text in enumerate(paragraphs):
@@ -341,7 +349,7 @@ def audit_ai_tone(doc):
 
 
 def _result_analysis_structure_issues(doc):
-    texts = [paragraph.text.strip() for paragraph in doc.paragraphs if paragraph.text.strip()]
+    texts = _paragraph_texts(doc, skip_empty=True)
     issues = []
     n = _result_chapter_prefix(doc)
     for text in texts:
@@ -2015,7 +2023,7 @@ def _ai_usage_details_issues(doc, project_root):
 
 def _required_marker_issues(doc, profile):
     """标题/必填结构标记（摘 要、关键词：）与占位符检查。"""
-    texts = [paragraph.text.strip() for paragraph in doc.paragraphs if paragraph.text.strip()]
+    texts = _paragraph_texts(doc, skip_empty=True)
     errors = []
     if not texts:
         errors.append('缺少论文标题')
