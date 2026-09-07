@@ -1,3 +1,4 @@
+# region ── 常量与导入 ──
 import json
 import os
 import re
@@ -50,10 +51,15 @@ from .rendering import (
     _is_body_start,
     _is_reference_start,
     check_docx_not_locked as _check_docx_not_locked,
+    check_black_fonts,
+    force_black_fonts,
 )
 BODY_LINE_SPACING_PT = 18
 FORMULA_CONTEXT_GAP_PT = int(BODY_LINE_SPACING_PT * 1.5)
 _REQUIRED_HEADING1_CANONICAL = {'问题重述': '一、问题重述', '问题分析': '二、问题分析', '模型假设': '三、模型假设', '符号说明': '四、符号说明', '模型建立': '五、模型建立与求解', '模型检验': '六、模型检验与分析', '模型优缺点': '七、模型评价与改进', 'AI工具使用声明': 'AI工具使用声明', '参考文献': '参考文献', '附录': '附录'}
+# endregion ── 常量与导入 ──
+
+# region ── 页面设置与样式 ──
 class RenderedPageCount(int):
     def __new__(cls, total_pages: int, body_pages: int | None):
         instance = super().__new__(cls, total_pages)
@@ -197,6 +203,9 @@ def _clear_paragraph_content(paragraph):
     for child in list(paragraph._p):
         if child.tag != qn('w:pPr'):
             paragraph._p.remove(child)
+# endregion ── 页面设置与样式 ──
+
+# region ── 模板槽位检测 ──
 def _heading_number(text):
     match = re.match('^\\s*(\\d+(?:[.．]\\d+){1,2})(?:\\s|、|：|:|$)', text or '')
     return match.group(1).replace('．', '.') if match else ''
@@ -335,6 +344,9 @@ def _appendix_is_active(doc):
             continue
         return _is_appendix_start(text)
     return False
+# endregion ── 模板槽位检测 ──
+
+# region ── 散文工具 ──
 def _normalise_prose_breaks(text):
     value = str(text).replace('\r\n', '\n').replace('\r', '\n')
     value = re.sub('[ \\t]*\\n[ \\t]*', ' ', value)
@@ -392,6 +404,9 @@ def normalize_prose_line_breaks(doc):
                 run.text = normalised
                 fixed += 1
     return fixed
+# endregion ── 散文工具 ──
+
+# region ── 写作原语 ──
 def paragraph(doc, text='', align=None, first_line=False, line_spacing=1.25, style_name=None, preserve_line_breaks=False):
     p = doc.add_paragraph(style=style_name)
     _place_body_element(doc, p._p)
@@ -599,6 +614,9 @@ def ensure_page_numbers(doc):
         set_run_font(run, size=10)
         _append_page_number_field(run)
     return doc
+# endregion ── 写作原语 ──
+
+# region ── 图片与图表 ──
 def image(doc, path, width_cm=12):
     p = paragraph(doc, align=WD_ALIGN_PARAGRAPH.CENTER)
     with open(path, 'rb') as image_file:
@@ -622,145 +640,9 @@ def table_caption(doc, text):
 def count_chinese_chars(doc):
     text = '\n'.join((p.text for p in doc.paragraphs))
     return len(re.findall('[\\u4e00-\\u9fff]', text))
-def _story_roots(doc):
-    """全部故事部分的 XML 根（lxml）：正文 + 各节页眉页脚。
+# endregion ── 图片与图表 ──
 
-    在 XML 层遍历可覆盖 python-docx paragraph.runs 漏掉的三类内容：
-    超链接包裹的 run、文本框(w:txbxContent)内 run、以及嵌套结构。
-    """
-    roots = [doc.element]
-    for section in doc.sections:
-        for hdrftr in (section.header, section.footer):
-            try:
-                roots.append(hdrftr._element)
-            except Exception:
-                pass
-    return roots
-
-
-def _style_color_map(doc):
-    """styleId → 继承链解析后的 w:color val（无颜色为 None）。"""
-    raw = {}
-    based = {}
-    styles_root = doc.styles.element
-    for st in styles_root.findall(qn('w:style')):
-        sid = st.get(qn('w:styleId'))
-        if sid is None:
-            continue
-        base_el = st.find(qn('w:basedOn'))
-        based[sid] = base_el.get(qn('w:val')) if base_el is not None else None
-        rpr = st.find(qn('w:rPr'))
-        color_el = rpr.find(qn('w:color')) if rpr is not None else None
-        raw[sid] = color_el.get(qn('w:val')) if color_el is not None else None
-    resolved = {}
-
-    def resolve(sid, seen=()):
-        if sid in resolved:
-            return resolved[sid]
-        if sid not in raw or sid in seen:
-            return None
-        own = raw[sid]
-        if own and own.lower() != 'auto':
-            resolved[sid] = own
-            return own
-        parent = resolve(based.get(sid), seen + (sid,))
-        resolved[sid] = parent
-        return parent
-
-    for sid in raw:
-        resolve(sid)
-    return resolved
-
-
-def _direct_color(rpr_holder):
-    """取 rPr 容器内的直接 w:color val；auto 视为未指定。"""
-    if rpr_holder is None:
-        return None
-    c = rpr_holder.find(qn('w:color'))
-    if c is None:
-        return None
-    v = c.get(qn('w:val'))
-    if v is None or v.lower() == 'auto':
-        return None
-    return v
-
-
-def _run_effective_color(r, p_color, style_colors):
-    """run 的有效字体颜色：run 级 > 段落标记级 > 字符样式链 > 段落样式链。"""
-    direct = _direct_color(r.find(qn('w:rPr')))
-    if direct:
-        return direct
-    if p_color:
-        return p_color
-    rpr = r.find(qn('w:rPr'))
-    rstyle = rpr.find(qn('w:rStyle')) if rpr is not None else None
-    if rstyle is not None:
-        c = style_colors.get(rstyle.get(qn('w:val')))
-        if c:
-            return c
-    p = r.getparent()
-    while p is not None and p.tag != qn('w:p'):
-        p = p.getparent()
-    if p is not None:
-        ppr = p.find(qn('w:pPr'))
-        pstyle = ppr.find(qn('w:pStyle')) if ppr is not None else None
-        if pstyle is not None:
-            c = style_colors.get(pstyle.get(qn('w:val')))
-            if c:
-                return c
-    return None
-
-
-def check_black_fonts(doc):
-    """全文字体黑色硬闸门（有效颜色口径）。
-
-    扫描正文+表格+文本框+超链接+页眉页脚的每一个 run；
-    run 未显式设色时沿 字符样式→段落样式 继承链解析有效颜色——
-    堵住"模板 Heading 样式自带蓝色、run 不写色即漏检"的历史盲区。
-    返回 [(片段, 颜色)]；非空即致命错误。
-    """
-    offenders = []
-    style_colors = _style_color_map(doc)
-    seen_ids = set()
-    for root in _story_roots(doc):
-        for r in root.iter(qn('w:r')):
-            if id(r) in seen_ids:
-                continue
-            seen_ids.add(id(r))
-            effective = _run_effective_color(r, None, style_colors)
-            # 段落标记级颜色作为回退
-            if effective is None:
-                p = r.getparent()
-                while p is not None and p.tag != qn('w:p'):
-                    p = p.getparent()
-                if p is not None:
-                    ppr = p.find(qn('w:pPr'))
-                    effective = _direct_color(ppr) if ppr is not None else None
-            if effective and effective.upper() != '000000':
-                snippet = ''.join(t.text or '' for t in r.findall(qn('w:t'))).strip()
-                if snippet:
-                    offenders.append((snippet[:40], effective))
-    return offenders
-
-def force_black_fonts(doc):
-    """把所有故事部分（含文本框/超链接/嵌套表格）每个 run 显式刷成纯黑。"""
-    black_val = '000000'
-    fixed = 0
-    for root in _story_roots(doc):
-        for r in root.iter(qn('w:r')):
-            rpr = r.find(qn('w:rPr'))
-            if rpr is None:
-                rpr = OxmlElement('w:rPr')
-                r.insert(0, rpr)
-            color_el = rpr.find(qn('w:color'))
-            if color_el is None:
-                color_el = OxmlElement('w:color')
-                rpr.append(color_el)
-            color_el.set(qn('w:val'), black_val)
-            if color_el.get(qn('w:themeColor')):
-                color_el.attrib.pop(qn('w:themeColor'), None)
-            fixed += 1
-    return fixed
+# region ── 校验常量与扫描 ──
 # 身份/痕迹词硬闸门（合规红线，命中拒写）。口语主语词（我们/本文/该模型）不在此列——
 # 属文风软规则，由 知识库/写作增强/去AI味指南.md 在写作阶段约束，机器不拦。
 FORBIDDEN_WORDS = ('WorkBuddy', 'workbuddy', 'skill', 'Skill', '智能体', '两套解', '两份解', '两个解', '底版', '另一份', '参考解', '标准解', '对着标准', '对着参考')
@@ -936,6 +818,9 @@ def scan_forbidden_words(doc, extra=None):
         if matched:
             hits.append((matched, text[:60]))
     return hits
+# endregion ── 校验常量与扫描 ──
+
+# region ── 表格 ──
 def _border(val='nil', size='0'):
     elem = OxmlElement('w:bottom')
     elem.set(qn('w:val'), val)
@@ -1143,6 +1028,9 @@ def _reorder_pr_children(parent, order):
         parent.remove(el)
     for el in children:
         parent.append(el)
+# endregion ── 表格 ──
+
+# region ── 模板管理 ──
 def _clear_template_body(doc):
     body_element = doc._element.body
     for child in list(body_element):
@@ -1335,6 +1223,9 @@ def _seed_skeleton_body_anchors(doc):
 def new_project_document(project_root, contest='cumcm', template_filename=PROJECT_TEMPLATE_FILENAME, preserve_template_content=False):
     template = install_project_template(project_root, filename=template_filename)
     return new_document(contest=contest, template_path=template, preserve_template_content=preserve_template_content, preserve_template_skeleton=not preserve_template_content)
+# endregion ── 模板管理 ──
+
+# region ── 文档统计 ──
 def _document_texts(doc):
     texts = [paragraph.text.strip() for paragraph in doc.paragraphs if paragraph.text.strip()]
     for table in doc.tables:
@@ -1414,6 +1305,9 @@ def _require_project_template(doc, contest):
         raise ValueError('论文必须由项目模板创建（项目母版或其未修改副本）：' + str(DEFAULT_CUMCM_TEMPLATE))
 
 
+# endregion ── 文档统计 ──
+
+# region ── 保存与发布 ──
 def _manifest_figure_paths(project):
     """读取 run_manifest 登记的图片路径；源图缺失即拒绝生成并保护结果目录。"""
     manifest_path = project / 'results' / 'run_manifest.json'
@@ -1587,7 +1481,9 @@ def save_latex_first(
                       'tex': str(tex_path), 'docx': str(output)}),
           file=sys.stderr, flush=True)
     return output
+# endregion ── 保存与发布 ──
 
+# region ── 委托与重导出 ──
 def preflight_check(outline):
     from .paper_workflow import preflight_check as _preflight_check
     return _preflight_check(outline)
@@ -1634,3 +1530,4 @@ def __getattr__(name):
         globals()[name] = value
         return value
     raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+# endregion ── 委托与重导出 ──
