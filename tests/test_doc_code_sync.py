@@ -53,7 +53,7 @@ def test_cleanup_whitelist_doc_matches_code():
 
     literal_names = [
         "Q<序号>.py", "Q<序号>_<描述>.py", "solve_common.py", "viz.py",
-        "build_paper.py", "requirements.txt",
+        "requirements.txt",
     ]
     for doc_rel in ("SKILL.md", "文档/代码规范.md"):
         text = _read(doc_rel)
@@ -61,7 +61,7 @@ def test_cleanup_whitelist_doc_matches_code():
             assert name.replace("<序号>", "") in text.replace("<序号>", "") or name in text, (
                 f"{doc_rel} 缺少白名单项描述: {name}")
     # 代码正则必须能匹配文档承诺的每个字面文件名
-    for sample in ("Q1.py", "Q1_求解.py", "solve_common.py", "viz.py", "build_paper.py", "requirements.txt"):
+    for sample in ("Q1.py", "Q1_求解.py", "solve_common.py", "viz.py", "requirements.txt"):
         assert CODE_KEEP_RE.match(sample), f"CODE_KEEP_RE 未覆盖文档承诺项: {sample}"
 
 

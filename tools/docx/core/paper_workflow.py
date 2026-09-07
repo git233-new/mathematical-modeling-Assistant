@@ -281,24 +281,6 @@ def export_paper_structure(docx_path, output_path=None):
     if output_path is not None:
         Path(output_path).write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     return result
-def rebuild_from_docx(docx_path, output_path=None):
-    path = Path(docx_path).resolve()
-    if not path.is_file():
-        raise FileNotFoundError(path)
-    output = Path(output_path).resolve() if output_path else path.parent / 'code' / 'build_paper.py'
-    output.parent.mkdir(parents=True, exist_ok=True)
-    asset_dir = f'{path.stem}_rebuild_assets'
-    asset_root = output.parent / asset_dir
-    asset_root.mkdir(parents=True, exist_ok=True)
-    doc = Document(path)
-    blocks, assets = _extract_blocks(doc, asset_root)
-    for name, content in assets.items():
-        (asset_root / name).write_bytes(content)
-    payload = json.dumps(blocks, ensure_ascii=False, indent=2)
-    payload_literal = json.dumps(payload, ensure_ascii=False)
-    script = f'#!/usr/bin/env python3\n"""由 {path.name} 反向提取的论文结构骨架；正文需人工复核后再交付。"""\nimport json\nimport os\nimport re\nimport sys\nfrom pathlib import Path\n\ndef _find_skill_root():\n    candidates = []\n    configured = os.environ.get("MATH_MODELING_SKILL_ROOT")\n    if configured:\n        candidates.append(Path(configured).expanduser())\n    script_locations = [Path(__file__).resolve(), Path.cwd().resolve()]\n    for location in script_locations:\n        candidates.extend([location, *location.parents])\n    for candidate in candidates:\n        if (candidate / "tools" / "docx" / "core").is_dir():\n            return candidate\n    raise RuntimeError("找不到 mathmodelingmaster Skill 根目录；请设置 MATH_MODELING_SKILL_ROOT")\n\n\nSKILL_ROOT = _find_skill_root()\nsys.path.insert(0, str(SKILL_ROOT))\nfrom tools.docx.core import paper_format as pf\n\nBLOCKS = json.loads({payload_literal})\nASSET_ROOT = Path(__file__).resolve().parent / {json.dumps(asset_dir, ensure_ascii=False)}\n\ndef build(project_root=None):\n    project_root = Path(project_root or Path(__file__).resolve().parent.parent)\n    doc = pf.new_project_document(project_root, contest="cumcm")\n    for block in BLOCKS:\n        kind = block["kind"]\n        if kind == "table":\n            pf.three_line_table(doc, block["rows"])\n            continue\n        for asset in block.get("images", []):\n            pf.image(doc, ASSET_ROOT / Path(asset.replace("\\\\", "/")))\n        for formula in block.get("omml", []):\n            pf.equation_omml(doc, formula)\n        text = block.get("text", "")\n        if kind == "title": pf.title(doc, text)\n        elif kind == "abstract_title": pf.abstract_title(doc)\n        elif kind == "heading1": pf.heading1(doc, text)\n        elif kind == "heading2": pf.heading2(doc, text)\n        elif kind == "heading3": pf.heading3(doc, text)\n        elif kind == "figure_caption": pf.figure_caption(doc, text)\n        elif kind == "table_caption": pf.table_caption(doc, text)\n        elif kind == "keywords": pf.keywords(doc, text.split("：", 1)[-1])\n        elif text: pf.body(doc, text)\n    return pf.save_document(doc, project_root, overwrite=True)\n\nif __name__ == "__main__":\n    build()\n'
-    output.write_text(script, encoding='utf-8', newline='\n')
-    return output
 def validate_paper_json(docx_path, pdf_path=None, project_root=None):
     pf = _paper_format()
     docx = Path(docx_path).resolve()

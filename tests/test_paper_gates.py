@@ -272,9 +272,9 @@ def test_repro_gate_clean_code(tmp_path):
 
 
 def test_repro_gate_thirdparty_docx_not_flagged(tmp_path):
-    """自包含 build_paper 用 python-docx（from docx import Document）不得误判为 skill 导入。"""
+    """自包含脚本用 python-docx（from docx import Document）不得误判为 skill 导入。"""
     (tmp_path / "code").mkdir(exist_ok=True)
-    (tmp_path / "code" / "build_paper.py").write_text(
+    (tmp_path / "code" / "render_paper.py").write_text(
         "import json\nfrom docx import Document\n"
         "from docx.shared import Pt\nfrom lxml import etree\n",
         encoding="utf-8",
@@ -357,7 +357,7 @@ def test_auto_clean_leaves_soft_style_and_thirdparty(tmp_path):
     """清扫只动硬痕迹：三引号/长横线/第三方 docx import 原地保留。"""
     from tools.common.reproducibility import auto_clean_code
     (tmp_path / "code").mkdir(exist_ok=True)
-    victim = tmp_path / "code" / "build_paper.py"
+    victim = tmp_path / "code" / "render_paper.py"
     victim.write_text(
         '"""说明"""\nfrom docx import Document\n# -------\n'
         'from mm_style import configure_chinese_style\n',
@@ -681,22 +681,6 @@ def test_check_figure_must_sit_in_check_chapter():
     issues = pf._check_figure_placement_issues(doc)
     assert any("图1" in i and "模型检验章" in i for i in issues)
     assert not any("图2" in i for i in issues)
-
-
-def test_build_paper_purity_flags_base64_and_print(tmp_path):
-    from tools.project_ops.project_cleanup import _check_build_paper_purity
-
-    code = tmp_path / "code"
-    code.mkdir()
-    (code / "build_paper.py").write_text(
-        "import base64\n"
-        "data = base64.b64decode('aGVsbG8=')\n"
-        "print(data)\n",
-        encoding="utf-8",
-    )
-    warnings = _check_build_paper_purity(tmp_path)
-    assert any("base64" in w for w in warnings)
-    assert any("print" in w for w in warnings)
 
 
 def test_tex_docx_sync_warning(tmp_path):

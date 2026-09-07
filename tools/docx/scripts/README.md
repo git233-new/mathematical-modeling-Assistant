@@ -23,5 +23,4 @@ from tools.docx.core import paper_format as pf
 ## Runtime output boundary
 
 资产清单、渲染 PNG、PDF 和 `structure.json` 必须写入任务项目的临时目录或交付目录，
-不要写入 `tools/docx/core/` 或 `tools/docx/scripts/`。可重复生成的 `build_paper.py` 属于交付物，固定放在
-`PROJECT_ROOT/code/`，验收清理时不得删除。
+不要写入 `tools/docx/core/` 或 `tools/docx/scripts/`。

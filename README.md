@@ -59,7 +59,7 @@ modex/
 1. **安装**：仓库放入 AI 助手 Skills 目录，执行 `pip install -r requirements.txt`（不要求装 Word/LibreOffice/Pandoc；`pywin32`、`rapidocr_onnxruntime` 为可选扩展依赖）。
 2. **准备题目**：新建空目录，赛题 PDF/DOCX 与全部附件（CSV/XLSX/DOCX）放 `files/` 目录（只读保护区；兼容根层散置的历史题目）。
 3. **一句话触发**：`解答题目：题目在 math_modeling_A/ 下`（等价：解题 / 做这道题 / 开做）。单步须显式说"只分析 / 只写代码 / 只写论文 / 只评审"。
-4. **取用产物**：`code/`（Q<序号>.py + solve_common.py + viz.py + build_paper.py）、`results/`（数据/图片/评审报告/run_manifest.json）、`完整论文.docx` + `完整论文.tex`；赛题原件在 `files/`（只读）。
+4. **取用产物**：`code/`（Q<序号>.py + solve_common.py + viz.py）、`results/`（数据/图片/评审报告/run_manifest.json）、`完整论文.docx` + `完整论文.tex`；赛题原件在 `files/`（只读）。
 
 ## 关键口径速查
 

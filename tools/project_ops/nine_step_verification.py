@@ -71,7 +71,6 @@ INTERNAL_LEAK_PATTERNS = [
     re.compile(r"verify_paper_evidence\.py"),
     re.compile(r"result_contract\.py"),
     re.compile(r"structure_validation\.py"),
-    re.compile(r"build_paper\.py"),
     re.compile(r"prompt_builder\.py"),
     re.compile(r"prompt_registry\.py"),
     re.compile(r"prompt_utils\.py"),

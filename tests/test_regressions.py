@@ -1086,7 +1086,7 @@ def test_figure_table_lead_in_warnings(tmp_path):
 
 
 def test_rebuild_extracts_title_and_ai_declaration_heading():
-    """rebuild 提炼器：首个文本段 → title；AI工具使用声明 → heading1（防 build_paper 标题变 body）。"""
+    """rebuild 提炼器：首个文本段 → title；AI工具使用声明 → heading1（防标题变 body）。"""
     from docx import Document as D
     from tools.docx.core.paper_workflow import _extract_blocks
     doc = D()

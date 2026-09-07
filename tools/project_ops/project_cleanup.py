@@ -52,10 +52,9 @@ PROCESS_NAME_MARKERS = (
 )
 # 瘦身白名单（只对 code/ 与 results/数据/ 生效）：非白名单项即过程物，交付时清理。
 # files/ 与项目根层永不适用白名单。与 SKILL.md 交付契约保持一致。
-CODE_KEEP_RE = re.compile(r"^(Q\d+(?:_.+)?\.py|solve_common\.py|viz\.py|build_paper\.py|requirements\.txt)$")
+CODE_KEEP_RE = re.compile(r"^(Q\d+(?:_.+)?\.py|solve_common\.py|viz\.py|requirements\.txt)$")
 DATA_ALWAYS_KEEP = {"spss_outputs.json", "文献检索.json"}
-REPRODUCIBLE_SCRIPT_NAME = "build_paper.py"
-# 解题公共模块名：仅被 Q<序号>.py 复用，build_paper.py 等非解答脚本不得依赖
+# 解题公共模块名：仅被 Q<序号>.py 复用，非解答脚本不得依赖
 SOLUTION_COMMON_NAME = "solve_common.py"
 # 统一生图配置模块：绘图参数（配色/字号/尺寸/导出）唯一入口，各问只调不各写
 VIZ_MODULE_NAME = "viz.py"
@@ -68,45 +67,6 @@ DELIVERY_TEMPLATE_NAME = "论文模板.docx"
 # 完整论文.tex 是 LaTeX 源码版交付物（save_document 与 DOCX 同快照写出），与 DOCX 同级保护。
 # files/ 是赛题原件与原附录，任何情况下不得修改或删除。
 PROTECTED_ITEMS = ("results", "code", "files", "完整论文.docx", "完整论文.tex")
-# 导入语句匹配：from solve_common import ... / import solve_common / from Q1_xxx import ... / import Q1_xxx
-_IMPORT_SOLUTION_RE = re.compile(
-    r"^\s*(?:from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import|import\s+([A-Za-z_][A-Za-z0-9_.]*))",
-    re.MULTILINE,
-)
-
-
-def _check_build_paper_purity(project: Path) -> list[str]:
-    """build_paper.py 不得依赖赛题解题模块（solve_common.py / Q<序号>.py）。
-
-    论文生成脚本与解题代码零耦合，且自包含（不 import skill 模块，见
-    scan_reproducibility_warnings）。命中则返回警告；不阻断清理，但交付前应修复。
-    """
-    build_paper = Path(project).resolve() / "code" / REPRODUCIBLE_SCRIPT_NAME
-    if not build_paper.is_file():
-        return _tex_docx_sync_warning(project)
-    src = build_paper.read_text(encoding="utf-8", errors="ignore")
-    warnings = []
-    hits = []
-    for match in _IMPORT_SOLUTION_RE.finditer(src):
-        module = (match.group(1) or match.group(2) or "").strip()
-        if not module:
-            continue
-        if module == "solve_common" or module.startswith("Q") and re.match(r"^Q\d+", module):
-            hits.append(module)
-    if hits:
-        warnings.append(
-            f"{REPRODUCIBLE_SCRIPT_NAME} 依赖赛题解题模块（{', '.join(sorted(set(hits)))}）——"
-            f"非解答脚本不得 import {SOLUTION_COMMON_NAME} 或 Q<序号>.py"
-        )
-    # 纯净性：不得内嵌 base64 大块内容（资源应走文件），正文产出不得 print 调试信息
-    if re.search(r"b64decode|base64\.b64|decodebytes", src):
-        warnings.append(f"{REPRODUCIBLE_SCRIPT_NAME} 内嵌 base64 内容——资源改为文件读取（results/图片/ 等），保持脚本可读")
-    for lineno, line in enumerate(src.splitlines(), start=1):
-        if re.match(r"^\s*print\(", line):
-            warnings.append(f"{REPRODUCIBLE_SCRIPT_NAME}:{lineno} 含 print 输出——按输出规范只允许 2-6 行结果摘要或删除")
-            break
-    warnings.extend(_tex_docx_sync_warning(project))
-    return warnings
 
 
 def _tex_docx_sync_warning(project: Path) -> list[str]:
@@ -115,7 +75,7 @@ def _tex_docx_sync_warning(project: Path) -> list[str]:
     docx_path = project / "完整论文.docx"
     tex_path = project / "完整论文.tex"
     if docx_path.is_file() and tex_path.is_file() and docx_path.stat().st_mtime > tex_path.stat().st_mtime + 1:
-        return ["完整论文.tex 落后于 完整论文.docx——重跑 save_document（或 build_paper 保存链）从同一内容快照重新导出"]
+        return ["完整论文.tex 落后于 完整论文.docx——重跑 save_document 从同一内容快照重新导出"]
     return []
 
 
@@ -139,11 +99,8 @@ def _is_skill_trace(path: Path) -> bool:
 
 
 def _is_process_script(path: Path) -> bool:
-    is_reproducible_build = path.name == REPRODUCIBLE_SCRIPT_NAME and path.parent.name == "code"
-    if path.suffix != ".py" or path.name.startswith("Q") or is_reproducible_build:
+    if path.suffix != ".py" or path.name.startswith("Q"):
         return False
-    if path.name == REPRODUCIBLE_SCRIPT_NAME:
-        return True
     stem = path.stem.lower()
     return any(marker in stem for marker in PROCESS_NAME_MARKERS)
 
@@ -215,7 +172,7 @@ def _protected_or_skill_trace(path: Path, protected, whitelist=frozenset()) -> b
     2. results/ 内其余内容保护（证据，不可删除）——优先于缓存判定，
        即使 results/ 内出现 __pycache__ 也不删。
     3. 缓存与 skill 痕迹即使位于 code/ 内也允许清理。
-    4. code/ 内除白名单脚本、build_paper.py、缓存和 skill 痕迹外一律保护。
+    4. code/ 内除白名单脚本、缓存和 skill 痕迹外一律保护。
     """
     resolved = path.resolve()
     if resolved in whitelist:
@@ -290,8 +247,6 @@ def _execute_cleanup(project: Path) -> list[Path]:
     for path in targets:
         if _safe_remove(path):
             removed.append(path)
-    for warning in _check_build_paper_purity(project):
-        logger.warning("build_paper 纯净性: %s", warning)
     for warning in scan_reproducibility_warnings(project):
         logger.warning("可复现性: %s", warning)
     return removed
@@ -329,8 +284,6 @@ def main() -> int:
     if args.apply:
         _execute_cleanup(project)
     print(f"[cleanup] 完成：{action} {len(targets)} 项")
-    for warning in _check_build_paper_purity(project):
-        print(f"[cleanup] 警告: {warning}")
     for warning in scan_reproducibility_warnings(project):
         print(f"[cleanup] 可复现性预警: {warning}")
     return 0

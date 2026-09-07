@@ -45,7 +45,6 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 │   ├── Q1.py / Q2.py         # 各小问独立运行入口，命名 Q<序号>.py（拆分子模块用 Q<序号>_<描述>.py）
 │   ├── solve_common.py       # 通用核心算法与核心模型，仅被 Q<序号>.py 复用（可选）
 │   ├── viz.py                # 统一生图配置：配色/字号/尺寸/导出格式唯一入口，各问只调用不各写（可选）
-│   ├── build_paper.py        # 可重复生成论文的脚本
 │   └── requirements.txt
 ├── results/
 │   ├── 论文评审与分析.md     # 评审、风险与修改闭环
@@ -56,13 +55,12 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 └── 完整论文.tex              # LaTeX 源码版（同一内容快照，不编译）
 ```
 
-`code/build_paper.py` 是可重复生成论文的交付脚本，清理器会保留它；不得将其放在项目根目录。
-交付时清理器对 `code/` 与 `results/数据/` 执行**瘦身白名单**：`code/` 只保留 `Q<序号>.py`（含 `Q<序号>_<描述>.py` 子模块）、`solve_common.py`、`viz.py`、`build_paper.py`、`requirements.txt`，`results/数据/` 只保留 run_manifest 登记文件与 `spss_outputs.json`，其余一律清除；`files/` 与项目根层永不适用白名单、绝不触碰。论文写作阶段的中间稿一律放 `PROJECT_ROOT/.paper_work/`，作为自由推演区——AI 可在此随意写推理草稿、技术方案、中间分析，合并进 DOCX 后**不删除该目录**（保留供后续调试回溯）。`.paper_work/` 不进入交付目录，但清理器不强制清除它。
+交付时清理器对 `code/` 与 `results/数据/` 执行**瘦身白名单**：`code/` 只保留 `Q<序号>.py`（含 `Q<序号>_<描述>.py` 子模块）、`solve_common.py`、`viz.py`、`requirements.txt`，`results/数据/` 只保留 run_manifest 登记文件与 `spss_outputs.json`，其余一律清除；`files/` 与项目根层永不适用白名单、绝不触碰。论文写作阶段的中间稿一律放 `PROJECT_ROOT/.paper_work/`，作为自由推演区——AI 可在此随意写推理草稿、技术方案、中间分析，合并进 DOCX 后**不删除该目录**（保留供后续调试回溯）。`.paper_work/` 不进入交付目录，但清理器不强制清除它。
 
 - `SKILL_ROOT`（本目录）：只读知识库与工具，**绝不向此处写任何过程文件**。
 - `PROJECT_ROOT`：用户题目与产物目录；未指定时在题目同级新建 `math_modeling_<题号或简称>/`。赛题文件与原附录一律位于 `PROJECT_ROOT/files/`（用户放置；兼容读取根层散置的历史附件）。`files/` 是只读保护区：任何步骤不得修改、重命名或删除其中文件；需要写入或填表时，复制到 `results/数据/` 后操作副本，**绝不回写 `files/`**。
 - **写前守卫**：写入前用 `os.path.realpath()` 规范化目标与 `PROJECT_ROOT`、`SKILL_ROOT`，确认目标位于 `PROJECT_ROOT` 之内（含相等）且不在 `SKILL_ROOT` 之内；否则停止并请用户指定。规范化可消除符号链接、相对路径与 Windows 大小写不敏感文件系统导致的误判（对尚不存在的目标文件也经 `normcase` 归一大小写）；非法输入或规范化失败一律拒绝写入（fail-closed）。见 `tools/common/path_utils.is_within`，唯一实现。
-- **禁止 skill 痕迹**：`PROJECT_ROOT` 不得出现 `tools/`、`docx/`、`pdf/`、`SKILL.md`、`paper_format.py` 副本等 skill 内部结构；`build_paper.py` 一律**自包含**（`python-docx` 排版逻辑就地内联，不 import 任何 skill 模块、不依赖 SKILL_ROOT）；误带痕迹由 `tools/project_ops/project_cleanup.py` 检出预警。
+- **禁止 skill 痕迹**：`PROJECT_ROOT` 不得出现 `tools/`、`docx/`、`pdf/`、`SKILL.md`、`paper_format.py` 副本等 skill 内部结构；误带痕迹由 `tools/project_ops/project_cleanup.py` 检出预警。
 
 ## 前置条件与环境约束
 
@@ -96,7 +94,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
    ⑥ 不通过 → 按 Step 4 失败恢复链处理；
    ⑦ 本问完成后推进 Q(i+1)，可复用 `solve_common.py` 中已验证的公共逻辑。
 
-   **代码结构与风格**：按 `文档/代码规范.md` 生成 `code/Q1.py`、`Q2.py`…（各小问独立运行入口）；**通用核心算法与核心模型放 `solve_common.py`**（可选：仅当确有赛题公共求解逻辑才建，只被 `Q<序号>.py` 复用；不放字体/颜色等样式配置）；**统一生图配置放 `viz.py`**（配色、字号、尺寸、导出格式的唯一入口，各问 import 调用，禁止各自另写绘图样式；确无图可免）；逻辑过重可拆 `Q<序号>_<描述>.py` 子模块，纯理论小问可无代码。**非解答脚本（`build_paper.py` 等）不以 `Q` 开头、不依赖 `solve_common.py`、不 import 任何 skill 模块（`python-docx` 排版就地内联，完全自包含）**；图片与结果文件一律中文命名。**代码风格硬闸门（生成时即遵守，不等交付后清扫）**：① 禁止 `"""…"""` 三引号 docstring（模块/函数顶部均不得出现）；② 禁止横幅/分隔线装饰注释（`# ---…---`、`# ======`）；③ 连续空行最多 1 行；④ 禁止调试/进度 `print`（仅最终 2–6 行关键结果可输出）；⑤ 中文字体在 Q 文件内就地 `plt.rcParams` 注册（SimHei 打头），禁止 import skill 字体模块；⑥ 图片文件名 `<全局序号>_<描述>.png`（全局递增不重复，禁止「图N」开头、纯英文/拼音缩写）。
+   **代码结构与风格**：按 `文档/代码规范.md` 生成 `code/Q1.py`、`Q2.py`…（各小问独立运行入口）；**通用核心算法与核心模型放 `solve_common.py`**（可选：仅当确有赛题公共求解逻辑才建，只被 `Q<序号>.py` 复用；不放字体/颜色等样式配置）；**统一生图配置放 `viz.py`**（配色、字号、尺寸、导出格式的唯一入口，各问 import 调用，禁止各自另写绘图样式；确无图可免）；逻辑过重可拆 `Q<序号>_<描述>.py` 子模块，纯理论小问可无代码。**非解答脚本（工具脚本等）不以 `Q` 开头、不依赖 `solve_common.py`、不 import 任何 skill 模块**；图片与结果文件一律中文命名。**代码风格硬闸门（生成时即遵守，不等交付后清扫）**：① 禁止 `"""…"""` 三引号 docstring（模块/函数顶部均不得出现）；② 禁止横幅/分隔线装饰注释（`# ---…---`、`# ======`）；③ 连续空行最多 1 行；④ 禁止调试/进度 `print`（仅最终 2–6 行关键结果可输出）；⑤ 中文字体在 Q 文件内就地 `plt.rcParams` 注册（SimHei 打头），禁止 import skill 字体模块；⑥ 图片文件名 `<全局序号>_<描述>.png`（全局递增不重复，禁止「图N」开头、纯英文/拼音缩写）。
 4. **真实运行与落盘**：Python 跑出的图片和数值写入 `results/图片/` 与 `results/数据/`，按 `文档/代码规范.md` 调用 `write_run_manifest()` 生成 `results/run_manifest.json`（同时传入 `manual_stats=load_spss_outputs(project)` 登记 SPSS 结果）；重跑覆盖。**时间窗**：`RUN_STARTED` 在 Step 4 开跑时记录一次存 `solve_common.py`，各 Q 统一传 `started_at=RUN_STARTED`（窗口覆盖全部产物 mtime，见 `文档/代码规范.md`）。**SPSS 等人工工具**：人按赛题所需分析（配对 T、ANOVA 等）点菜单跑出统计量后，将数值登记进 `results/数据/spss_outputs.json`（`name/value/unit/tool`；如 t/p、F/η²、回归系数、Cohen's d）。登记细则与 gate 核对规则见**铁律 8**（唯一权威），此处不重复。
 
    **失败恢复链（运行出错时按此分级处理，不盲目重试）**：
@@ -124,8 +122,8 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 
    健全性检查不通过的结果**不得进入 Tournament 评分**，不得写入 run_manifest，不得写入论文。
 
-5. **生成论文**：**动笔前必须先通读 `知识库/写作增强/去AI味指南.md`**（写法阶段自动加载，主语具体化/禁空泛主语等措辞规则以它为准）。**前置校验清单（写作时逐条遵守，不等 gate 后修）**：① 摘要 = 向一页写满（问题少多写、问题多少写），首段直入问题本质（禁"赛题给出/本题给出"开头），结果段直说最终结论与关键数值（禁堆模型名算法名、禁列一串中间数据却说不出结果、禁大量数学符号），4-6 句、200-400 字；② 每个二级小节 ≥ 300 字，**禁止空标题/占位标题**（标题含 XXX/TODO/待填 或标题下无任何正文段落——机器闸门会拦截）；③ 公式→参数→数值链：正文引用公式中每个符号必须有定义（符号说明表或上下文），参数值必须对应 `run_manifest.json` 登记的来源；④ 模型结论断言（"最优"/"显著"/"收敛"）必须有 manifest 数据支撑，无登记依据的表述禁止写入；⑤ 统计结论守卫：声称"显著"须附 p 值与效应量，声称"最优"须附对比基线数值，声称"收敛"须附迭代/残差数据；⑥ 每张图/表在正文中首次出现前必须有引导句（如"如图 3 所示，…"），禁止图/表无前文铺垫直接出现，**图编号严格按正文出现顺序递增，不得乱跳**；⑦ 初始篇幅 ≥ 8000 正文单位再提交首次 gate 校验，避免 gate 反复打回扩写；⑧ 模型假设只写"假设N：内容。依据：…。检验：…。"短句，不堆解释性废话（假设后不跟长段说明"该模型是指…"）；⑨ 模型检验/灵敏度分析等内容只在"模型检验与分析"章节展开，除非赛题问题直接要求"进行检验"，否则各问求解小节不单独设检验子节。按 `文档/论文写作.md` 组织内容，**写作必须有依据**——每个关键数字、图表与结论必须对应 `run_manifest.json` 登记的结果（或 `manual_stats`/SPSS 来源），无登记依据的表述一律不得写入，gate 会逐字核对并拒存。调用 `pf.preflight_check(outline)` 和 `save_document()`；论文文件交付由 `latex_export.export_latex_source` 同快照生成、**先落位的 `完整论文.tex`** 与随后原子发布的 `完整论文.docx`，不依赖 Word/LibreOffice 渲染。**LaTeX-first 替代路径**：可用 `PaperLatexBuilder`（`tools/docx/core/latex_generator.py`）直接构建 LaTeX 源码，再调 `save_latex_first()` 经 pandoc 转 DOCX——公式零转换（原生 LaTeX math），适合 LLM 直接生成。两条路径产出等效，默认仍为 DOCX-native。`save_document()` 按项目交付下限和内容等效篇幅执行硬校验，任何要求未达标都拒绝保存。模板提供版式基底（A4/边距/页码）与章节槽位，标题与正文的字体字号规格由 `paper_format._ensure_paper_styles` 统一注入（按模板要求：标题一律黑体），题目需要时允许增删改标题。`code/build_paper.py` **完全自包含**（`python-docx` 排版逻辑就地内联），不 import 任何 skill 模块，运行时不依赖 SKILL_ROOT；**不得 import 赛题 `solve_common.py` 或 `Q<序号>.py`**。
-   - 附录只保留**附录A 支撑材料清单**：由 `pf.append_code_files(project_root)` 按 `run_manifest.json` 的 `source_scripts` + 数据文件自动生成（`solve_common.py` 等公共模块与数据文件一并登记，排除 build_paper.py），代码本体不入论文、全部保留在 `code/` 目录。整题纯理论（无解题代码）时附录A 段仍保留并登记数据/说明。
+5. **生成论文**：**动笔前必须先通读 `知识库/写作增强/去AI味指南.md`**（写法阶段自动加载，主语具体化/禁空泛主语等措辞规则以它为准）。**前置校验清单（写作时逐条遵守，不等 gate 后修）**：① 摘要 = 向一页写满（问题少多写、问题多少写），首段直入问题本质（禁"赛题给出/本题给出"开头），结果段直说最终结论与关键数值（禁堆模型名算法名、禁列一串中间数据却说不出结果、禁大量数学符号），4-6 句、200-400 字；② 每个二级小节 ≥ 300 字，**禁止空标题/占位标题**（标题含 XXX/TODO/待填 或标题下无任何正文段落——机器闸门会拦截）；③ 公式→参数→数值链：正文引用公式中每个符号必须有定义（符号说明表或上下文），参数值必须对应 `run_manifest.json` 登记的来源；④ 模型结论断言（"最优"/"显著"/"收敛"）必须有 manifest 数据支撑，无登记依据的表述禁止写入；⑤ 统计结论守卫：声称"显著"须附 p 值与效应量，声称"最优"须附对比基线数值，声称"收敛"须附迭代/残差数据；⑥ 每张图/表在正文中首次出现前必须有引导句（如"如图 3 所示，…"），禁止图/表无前文铺垫直接出现，**图编号严格按正文出现顺序递增，不得乱跳**；⑦ 初始篇幅 ≥ 8000 正文单位再提交首次 gate 校验，避免 gate 反复打回扩写；⑧ 模型假设只写"假设N：内容。依据：…。检验：…。"短句，不堆解释性废话（假设后不跟长段说明"该模型是指…"）；⑨ 模型检验/灵敏度分析等内容只在"模型检验与分析"章节展开，除非赛题问题直接要求"进行检验"，否则各问求解小节不单独设检验子节。按 `文档/论文写作.md` 组织内容，**写作必须有依据**——每个关键数字、图表与结论必须对应 `run_manifest.json` 登记的结果（或 `manual_stats`/SPSS 来源），无登记依据的表述一律不得写入，gate 会逐字核对并拒存。调用 `pf.preflight_check(outline)` 和 `save_document()`；论文文件交付由 `latex_export.export_latex_source` 同快照生成、**先落位的 `完整论文.tex`** 与随后原子发布的 `完整论文.docx`，不依赖 Word/LibreOffice 渲染。**LaTeX-first 替代路径**：可用 `PaperLatexBuilder`（`tools/docx/core/latex_generator.py`）直接构建 LaTeX 源码，再调 `save_latex_first()` 经 pandoc 转 DOCX——公式零转换（原生 LaTeX math），适合 LLM 直接生成。两条路径产出等效，默认仍为 DOCX-native。`save_document()` 按项目交付下限和内容等效篇幅执行硬校验，任何要求未达标都拒绝保存。模板提供版式基底（A4/边距/页码）与章节槽位，标题与正文的字体字号规格由 `paper_format._ensure_paper_styles` 统一注入（按模板要求：标题一律黑体），题目需要时允许增删改标题。
+   - 附录只保留**附录A 支撑材料清单**：由 `pf.append_code_files(project_root)` 按 `run_manifest.json` 的 `source_scripts` + 数据文件自动生成（`solve_common.py` 等公共模块与数据文件一并登记），代码本体不入论文、全部保留在 `code/` 目录。整题纯理论（无解题代码）时附录A 段仍保留并登记数据/说明。
    - **LaTeX-first 调用示例**：
      ```python
      from tools.docx.core.latex_generator import PaperLatexBuilder

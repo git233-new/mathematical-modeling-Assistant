@@ -1,9 +1,8 @@
 """命名契约与 SPSS 强制逻辑回归测试。
 
 覆盖 2026-08 修复：
-- append_code_files 只渲染附录A 支撑材料清单（代码不入论文，本体保留 code/；build_paper.py 不登记）
+- append_code_files 只渲染附录A 支撑材料清单（代码不入论文，本体保留 code/）
 - load_spss_outputs 的 required=true 强制（漏填抛 ValueError）
-- project_cleanup 的 build_paper 纯净性检查（不得 import solve_common / Q<序号>.py）
 - _appendix_size_issues 附录必须含附录A 支撑材料清单（空附录/纯文字附录均拒存）
 """
 import json
@@ -20,7 +19,6 @@ from docx.enum.style import WD_STYLE_TYPE
 from tools.docx.core.paper_format import append_code_files, HEADING3_STYLE
 from tools.docx.core.result_contract import load_spss_outputs
 from tools.docx.core.structure_validation import _appendix_size_issues
-from tools.project_ops.project_cleanup import _check_build_paper_purity
 
 
 def _mk_doc():
@@ -48,7 +46,6 @@ class TestAppendCodeFilesAppendixAOnly:
         (code / "Q1.py").write_text("def solve():\n    return 1\n", encoding="utf-8")
         (code / "Q2.py").write_text("def f():\n    return 2\n", encoding="utf-8")
         (code / "viz.py").write_text("def plot():\n    pass\n", encoding="utf-8")
-        (code / "build_paper.py").write_text("print('x')\n", encoding="utf-8")
 
         doc = _mk_doc()
         append_code_files(doc, str(tmp_path))
@@ -71,7 +68,6 @@ class TestAppendCodeFilesAppendixAOnly:
                 "source_scripts": [
                     {"path": "code/Q1.py", "sha256": "x"},
                     {"path": "code/solve_common.py", "sha256": "x"},
-                    {"path": "code/build_paper.py", "sha256": "x"},
                 ],
             }),
             encoding="utf-8",
@@ -83,7 +79,6 @@ class TestAppendCodeFilesAppendixAOnly:
         assert any('code/Q1.py' in t for t in texts)
         assert any('solve_common.py' in t for t in texts)
         assert any('q1_结果.csv' in t for t in texts)
-        assert not any('build_paper.py' in t for t in texts)
 
 
 class TestSpssRequired:
@@ -111,31 +106,6 @@ class TestSpssRequired:
         _spss_json(tmp_path, [{"name": "p值", "unit": "无量纲", "value": 0.0}])
         out = load_spss_outputs(str(tmp_path))
         assert out[0]["value"] == 0.0
-
-
-class TestBuildPaperPurity:
-    def test_dependency_detected(self, tmp_path):
-        code = tmp_path / "code"
-        code.mkdir()
-        (code / "build_paper.py").write_text(
-            "from solve_common import load_csv\nimport Q1\nfrom tools.docx.core import paper_format\n",
-            encoding="utf-8",
-        )
-        warnings = _check_build_paper_purity(tmp_path)
-        assert len(warnings) == 1
-        assert "solve_common" in warnings[0]
-
-    def test_clean_build_paper(self, tmp_path):
-        code = tmp_path / "code"
-        code.mkdir()
-        (code / "build_paper.py").write_text(
-            "from tools.docx.core import paper_format\nfrom tools.common.io_utils import sha256_file\n",
-            encoding="utf-8",
-        )
-        assert _check_build_paper_purity(tmp_path) == []
-
-    def test_missing_build_paper(self, tmp_path):
-        assert _check_build_paper_purity(tmp_path) == []
 
 
 class TestAppendixSupportMaterialsGate:

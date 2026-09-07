@@ -279,7 +279,7 @@ def test_repro_absolute_path_detected(tmp_path):
 
 
 def test_repro_skill_import_flags_all_code_files(tmp_path):
-    _project_with_code(tmp_path, "build_paper.py",
+    _project_with_code(tmp_path, "render_paper.py",
                        "from tools.docx.core import paper_format\nprint('x')\n")
     got = "\n".join(pc.scan_reproducibility_warnings(tmp_path))
     assert "导入 skill 工具模块" in got

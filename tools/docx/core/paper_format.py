@@ -1036,7 +1036,7 @@ def _appendix_support_materials(doc, project_root):
             for item in data.get('source_scripts', []) or []:
                 p = item if isinstance(item, str) else str(item.get('path', '') if isinstance(item, dict) else '')
                 p = p.replace('\\', '/')
-                if p and not p.endswith('build_paper.py'):
+                if p:
                     scripts.append(p)
             data_files = [d.get('source') or d.get('path') for d in (data.get('tables', []) or [])
                           if isinstance(d, dict)] + \
@@ -1597,9 +1597,6 @@ def progress_snapshot(doc, stage='writing', rendered_pages=None):
 def emit_progress(doc, stage='writing', rendered_pages=None, stream=None):
     from .paper_workflow import emit_progress as _emit_progress
     return _emit_progress(doc, stage, rendered_pages, stream)
-def rebuild_from_docx(docx_path, output_path=None):
-    from .paper_workflow import rebuild_from_docx as _rebuild_from_docx
-    return _rebuild_from_docx(docx_path, output_path)
 if __name__ == '__main__':
     doc = new_document()
     title(doc, '论文题目')
