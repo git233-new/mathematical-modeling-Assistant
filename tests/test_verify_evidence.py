@@ -1,6 +1,5 @@
 """Regression tests for verify_paper_evidence entry + path safety."""
 import json
-from pathlib import Path
 
 import pytest
 

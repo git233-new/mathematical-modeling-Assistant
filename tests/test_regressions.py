@@ -3,7 +3,6 @@ import json
 
 from docx.oxml.ns import qn
 import pathlib
-import subprocess
 import sys
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -1044,7 +1043,6 @@ def test_figure_table_lead_in_warnings(tmp_path):
 def test_rebuild_extracts_title_and_ai_declaration_heading():
     """rebuild 提炼器：首个文本段 → title；AI工具使用声明 → heading1（防 build_paper 标题变 body）。"""
     from docx import Document as D
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
     from tools.docx.core.paper_workflow import _extract_blocks
     doc = D()
     doc.add_paragraph("基于测试模型的论文")
