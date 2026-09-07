@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "User Model Policy",
+  "description": "用户对当前赛题/小问的建模意图。LLM 读题后先判 mode，再决定自主建模 vs 吸收用户方案 vs 锁定执行。",
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": ["AUTO", "PREFER", "FORCE"],
+      "description": "AUTO=用户未指定模型，系统自主提出候选；PREFER=用户建议模型，进入候选池但参与竞争；FORCE=用户强制锁定，不可替换但仍验证"
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["problem", "question", "subproblem"],
+      "description": "策略作用域：整题 / 某小问 / 某子问题"
+    },
+    "question": {
+      "type": "string",
+      "description": "scope=question/subproblem 时填写，如 Q2"
+    },
+    "model": {
+      "type": ["string", "null"],
+      "description": "用户指定或建议的模型名称。AUTO 时为 null"
+    },
+    "reason": {
+      "type": ["string", "null"],
+      "description": "用户给出的理由（可选）"
+    }
+  },
+  "required": ["mode", "scope"],
+  "if": {
+    "properties": { "mode": { "enum": ["PREFER", "FORCE"] } }
+  },
+  "then": {
+    "required": ["mode", "scope", "model"]
+  }
+}

@@ -1531,6 +1531,32 @@ def _model_assumption_issues(doc):
     return issues
 
 
+# Claim Guard：结论强度升级检测
+# 结论强度等级：观察 < 支持 < 证据表明 < 证实 < 推广
+# 检测无证据支撑的强度升级词（如"证明...普适性"、"充分验证"、"显著优于"）
+_CLAIM_STRENGTH_PATTERNS = [
+    (r'证明.{0,10}(普适|通用|广泛适用)', '结论强度升级："证明...普适性"需多场景验证支撑'),
+    (r'充分验证(了|其)', '"充分验证"需附验证数据或对比实验'),
+    (r'显著优于.{0,5}(模型|方法|算法)', '"显著优于"需附统计检验（p值/置信区间）'),
+    (r'鲁棒性(强|良好|极佳)', '"鲁棒性强"需附扰动实验数据'),
+    (r'完美(解决|处理|匹配)', '"完美"属绝对化表述，改具体指标'),
+    (r'彻底(解决|消除|克服)', '"彻底"属绝对化表述，改具体改进幅度'),
+]
+
+def _claim_strength_issues(doc):
+    """检测结论强度升级：无证据支撑的强断言。"""
+    issues = []
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if not text:
+            continue
+        for pattern, message in _CLAIM_STRENGTH_PATTERNS:
+            if re.search(pattern, text):
+                issues.append(f'{message}（段落："{text[:30]}..."）')
+                break
+    return issues
+
+
 # H8 符号说明题注后不写描述段
 def _symbol_caption_no_prose_issues(doc):
     seen_cap = False
@@ -2140,6 +2166,7 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_problem_restate_length_issues(doc))
     errors.extend(_problem_analysis_balance_issues(doc))
     errors.extend(_model_assumption_issues(doc))
+    errors.extend(_claim_strength_issues(doc))
     errors.extend(_symbol_caption_no_prose_issues(doc))
     errors.extend(_symbol_table_rows_issues(doc))
     errors.extend(_appendix_boxed_table_issues(doc))

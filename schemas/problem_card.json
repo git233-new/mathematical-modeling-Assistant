@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Problem Card",
+  "description": "读题后填写的数学结构卡。从题目提取变量/约束/目标/数据结构，据此推导模型族，而非题型→算法直连。",
+  "type": "object",
+  "properties": {
+    "question": {
+      "type": "string",
+      "description": "小问编号，如 Q1/Q2"
+    },
+    "problem_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "optimization", "prediction", "evaluation", "classification",
+          "clustering", "fitting", "simulation", "dynamic", "game_theory",
+          "network", "statistical_test", "dimensionality_reduction"
+        ]
+      },
+      "description": "题目数学类型（可多选）"
+    },
+    "variables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string", "enum": ["continuous", "discrete", "binary", "categorical", "ordinal"] },
+          "role": { "type": "string", "enum": ["decision", "state", "parameter", "objective", "constraint"] },
+          "description": { "type": "string" }
+        },
+        "required": ["name", "type", "role"]
+      },
+      "description": "关键变量清单"
+    },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "direction": { "type": "string", "enum": ["minimize", "maximize", "satisfy"] },
+          "count": { "type": "integer", "description": "目标数量（多目标时 >1）" }
+        },
+        "required": ["text", "direction"]
+      },
+      "description": "优化/拟合/检验目标"
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "type": { "type": "string", "enum": ["equality", "inequality", "bound", "integer", "logical"] },
+          "linear": { "type": "boolean" }
+        },
+        "required": ["text", "type"]
+      },
+      "description": "约束条件清单"
+    },
+    "data_scale": {
+      "type": "string",
+      "enum": ["tiny", "small", "medium", "large"],
+      "description": "数据规模：tiny(<100), small(<1000), medium(<10000), large(>=10000)"
+    },
+    "uncertainty": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "数据/参数不确定性程度"
+    },
+    "dynamic": {
+      "type": "boolean",
+      "description": "是否含时间维度或动态演化"
+    },
+    "nonlinear": {
+      "type": "boolean",
+      "description": "目标或约束是否非线性"
+    },
+    "multi_objective": {
+      "type": "boolean",
+      "description": "是否多目标"
+    },
+    "model_families": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "由数学结构推导的候选模型族（如 constrained_nonlinear_opt → NSGA-II / MILP / SQP）"
+    }
+  },
+  "required": ["question", "problem_types", "variables", "objectives", "data_scale"]
+}

@@ -911,10 +911,10 @@ def test_nine_step_verification_no_report_by_default(tmp_path):
 
 
 def test_soft_doc_structure_markers():
-    """软文档结构标记：去AI味 8 节无 humanizer 附录；算法资料 7 卡；建模通用规范=防错速查；模板并入设计原则。"""
+    """软文档结构标记：去AI味含 Humanizer 3.0 Core + Math Extension；算法资料 7 卡；建模通用规范=防错速查；模板并入设计原则。"""
     root = pathlib.Path(__file__).resolve().parents[1]
     deai = (root / "知识库/写作增强/去AI味指南.md").read_text(encoding="utf-8")
-    assert "## 八、通用去 AI 味模式速查" in deai and "humanizer 附录" not in deai
+    assert "## 九、Humanizer 3.0 Core" in deai and "## 十、Modex Math Extension" in deai
     algo_cards = list((root / "知识库/算法资料").glob("*.md"))
     assert len(algo_cards) == 7
     assert all("选型卡" in f.read_text(encoding="utf-8") for f in algo_cards)
@@ -1110,3 +1110,30 @@ def test_run_state_checkpoint(tmp_path):
     assert get_next_step(tmp_path) == 3
     assert clear_state(tmp_path)
     assert load_state(tmp_path) is None
+
+
+def test_claim_strength_guard():
+    """Claim Guard：检测结论强度升级（无证据强断言）。"""
+    from tools.docx.core.structure_validation import _claim_strength_issues
+    from docx import Document
+
+    doc = Document()
+    doc.add_paragraph('参数扰动±20%时目标函数波动<2.1%')
+    assert _claim_strength_issues(doc) == []
+
+    doc.add_paragraph('实验证明该模型具有普适性')
+    issues = _claim_strength_issues(doc)
+    assert len(issues) == 1
+    assert '普适性' in issues[0]
+
+    doc2 = Document()
+    doc2.add_paragraph('模型鲁棒性强')
+    issues2 = _claim_strength_issues(doc2)
+    assert len(issues2) == 1
+    assert '鲁棒性' in issues2[0]
+
+    doc3 = Document()
+    doc3.add_paragraph('该方法显著优于传统模型')
+    issues3 = _claim_strength_issues(doc3)
+    assert len(issues3) == 1
+    assert '显著优于' in issues3[0]
