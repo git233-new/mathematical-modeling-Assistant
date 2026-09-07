@@ -1,5 +1,4 @@
 import io
-import io
 import json
 
 from docx.oxml.ns import qn
