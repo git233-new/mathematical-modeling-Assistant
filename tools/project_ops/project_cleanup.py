@@ -85,8 +85,9 @@ def _check_build_paper_purity(project: Path) -> list[str]:
     """
     build_paper = Path(project).resolve() / "code" / REPRODUCIBLE_SCRIPT_NAME
     if not build_paper.is_file():
-        return []
+        return _tex_docx_sync_warning(project)
     src = build_paper.read_text(encoding="utf-8", errors="ignore")
+    warnings = []
     hits = []
     for match in _IMPORT_SOLUTION_RE.finditer(src):
         module = (match.group(1) or match.group(2) or "").strip()
@@ -94,12 +95,30 @@ def _check_build_paper_purity(project: Path) -> list[str]:
             continue
         if module == "solve_common" or module.startswith("Q") and re.match(r"^Q\d+", module):
             hits.append(module)
-    if not hits:
-        return []
-    return [
-        f"{REPRODUCIBLE_SCRIPT_NAME} 依赖赛题解题模块（{', '.join(sorted(set(hits)))}）——"
-        f"非解答脚本不得 import {SOLUTION_COMMON_NAME} 或 Q<序号>.py"
-    ]
+    if hits:
+        warnings.append(
+            f"{REPRODUCIBLE_SCRIPT_NAME} 依赖赛题解题模块（{', '.join(sorted(set(hits)))}）——"
+            f"非解答脚本不得 import {SOLUTION_COMMON_NAME} 或 Q<序号>.py"
+        )
+    # 纯净性：不得内嵌 base64 大块内容（资源应走文件），正文产出不得 print 调试信息
+    if re.search(r"b64decode|base64\.b64|decodebytes", src):
+        warnings.append(f"{REPRODUCIBLE_SCRIPT_NAME} 内嵌 base64 内容——资源改为文件读取（results/图片/ 等），保持脚本可读")
+    for lineno, line in enumerate(src.splitlines(), start=1):
+        if re.match(r"^\s*print\(", line):
+            warnings.append(f"{REPRODUCIBLE_SCRIPT_NAME}:{lineno} 含 print 输出——按输出规范只允许 2-6 行结果摘要或删除")
+            break
+    warnings.extend(_tex_docx_sync_warning(project))
+    return warnings
+
+
+def _tex_docx_sync_warning(project: Path) -> list[str]:
+    """完整论文.docx 比 .tex 新 → LaTeX 源码版停留在旧快照，提醒重跑 save_document 同步。"""
+    project = Path(project).resolve()
+    docx_path = project / "完整论文.docx"
+    tex_path = project / "完整论文.tex"
+    if docx_path.is_file() and tex_path.is_file() and docx_path.stat().st_mtime > tex_path.stat().st_mtime + 1:
+        return ["完整论文.tex 落后于 完整论文.docx——重跑 save_document（或 build_paper 保存链）从同一内容快照重新导出"]
+    return []
 
 
 def scan_reproducibility_warnings(project: Path) -> list[str]:

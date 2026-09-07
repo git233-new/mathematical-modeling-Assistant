@@ -507,7 +507,7 @@ def test_clipped_object_gate_allows_multiple_spacing_objects():
 
 def test_sanitize_text_blocks_trace_words():
     """痕迹词（合规红线）必须拒写。"""
-    for bad in ("本方案由 skill 生成", "两套解取最优", "这是标准解", "内容有合并", "WorkBuddy 辅助"):
+    for bad in ("本方案由 skill 生成", "两套解取最优", "这是标准解", "WorkBuddy 辅助"):
         with pytest.raises(ValueError, match="禁用词"):
             pf.sanitize_text(bad)
 
@@ -646,3 +646,77 @@ def test_result_figure_issues_passes_when_embedded(tmp_path):
     doc = Document()
     doc.add_picture(io.BytesIO(png_1px))
     assert _result_figure_issues(doc, str(tmp_path)) == []
+
+
+def test_keywords_prefix_not_duplicated():
+    """模板槽位文本自带"关键词："前缀时不重复。"""
+    doc = pf.new_document()
+    pf.title(doc, "论文题目")
+    pf.keywords(doc, "关键词：优化；预测")
+    kw = next(p for p in doc.paragraphs if p.text.startswith("关键词"))
+    assert kw.text.count("关键词：") == 1
+    assert "优化；预测" in kw.text
+
+
+def test_prose_minus_sign_normalised():
+    """正文负号 ASCII 连字符 → U+2212；数字区间与英文连字符不受影响。"""
+    doc = pf.new_document()
+    pf.body(doc, "温度为-5摄氏度，区间为2015-2020，编号A-3。")
+    text = "".join(r.text for p in doc.paragraphs for r in p.runs)
+    assert "−5" in text
+    assert "2015-2020" in text
+    assert "A-3" in text
+
+
+def test_duplicate_heading_gate_flags_phantom_chapter():
+    """同一章号两个一级标题（模板幻影）→ 拒存。"""
+    doc = _doc_with_chapters([
+        ("五、模型建立与求解", ["正文"]),
+        ("六、模型检验与分析", ["图1 灵敏度曲线", "表1 检验结果"]),
+        ("六、模型检验", ["幻影章节"]),
+    ])
+    issues = pf._duplicate_heading_issues(doc)
+    assert any("章号 6" in i for i in issues)
+
+
+def test_check_figure_must_sit_in_check_chapter():
+    """检验类图插在求解章 → 拒存；插在检验章 → 通过。"""
+    doc = _doc_with_chapters([
+        ("五、模型建立与求解", ["正文", "图1 灵敏度曲线"]),
+        ("六、模型检验与分析", ["检验说明", "图2 误差分布"]),
+    ])
+    issues = pf._check_figure_placement_issues(doc)
+    assert any("图1" in i and "模型检验章" in i for i in issues)
+    assert not any("图2" in i for i in issues)
+
+
+def test_build_paper_purity_flags_base64_and_print(tmp_path):
+    from tools.project_ops.project_cleanup import _check_build_paper_purity
+
+    code = tmp_path / "code"
+    code.mkdir()
+    (code / "build_paper.py").write_text(
+        "import base64\n"
+        "data = base64.b64decode('aGVsbG8=')\n"
+        "print(data)\n",
+        encoding="utf-8",
+    )
+    warnings = _check_build_paper_purity(tmp_path)
+    assert any("base64" in w for w in warnings)
+    assert any("print" in w for w in warnings)
+
+
+def test_tex_docx_sync_warning(tmp_path):
+    import os
+
+    from tools.project_ops.project_cleanup import _tex_docx_sync_warning
+
+    docx = tmp_path / "完整论文.docx"
+    tex = tmp_path / "完整论文.tex"
+    docx.write_bytes(b"x")
+    tex.write_text("x", encoding="utf-8")
+    os.utime(docx, (1000, 1000))  # docx 明显更旧 → 同步
+    assert _tex_docx_sync_warning(tmp_path) == []
+    os.utime(tex, (900, 900))  # tex 旧 → 落后告警
+    warnings = _tex_docx_sync_warning(tmp_path)
+    assert warnings and "重新导出" in warnings[0]

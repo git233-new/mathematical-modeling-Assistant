@@ -179,7 +179,7 @@ def _reference_issues(paragraphs):
                 cited.add(int(item))
     listed = {int(match.group(1)) for text in bibliography if (match := re.match('^\\[(\\d+)\\]', text))}
     issues = [f'正文引用 [{number}] 未出现在参考文献表' for number in sorted(cited - listed)]
-    issues.extend((f'预警：参考文献 [{number}] 未在正文引用' for number in sorted(listed - cited)))
+    issues.extend((f'参考文献 [{number}] 未在正文引用（文献只在参考文献节，正文须有 [n] 标注）' for number in sorted(listed - cited)))
     # 真实性/占位符校验：参考文献项不得为占位、空壳或不可信来源占位。
     placeholder_patterns = (
         re.compile(r'(?:待填|待补|待补充|占位|TODO|TBD|xxx|XXXX|example|示例|佚名)'),
@@ -678,6 +678,67 @@ def _h1_region_bounds(doc, keyword_re):
             end = h1[n + 1] if n + 1 < len(h1) else len(paras)
             return i + 1, end
     return None
+
+
+def _duplicate_heading_issues(doc):
+    """幻影标题兜底闸门：同一章号或同一规范键的一级标题出现 ≥2 次 → 拒存。"""
+    issues = []
+    seen_num, seen_key = {}, {}
+    for p in doc.paragraphs:
+        text = p.text.strip()
+        if not text:
+            continue
+        is_h1 = (p.style is not None and p.style.name == 'Heading 1') or             re.match('^[一二三四五六七八九十]+、', text) or text in {'参考文献', '附录', 'AI工具使用声明'}
+        if not is_h1:
+            continue
+        m = re.match('^([一二三四五六七八九十]+)、', text)
+        if m:
+            value = 0
+            for ch in m.group(1):
+                value = value * 10 + {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+                                      '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}.get(ch, 0)
+            if value:
+                if value in seen_num:
+                    issues.append(f'幻影章节标题：章号 {value} 出现两次（"{seen_num[value]}" 与 "{text}"），删除模板残留标题')
+                else:
+                    seen_num[value] = text
+                continue
+        key = _heading_key(text)
+        if key:
+            if key in seen_key:
+                issues.append(f'幻影章节标题："{text}" 与 "{seen_key[key]}" 规范名重复，删除模板残留标题')
+            else:
+                seen_key[key] = text
+    return issues
+
+
+_CHECK_FIGURE_KEYWORDS = ('灵敏度', '敏感', '误差', '稳健', '鲁棒', '检验')
+def _check_figure_placement_issues(doc, project_root=None):
+    """检验类图必须落在模型检验章：题注或图片文件名含检验关键词的图，
+    插入位置不在模型检验章区间 → 拒存（文件名同步由命名规范与 manifest 溯源保证）。"""
+    issues = []
+    check_bounds = _h1_region_bounds(doc, r'模型检验')
+    if check_bounds is None:
+        return issues
+    paras = list(doc.paragraphs)
+    check_start = check_bounds[0] - 1  # 检验章 H1 段落下标
+    in_check = False
+    pending_check = False
+    for index, p in enumerate(paras):
+        text = p.text.strip()
+        is_h1 = (p.style is not None and p.style.name == 'Heading 1' and text) or             re.match('^[一二三四五六七八九十]+、', text)
+        if is_h1 and index >= check_start:
+            in_check = re.search(r'模型检验', text) is not None
+        has_picture = bool(p._p.findall('.//' + qn('a:blip')))
+        if has_picture:
+            pending_check = any(kw in (p.text or '') for kw in _CHECK_FIGURE_KEYWORDS)
+            continue
+        if re.match(r'^图\s*\d+', text):
+            is_check = pending_check or any(kw in text for kw in _CHECK_FIGURE_KEYWORDS)
+            if is_check and not in_check:
+                issues.append(f'检验类图"{text[:20]}"插在模型检验章之外：检验相关图片必须放在模型检验与分析章（文件名与题注同步）')
+            pending_check = False
+    return issues
 
 
 def _section_figure_issues(doc):
@@ -2046,6 +2107,8 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_figure_filename_issues(doc, project_root))
     errors.extend(_clipped_object_issues(doc))
     errors.extend(_section_figure_issues(doc))
+    errors.extend(_duplicate_heading_issues(doc))
+    errors.extend(_check_figure_placement_issues(doc, project_root))
     errors.extend(_run_manifest_issues(doc, project_root))
     errors.extend(_body_filename_issues(doc))
     if project_root is not None:

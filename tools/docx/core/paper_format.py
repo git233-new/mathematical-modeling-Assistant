@@ -276,25 +276,56 @@ def _claim_template_slot(doc, role, text):
     chosen['state'] = 'used'
     doc._mathmodeling_insert_cursor = chosen['element']
     return paragraph
+_CN_CHAPTER_NUM = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+def _body_h1_numbers(body):
+    """正文中已写入的一级章号集合（一、二、…），用于识别模板槽位与内容标题重复。"""
+    numbers = set()
+    for p in body.iter(qn('w:p')):
+        text = ''.join(node.text or '' for node in p.iter(qn('w:t'))).strip()
+        m = re.match('^([一二三四五六七八九十]+)、', text)
+        if m:
+            value = 0
+            for ch in m.group(1):
+                value = value * 10 + _CN_CHAPTER_NUM.get(ch, 0)
+            if value:
+                numbers.add(value)
+    return numbers
 def _prune_unused_template_slots(doc):
     body = doc._element.body
+    existing_numbers = _body_h1_numbers(body)
     for item in getattr(doc, '_mathmodeling_template_slots', []):
         element = item['element']
-        if item['state'] == 'pending' and element.getparent() is body:
-            if item.get('protected'):
-                item['state'] = 'kept'
+        if item['state'] != 'pending' or element.getparent() is not body:
+            continue
+        if item.get('protected'):
+            # protected 槽位（如 AI 声明）若正文已写同名标题，则槽位即幻影，删除
+            slot_text = ''.join(node.text or '' for node in element.iter(qn('w:t'))).strip()
+            written = [''.join(node.text or '' for node in p.iter(qn('w:t'))).strip()
+                       for p in body.iter(qn('w:p'))]
+            if slot_text and any(t and _heading_key(t) == _heading_key(slot_text) for t in written):
+                body.remove(element)
+                item['state'] = 'skipped'
                 continue
-            if item['role'] == 'heading1':
-                canonical = next((_REQUIRED_HEADING1_CANONICAL[marker] for marker in _REQUIRED_HEADING1_CANONICAL if marker in item['key']), None)
-                if canonical is not None:
-                    paragraph = Paragraph(element, doc._body)
-                    _clear_paragraph_content(paragraph)
-                    paragraph.style = HEADING1_STYLE
-                    set_run_font(paragraph.add_run(canonical), font='黑体', size=14, bold=False)
-                    item['state'] = 'used'
+            item['state'] = 'kept'
+            continue
+        if item['role'] == 'heading1':
+            canonical = next((_REQUIRED_HEADING1_CANONICAL[marker] for marker in _REQUIRED_HEADING1_CANONICAL if marker in item['key']), None)
+            if canonical is not None:
+                m = re.match('^([一二三四五六七八九十]+)、', canonical)
+                slot_num = _CN_CHAPTER_NUM.get(m.group(1)) if m else None
+                if slot_num and slot_num in existing_numbers:
+                    # 正文已写同章号标题（键不同导致 claim 未命中），模板槽位即幻影，删除
+                    body.remove(element)
+                    item['state'] = 'skipped'
                     continue
-            body.remove(element)
-            item['state'] = 'skipped'
+                paragraph = Paragraph(element, doc._body)
+                _clear_paragraph_content(paragraph)
+                paragraph.style = HEADING1_STYLE
+                set_run_font(paragraph.add_run(canonical), font='黑体', size=14, bold=False)
+                item['state'] = 'used'
+                continue
+        body.remove(element)
+        item['state'] = 'skipped'
 def _appendix_is_active(doc):
     for paragraph in reversed(doc.paragraphs):
         text = paragraph.text.strip()
@@ -372,6 +403,7 @@ def paragraph(doc, text='', align=None, first_line=False, line_spacing=1.25, sty
         p.alignment = align
     if text:
         value = str(text) if preserve_line_breaks else _normalise_prose_breaks(text)
+        value = normalise_prose_punctuation(value)
         set_run_font(p.add_run(sanitize_text(value)))
     return p
 def title(doc, text):
@@ -464,7 +496,14 @@ def equation_placeholder(doc, latex, prefix='EQ'):
     placeholder = f'{prefix}_{uuid.uuid4().hex[:8].upper()}'
     body(doc, placeholder)
     return (placeholder, latex)
+def normalise_prose_punctuation(text):
+    """正文标点归一：ASCII 连字符当负号用（中文/标点/行首后接数字）→ U+2212；
+    数字区间（前一位是数字）与英文连字符不受影响。"""
+    text = re.sub(r'(?<![0-9a-zA-Z_.])-(?=\d)', '−', text)
+    return text
 def keywords(doc, text):
+    # 模板槽位文本可能自带"关键词："前缀，先剥离再加统一前缀，防"关键词：关键词："重复
+    text = re.sub(r'^关键词\s*[:：]\s*', '', text or '')
     paragraph(doc, style_name=BODY_STYLE)
     p = _claim_template_slot(doc, 'keywords', text) or paragraph(doc, style_name=BODY_STYLE)
     p.style = BODY_STYLE
@@ -712,7 +751,7 @@ def force_black_fonts(doc):
     return fixed
 # 身份/痕迹词硬闸门（合规红线，命中拒写）。口语主语词（我们/本文/该模型）不在此列——
 # 属文风软规则，由 知识库/写作增强/去AI味指南.md 在写作阶段约束，机器不拦。
-FORBIDDEN_WORDS = ('WorkBuddy', 'workbuddy', 'skill', 'Skill', '智能体', '合并', '融合两', '两套解', '两份解', '两个解', '底版', '取舍', '另一份', '参考解', '标准解', '对着标准', '对着参考')
+FORBIDDEN_WORDS = ('WorkBuddy', 'workbuddy', 'skill', 'Skill', '智能体', '两套解', '两份解', '两个解', '底版', '另一份', '参考解', '标准解', '对着标准', '对着参考')
 
 # AI 味通用痕迹正则（K1–K5，全题通用，不针对某一题）
 AI_TASTE_PATTERNS = [
@@ -1441,6 +1480,8 @@ if __name__ == '__main__':
 # （structure_validation 可直接首引）。
 _VALIDATION_REEXPORTS = (
     '_clipped_object_issues',
+    '_duplicate_heading_issues',
+    '_check_figure_placement_issues',
     '_section_figure_issues',
     '_paragraph_style_issues',
     '_run_manifest_issues',
