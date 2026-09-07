@@ -32,7 +32,7 @@ from tools.docx.ingest import extract_docx_content, render_docx_pages
 
 ## 数学建模论文推荐流程
 
-采用“当届官方参考 DOCX + `文档/论文写作.md` 排版基线 + `python-docx` 构建 + OMML 公式 + OOXML 校验”。官方 DOCX 控制页面、样式、分节、页眉页脚和编号；代码负责稳定写入内容。
+采用 LaTeX-first 管线（默认）：`PaperLatexBuilder` 构建 LaTeX 源码 → pandoc 转 DOCX 交付。公式原生 LaTeX math 零转换，`.tex` 即可 diff 的源文件。官方 DOCX 模板控制页面、样式、分节、页眉页脚和编号；pandoc `--reference-doc` 继承模板版式。DOCX-native 回退路径仍可用（`save_document()`）。
 
 ```python
 from pathlib import Path
@@ -142,8 +142,8 @@ python scripts/office/validate.py "<PROJECT_ROOT>/完整论文.docx"
 - `python scripts/validate_paper_json.py <docx> --project-root <project>`：输出 `STRUCT_ISSUES`、`STRUCT_WARNINGS` 和 `METRICS`，不依赖终端中文显示。
 - `python scripts/export_paper_structure.py <docx> --output structure.json`：导出标题层级、图/表/公式位置和文档顺序。
 - `python scripts/extract_docx_content.py <docx> --asset-dir <tmp/assets> --manifest <tmp/docx_manifest.json> --render-dir <tmp/pages>`：无 OCR 提取赛题 DOCX 的原生文本、表格、WMF/EMF、VML 和 OLE 公式对象，并将完整页面渲染为 PNG 供视觉检查；提取的资产和页面均为临时文件，验收后删除。
-- `save_latex_first(builder, project_root, ...)`：LaTeX-first 路径——先写 `.tex`，再经 pandoc 转 `.docx`。
+- `save_latex_first(builder, project_root, ...)`：**默认路径**——先写 `.tex`，再经 pandoc 转 `.docx`。
 
-生成链为”写暂存 DOCX → 重开校验 → 原子发布 DOCX”，LaTeX-first 路径为”builder → .tex → pandoc → .docx”。
+默认生成链为”builder → .tex → pandoc → .docx”；DOCX-native 回退链为”写暂存 DOCX → 重开校验 → 原子发布 DOCX”。
 
 Windows 环境 checklist：覆盖前关闭正在打开目标 DOCX 的 Word。
