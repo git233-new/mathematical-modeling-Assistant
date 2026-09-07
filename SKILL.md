@@ -110,6 +110,12 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
    - **执行**：`pf.preflight_check(outline)` → `save_latex_first(builder, project_root)`（默认 LaTeX-first）；pandoc 不可用时回退 `save_document()`（DOCX-native），两条路径产出等效
    - **产出**：`完整论文.tex` + `完整论文.docx`；附录只留附录A 支撑材料清单（`pf.append_code_files` 自动生成）
    - **证据纪律**：每个关键数字/图表/结论必须对应 `run_manifest.json` 登记结果，gate 逐字核对，无依据不写入
+   - **图表必须三件套（硬规则，违反即预警）**：每张图/表前必须有引导句（`body('如图 N 所示，…')`），后必须有解释段（`body('由图/表 N 可知，…')`）。禁止裸插图表。示例：
+     ```python
+     builder.body('为分析收敛性，绘制步长与残差关系如图 3 所示。')
+     builder.add_figure('results/图片/3_收敛曲线.png', '图3 步长收敛曲线')
+     builder.body('由图 3 可知，迭代 15 轮后残差稳定在 0.013 以下，收敛速度满足实时性要求。')
+     ```
 
 5.5. **数学验证（论文生成后、评审前）**：独立检查已生成论文与真实结果的一致性（公式-符号/数值-来源/跨段落/图表-正文/假设-检验/Model Contract 验收/LaTeX 完整性/pandoc 产物/ctex 剥离），逐项核对，不通过回 Step 5 修正。此步不改论文不重新建模，只查一致性。
 

@@ -2442,6 +2442,7 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_conclusion_new_number_issues(doc))
     errors.extend(_keyword_body_consistency_issues(doc))
     errors.extend(_subquestion_completeness_issues(doc))
+    errors.extend(_model_eval_bullet_format_issues(doc))
     return errors
 
 
