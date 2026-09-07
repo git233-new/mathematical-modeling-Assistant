@@ -445,6 +445,11 @@ def abstract_title(doc):
     set_run_font(p.add_run('摘 要'), '黑体', 16, False)
     return p
 def body(doc, text):
+    stripped = text.strip()
+    if stripped:
+        _validate_body_claim(doc, stripped)
+        if _in_assumption_section(doc) and re.match(r'^假设\d+[:：]', stripped):
+            _validate_assumption_format(stripped)
     return paragraph(doc, text, style_name=BODY_STYLE, preserve_line_breaks=_appendix_is_active(doc))
 def _latex2omml(latex):
     from .equations import latex2omml
@@ -522,6 +527,7 @@ def normalise_prose_punctuation(text):
     text = re.sub(r'(?<![0-9a-zA-Z_.])-(?=\d)', '−', text)
     return text
 def keywords(doc, text):
+    _validate_abstract_at_keywords(doc)
     # 模板槽位文本可能自带"关键词："前缀，先剥离再加统一前缀，防"关键词：关键词："重复
     text = re.sub(r'^关键词\s*[:：]\s*', '', text or '')
     paragraph(doc, style_name=BODY_STYLE)
@@ -547,6 +553,7 @@ def _set_heading_paragraph_layout(paragraph, alignment):
     paragraph.paragraph_format.line_spacing = 1.0
     paragraph.paragraph_format.keep_with_next = True
 def heading1(doc, text, *, page_break=False):
+    _validate_heading_text(text)
     p = _claim_template_slot(doc, 'heading1', text) or paragraph(doc, style_name=HEADING1_STYLE)
     p.style = HEADING1_STYLE
     _set_heading_paragraph_layout(p, WD_ALIGN_PARAGRAPH.CENTER)
@@ -554,12 +561,14 @@ def heading1(doc, text, *, page_break=False):
     set_run_font(p.add_run(sanitize_text(text)), '黑体', size=14, bold=False)
     return p
 def heading2(doc, text):
+    _validate_heading_text(text)
     p = _claim_template_slot(doc, 'heading2', text) or paragraph(doc, style_name=HEADING2_STYLE)
     p.style = HEADING2_STYLE
     _set_heading_paragraph_layout(p, WD_ALIGN_PARAGRAPH.LEFT)
     set_run_font(p.add_run(sanitize_text(text)), '黑体', size=12, bold=True)
     return p
 def heading3(doc, text):
+    _validate_heading_text(text)
     p = _claim_template_slot(doc, 'heading3', text) or paragraph(doc, style_name=HEADING3_STYLE)
     p.style = HEADING3_STYLE
     _set_heading_paragraph_layout(p, WD_ALIGN_PARAGRAPH.LEFT)
@@ -619,6 +628,7 @@ def figure_caption(doc, text):
     set_run_font(p.add_run(sanitize_text(text)), size=12)
     return p
 def add_figure(doc, image_path, caption, width_cm=12):
+    _validate_figure_caption_seq(doc, caption)
     image(doc, image_path, width_cm=width_cm)
     return figure_caption(doc, caption)
 def table_caption(doc, text):
@@ -807,6 +817,94 @@ AI_TASTE_PATTERNS = [
     (r'既.{0,4}又.{0,4}', '整齐对仗句'),
     (r'既非.{0,4}也非.{0,4}', '整齐对仗句'),
 ]
+
+_PLACEHOLDER_RE = re.compile(r'XXX|xxx|TODO|待填|待补|占位', re.IGNORECASE)
+
+_CLAIM_STRENGTH_PATTERNS = [
+    (r'证明.{0,10}(普适|通用|广泛适用)', '结论强度升级："证明...普适性"需多场景验证支撑'),
+    (r'充分验证(了|其)', '"充分验证"需附验证数据或对比实验'),
+    (r'显著优于.{0,5}(模型|方法|算法)', '"显著优于"需附统计检验（p值/置信区间）'),
+    (r'鲁棒性(强|良好|极佳)', '"鲁棒性强"需附扰动实验数据'),
+    (r'完美(解决|处理|匹配)', '"完美"属绝对化表述，改具体指标'),
+    (r'彻底(解决|消除|克服)', '"彻底"属绝对化表述，改具体改进幅度'),
+]
+
+
+def _validate_heading_text(text):
+    if _PLACEHOLDER_RE.search(text):
+        raise ValueError(f'标题含占位词: "{text[:30]}"——替换为实际内容或删除')
+
+
+def _validate_body_claim(doc, text):
+    for pattern, msg in _CLAIM_STRENGTH_PATTERNS:
+        if re.search(pattern, text):
+            raise ValueError(f'{msg}（段落："{text[:30]}..."）')
+
+
+def _validate_figure_caption_seq(doc, caption):
+    m = re.match(r'^图\s*(\d+)', caption)
+    if not m:
+        return
+    expected = 1
+    for p in doc.paragraphs:
+        if p.style and p.style.name == CAPTION_STYLE:
+            cm = re.match(r'^图\s*(\d+)', p.text.strip())
+            if cm:
+                expected = max(expected, int(cm.group(1)) + 1)
+    if int(m.group(1)) != expected:
+        raise ValueError(
+            f'图编号不连续：期望"图{expected}"，实际"图{m.group(1)}"——按全文出现顺序递增编号'
+        )
+
+
+def _validate_abstract_at_keywords(doc):
+    abs_start = None
+    abs_end = None
+    for i, p in enumerate(doc.paragraphs):
+        style = p.style.name if p.style else ''
+        text = p.text.strip()
+        if abs_start is None and '摘' in text and '要' in text and len(text) <= 6:
+            abs_start = i
+        elif abs_start is not None and abs_end is None:
+            if style == HEADING1_STYLE:
+                abs_end = i
+                break
+    if abs_start is None:
+        return
+    if abs_end is None:
+        abs_end = len(doc.paragraphs)
+    paras = doc.paragraphs[abs_start + 1:abs_end]
+    body_paras = [p for p in paras if p.style and p.style.name == BODY_STYLE and p.text.strip()]
+    if not body_paras:
+        raise ValueError('摘要无正文段落——补充问题、方法、结果、结论')
+    first_text = body_paras[0].text.strip()
+    if re.match(r'^(?:赛题|本题|题目|该题|这道题)(?:给出|提供|要求|描述了)', first_text):
+        raise ValueError(f'摘要首段不得以"{first_text[:8]}..."开头——直接陈述问题本质与求解思路')
+    total_units = sum(len(p.text) for p in body_paras)
+    if total_units < 400:
+        raise ValueError(f'摘要正文仅 {total_units} 字，不足 400 字——补充方法与数值结果')
+    if total_units > 2500:
+        raise ValueError(f'摘要正文 {total_units} 字，超 2500 字——精简至一页以内')
+
+
+def _in_assumption_section(doc):
+    for p in reversed(doc.paragraphs):
+        style = p.style.name if p.style else ''
+        if style == HEADING1_STYLE:
+            return bool(re.match(r'^[一二三四五六七八九十]+、\s*模型假设', p.text.strip()))
+    return False
+
+
+def _validate_assumption_format(text):
+    if not re.match(r'^假设\d+[:：]', text):
+        raise ValueError(f'假设须以"假设N："开头，当前："{text[:30]}"')
+    if '依据' not in text:
+        raise ValueError(f'"{text[:20]}..." 缺少"依据："环节（假设三链：依据→检验→回退）')
+    if '检验' not in text:
+        raise ValueError(f'"{text[:20]}..." 缺少"检验："环节（假设三链：依据→检验→回退）')
+    if len(text) > 150:
+        raise ValueError(f'"{text[:20]}..." 过长（{len(text)}字）——假设须短句，不写长段解释')
+
 
 def sanitize_text(text):
     value = str(text)
