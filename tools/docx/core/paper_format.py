@@ -381,7 +381,7 @@ def title(doc, text):
     p.paragraph_format.first_line_indent = Pt(0)
     p.paragraph_format.space_before = Pt(0)
     p.paragraph_format.space_after = Pt(0)
-    set_run_font(p.add_run(sanitize_text(text)), '黑体', 16, True)
+    set_run_font(p.add_run(sanitize_text(text)), '黑体', 16, False)
     return p
 def abstract_title(doc):
     p = _claim_template_slot(doc, 'abstract', '摘 要') or paragraph(doc)
@@ -1496,6 +1496,7 @@ if __name__ == '__main__':
 # （structure_validation 可直接首引）。
 _VALIDATION_REEXPORTS = (
     '_clipped_object_issues',
+    '_section_figure_issues',
     '_paragraph_style_issues',
     '_run_manifest_issues',
     'validate_paper_structure',

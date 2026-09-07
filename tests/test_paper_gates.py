@@ -556,3 +556,44 @@ def test_appendix_borderless_table_fails_h10():
     doc = _appendix_doc_with_table(None)
     issues = _appendix_boxed_table_issues(doc)
     assert len(issues) == 1 and "三线表" in issues[0]
+
+
+def _doc_with_chapters(chapter_bodies):
+    """按 (H1 文本, [段落文本]) 构造带 Heading 1 样式的文档。"""
+    doc = Document()
+    for title, paras in chapter_bodies:
+        h = doc.add_paragraph(title)
+        h.style = doc.styles["Heading 1"]
+        for t in paras:
+            doc.add_paragraph(t)
+    return doc
+
+
+def test_section_figure_quota_missing_in_check_chapter():
+    """模型检验章无图无表 → 双拒存。"""
+    doc = _doc_with_chapters([
+        ("五、模型建立与求解", ["5.1 求解", "正文", "图1 求解结果对比"]),
+        ("六、模型检验与分析", ["6.1 灵敏度分析", "纯文字检验说明，没有任何图表。"]),
+    ])
+    issues = pf._section_figure_issues(doc)
+    assert any("检验图" in i for i in issues)
+    assert any("检验结果表" in i for i in issues)
+
+
+def test_section_figure_quota_satisfied():
+    """检验章含检验图+表、求解章含结果图 → 过。"""
+    doc = _doc_with_chapters([
+        ("五、模型建立与求解", ["5.1 求解", "图1 求解结果对比", "表1 求解指标"]),
+        ("六、模型检验与分析", ["6.1 灵敏度", "图2 灵敏度曲线", "表2 灵敏度结果"]),
+    ])
+    assert pf._section_figure_issues(doc) == []
+
+
+def test_section_figure_quota_solve_chapter_needs_figure():
+    """求解章整章无图 → 拒存。"""
+    doc = _doc_with_chapters([
+        ("五、模型建立与求解", ["5.1 求解", "纯文字推导。"]),
+        ("六、模型检验与分析", ["6.1 检验", "图1 灵敏度曲线", "表1 检验结果"]),
+    ])
+    issues = pf._section_figure_issues(doc)
+    assert any("求解章缺少结果图" in i for i in issues)

@@ -218,7 +218,7 @@ def _classify_paragraph(text):
         return 'heading3'
     if re.match('^\\d+[.．]\\d+(?:\\s|、|：|:|$)', text):
         return 'heading2'
-    if re.match('^[一二三四五六七八九十]+、', text) or text in {'参考文献', '附录'}:
+    if re.match('^[一二三四五六七八九十]+、', text) or text in {'参考文献', '附录', 'AI工具使用声明'}:
         return 'heading1'
     if text.startswith('图'):
         return 'figure_caption'

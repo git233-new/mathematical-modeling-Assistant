@@ -1039,3 +1039,20 @@ def test_figure_table_lead_in_warnings(tmp_path):
     doc.add_paragraph("表2 方案对比")
     issues = _figure_table_lead_in_warnings(doc)
     assert len(issues) == 3 and all("缺引出" in i for i in issues)
+
+
+def test_rebuild_extracts_title_and_ai_declaration_heading():
+    """rebuild 提炼器：首个文本段 → title；AI工具使用声明 → heading1（防 build_paper 标题变 body）。"""
+    from docx import Document as D
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from tools.docx.core.paper_workflow import _extract_blocks
+    doc = D()
+    doc.add_paragraph("基于测试模型的论文")
+    doc.add_paragraph("一、问题重述")
+    doc.add_paragraph("正文。")
+    doc.add_paragraph("参考文献")
+    doc.add_paragraph("AI工具使用声明")
+    blocks, _ = _extract_blocks(doc)
+    kinds = [b["kind"] for b in blocks]
+    assert kinds[0] == "title"
+    assert blocks[-1]["kind"] == "heading1" and blocks[-1]["text"] == "AI工具使用声明"

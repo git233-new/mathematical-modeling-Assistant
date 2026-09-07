@@ -687,6 +687,46 @@ def _effective_line_spacing_rule(paragraph):
     return None
 
 
+def _h1_region_bounds(doc, keyword_re):
+    """按一级标题定位章节段落下标区间 [start, end)；无该章返回 None。"""
+    paras = list(doc.paragraphs)
+    h1 = [i for i, p in enumerate(paras)
+          if p.style is not None and p.style.name == 'Heading 1' and p.text.strip()]
+    for n, i in enumerate(h1):
+        if re.search(keyword_re, paras[i].text):
+            end = h1[n + 1] if n + 1 < len(h1) else len(paras)
+            return i + 1, end
+    return None
+
+
+def _section_figure_issues(doc):
+    """分章图表配额硬闸门：该有图的地方必须有图，不允许纯文字章节。
+
+    - 模型建立与求解章：整章 ≥1 幅结果图（图N 题注）；
+    - 模型检验与分析章：≥1 幅检验图（灵敏度/误差/稳健等）+ ≥1 张检验表。
+    配额只看题注（题注与图表一一对应且已由编号闸门校验），附录天然不在区间内。
+    """
+    issues = []
+    solve = _h1_region_bounds(doc, r'模型建立与求解|模型建立')
+    if solve:
+        start, end = solve
+        figs = sum(1 for p in list(doc.paragraphs)[start:end]
+                   if re.match(r'^图\s*\d+', p.text.strip()))
+        if figs < 1:
+            issues.append('模型建立与求解章缺少结果图：至少 1 幅图N 题注的结果图（由真实运行生成）')
+    check = _h1_region_bounds(doc, r'模型检验')
+    if check:
+        start, end = check
+        paras = list(doc.paragraphs)[start:end]
+        figs = sum(1 for p in paras if re.match(r'^图\s*\d+', p.text.strip()))
+        tabs = sum(1 for p in paras if re.match(r'^表\s*\d+', p.text.strip()))
+        if figs < 1:
+            issues.append('模型检验与分析章缺少检验图：至少 1 幅灵敏度/误差/稳健性曲线图（图N 题注）')
+        if tabs < 1:
+            issues.append('模型检验与分析章缺少检验结果表：至少 1 张表N 题注的检验数据表')
+    return issues
+
+
 def _clipped_object_issues(doc):
     """防遮挡硬闸门：固定值（EXACTLY）行距会按行高裁剪内嵌对象。
 
@@ -2024,6 +2064,7 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_result_figure_issues(doc, project_root))
     errors.extend(_figure_filename_issues(doc, project_root))
     errors.extend(_clipped_object_issues(doc))
+    errors.extend(_section_figure_issues(doc))
     errors.extend(_run_manifest_issues(doc, project_root))
     errors.extend(_body_filename_issues(doc))
     if project_root is not None:
