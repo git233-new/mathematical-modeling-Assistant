@@ -75,10 +75,13 @@ def _cn_to_int(text):
         return tens * 10 + ones
     return _CN_DIGIT.get(text, 5)
 
+_MODEL_CHAPTER_RE = re.compile(r'^([一二三四五六七八九十]+)[、.．\s]\s*模型建立')
+
+
 def _result_chapter_prefix(doc):
     """返回"模型建立与求解"所在一级章的阿拉伯数字（默认 5），使 5.x 类校验随章节号自适应。"""
     for paragraph in doc.paragraphs:
-        match = re.match(r'^([一二三四五六七八九十]+)[、.．\s]\s*模型建立', paragraph.text.strip())
+        match = _MODEL_CHAPTER_RE.match(paragraph.text.strip())
         if match:
             return _cn_to_int(match.group(1))
     return 5
@@ -1509,13 +1512,13 @@ def _problem_analysis_balance_issues(doc):
     chap = _para_bounds(doc, r'^[一二三四五六七八九十]+、\s*问题分析', r'^[一二三四五六七八九十]+、')
     if not chap:
         return []
-    first_sub = next((i for i, p in enumerate(chap) if re.match(r'^\d+[.．]\d+(?:\s|、|：|:|$)', p.text.strip())), None)
+    first_sub = next((i for i, p in enumerate(chap) if _SUBSECTION_HEADING_RE.match(p.text.strip())), None)
     if first_sub is None:
         return issues
     intro_prose = [p for p in chap[:first_sub] if p.style.name == BODY_STYLE and p.text.strip() and p._p.find('.//' + qn('w:drawing')) is None]
     if len(intro_prose) > 2:
         issues.append(f'问题分析导论段数 {len(intro_prose)} 偏多，建议 ≤ 2 段')
-    subs = [i for i, p in enumerate(chap) if re.match(r'^\d+[.．]\d+(?:\s|、|：|:|$)', p.text.strip())]
+    subs = [i for i, p in enumerate(chap) if _SUBSECTION_HEADING_RE.match(p.text.strip())]
     for pos, s in enumerate(subs):
         e = subs[pos + 1] if pos + 1 < len(subs) else len(chap)
         block = chap[s:e]
@@ -2182,9 +2185,7 @@ def _section_text(doc, start_patterns, end_patterns):
 
 def _body_text(doc):
     """提取问题重述到参考文献之间的全部正文。"""
-    return _section_text(doc,
-        [r'^(?:[一二三四五六七八九十]+[、.．])?问题重述', r'^1[、.．]'],
-        [r'^参考文献', r'^八[、.．]'])
+    return _section_text(doc, _PROBLEM_RESTATE_START, [r'^参考文献', r'^八[、.．]'])
 
 
 def _extract_numbers(text):
@@ -2216,19 +2217,21 @@ _HEADING1_END = [
     r'^\d+[、.．]',
 ]
 
+_PROBLEM_RESTATE_START = [r'^(?:[一二三四五六七八九十]+[、.．])?问题重述', r'^1[、.．]']
+
+_SUBSECTION_HEADING_RE = re.compile(r'^\d+[.．]\d+(?:\s|、|：|:|$)')
+
+_CONCLUSION_START = [r'.*(?:结论|模型检验|结果分析|模型评价)', r'^6\.\d']
+
 def _conclusion_new_number_issues(doc):
     """结论/模型检验段不得引入正文未出现过的数值。"""
-    conclusion_text = _section_text(doc,
-        [r'.*(?:结论|模型检验|结果分析|模型评价)', r'^6\.\d'],
-        _HEADING1_END + [r'^参考文献', r'^附录'])
+    conclusion_text = _section_text(doc, _CONCLUSION_START, _HEADING1_END + [r'^参考文献', r'^附录'])
     if not conclusion_text.strip():
         return []
     conclusion_numbers = _extract_numbers(conclusion_text)
     if not conclusion_numbers:
         return []
-    pre_conclusion = _section_text(doc,
-        [r'^(?:[一二三四五六七八九十]+[、.．])?问题重述', r'^1[、.．]'],
-        [r'.*(?:结论|模型检验|结果分析|模型评价)', r'^6\.\d', r'^参考文献', r'^附录'])
+    pre_conclusion = _section_text(doc, _PROBLEM_RESTATE_START, _CONCLUSION_START + [r'^参考文献', r'^附录'])
     body_numbers = _extract_numbers(pre_conclusion)
     issues = []
     for num in sorted(conclusion_numbers):
@@ -2237,18 +2240,19 @@ def _conclusion_new_number_issues(doc):
     return issues
 
 
-def _keyword_body_consistency_issues(doc):
-    """关键词须在正文中出现（至少一次），不得是论文未涉及的概念。"""
-    keyword_text = ''
+def _extract_keywords(doc):
+    """提取关键词列表（从"关键词："段落解析）。"""
     for p in doc.paragraphs:
         text = p.text.strip()
         if text.startswith('关键词'):
-            keyword_text = text
-            break
-    if not keyword_text:
-        return []
-    cleaned = re.sub(r'^关键词\s*[:：]\s*', '', keyword_text)
-    keywords = [k.strip() for k in re.split(r'[；;]', cleaned) if k.strip()]
+            cleaned = re.sub(r'^关键词\s*[:：]\s*', '', text)
+            return [k.strip() for k in re.split(r'[；;]', cleaned) if k.strip()]
+    return []
+
+
+def _keyword_body_consistency_issues(doc):
+    """关键词须在正文中出现（至少一次），不得是论文未涉及的概念。"""
+    keywords = _extract_keywords(doc)
     if not keywords:
         return []
     body = _body_text(doc).lower()
@@ -2298,8 +2302,7 @@ def _subquestion_completeness_issues(doc):
         if _is_level1_heading(text, style_name):
             flush(current_title, current_texts, current_formula)
             current_title, current_texts, current_formula = None, [], False
-            in_model_chapter = bool(re.match(
-                rf'^[一二三四五六七八九十]+[、.．\s]\s*模型建立', text))
+            in_model_chapter = bool(_MODEL_CHAPTER_RE.match(text))
             continue
         if not in_model_chapter:
             continue
