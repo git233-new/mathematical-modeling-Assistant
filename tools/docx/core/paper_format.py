@@ -7,7 +7,6 @@ import tempfile
 import uuid
 from pathlib import Path
 from docx import Document
-from docx.enum.section import WD_SECTION
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_TAB_ALIGNMENT
@@ -67,9 +66,7 @@ from .rendering import (
     _is_appendix_start,
     _is_body_start,
     _is_reference_start,
-    _normalise_heading,
     check_docx_not_locked as _check_docx_not_locked,
-    render_docx_and_count_pages as _render_docx_and_count_pages,
 )
 SOFFICE_DEFAULT_TIMEOUT = 60
 BODY_LINE_SPACING_PT = 18
