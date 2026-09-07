@@ -1464,7 +1464,7 @@ def save_document(
     staged_docx = staging_dir / output.name
     staged_tex = staging_dir / latex_path.name
     try:
-        export_latex_source(doc, staged_tex, graphics_dir='results/图片')
+        export_latex_source(doc, staged_tex, graphics_dir='results/图片', project_root=project)
         _stage_and_publish(doc, contest, project, output, manifest_image_paths,
                            staged_docx, staged_tex)
     finally:

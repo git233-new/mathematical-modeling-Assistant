@@ -1,4 +1,5 @@
 import io
+import io
 import json
 
 from docx.oxml.ns import qn
@@ -1055,3 +1056,28 @@ def test_rebuild_extracts_title_and_ai_declaration_heading():
     kinds = [b["kind"] for b in blocks]
     assert kinds[0] == "title"
     assert blocks[-1]["kind"] == "heading1" and blocks[-1]["text"] == "AI工具使用声明"
+
+
+def test_export_latex_uses_original_image_filename(tmp_path):
+    """tex 的 includegraphics 用 results/图片/ 的原始生成文件名（哈希回查），非 DOCX 内部部件名。"""
+    import base64 as b64
+
+    from tools.docx.core.latex_export import export_latex_source
+
+    png = b64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+        "AAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    )
+    img_dir = tmp_path / "results" / "图片"
+    img_dir.mkdir(parents=True)
+    (img_dir / "2_Q1_灵敏度分析.png").write_bytes(png)
+
+    doc = paper_format.new_document()
+    paper_format.heading1(doc, "六、模型检验与分析")
+    doc.add_paragraph().add_run().add_picture(io.BytesIO(png))
+    paper_format.figure_caption(doc, "图1 灵敏度分析")
+
+    out = export_latex_source(doc, tmp_path / "完整论文.tex", project_root=tmp_path)
+    tex = out.read_text(encoding="utf-8")
+    assert "2_Q1_灵敏度分析.png" in tex
+    assert "image1.png" not in tex
