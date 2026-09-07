@@ -62,6 +62,7 @@ from .paper_format import (
 )
 from tools.common.path_utils import is_within
 from tools.common.reproducibility import scan_code_files as _scan_repro
+from tools.project_ops.consistency_audit import extract_numbers_from_text as _extract_numbers_from_text
 
 _CN_DIGIT = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
 
@@ -2189,9 +2190,8 @@ def _body_text(doc):
 
 
 def _extract_numbers(text):
-    """提取文本中的关键数值（多位整数、小数、百分比），排除年份。"""
-    raw = re.findall(r'(?<![A-Za-z0-9])-?(?:\d+\.\d+|\d{2,})%?', text)
-    return {t for t in raw if not t.startswith('20')}
+    """提取文本中的关键数值，复用 consistency_audit 的数字提取逻辑。"""
+    return {num for num, _ in _extract_numbers_from_text(text)}
 
 
 def _abstract_body_number_consistency_issues(doc):

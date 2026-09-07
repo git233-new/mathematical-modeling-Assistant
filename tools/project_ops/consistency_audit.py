@@ -58,8 +58,9 @@ class ConsistencyAuditResult:
 
 
 # 数字提取正则：匹配整数、小数、科学计数法、百分比
+# 用 ASCII lookbehind/lookahead 替代 \b，避免 % 与中文字符的边界冲突
 _NUMBER_RE = re.compile(
-    r"\b(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?%?)\b"
+    r"(?<![A-Za-z0-9])(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?%?)(?![A-Za-z])"
 )
 
 # 排除模式：年份、页码、章节号等
