@@ -1180,3 +1180,117 @@ def test_claim_strength_guard():
     issues3 = _claim_strength_issues(doc3)
     assert len(issues3) == 1
     assert '显著优于' in issues3[0]
+
+
+def test_abstract_body_number_consistency():
+    """摘要数值须在正文中出现。"""
+    from tools.docx.core.structure_validation import _abstract_body_number_consistency_issues
+    from docx import Document
+
+    doc = Document()
+    doc.add_paragraph('摘 要')
+    doc.add_paragraph('本文建立了优化模型。')
+    doc.add_paragraph('结果表明成本降低12.3%，效率提升8.7%。')
+    doc.add_paragraph('关键词：优化；成本')
+    doc.add_paragraph('一、问题重述')
+    doc.add_paragraph('成本降低12.3%，效率提升8.7%。')
+    doc.add_paragraph('参考文献')
+    assert _abstract_body_number_consistency_issues(doc) == []
+
+    doc2 = Document()
+    doc2.add_paragraph('摘 要')
+    doc2.add_paragraph('本文建立了优化模型。')
+    doc2.add_paragraph('结果表明成本降低12.3%。')
+    doc2.add_paragraph('关键词：优化')
+    doc2.add_paragraph('一、问题重述')
+    doc2.add_paragraph('成本有所降低。')
+    doc2.add_paragraph('参考文献')
+    issues = _abstract_body_number_consistency_issues(doc2)
+    assert len(issues) == 1
+    assert '12.3%' in issues[0]
+
+
+def test_conclusion_new_number():
+    """结论段不得引入正文未出现过的数值。"""
+    from tools.docx.core.structure_validation import _conclusion_new_number_issues
+    from docx import Document
+
+    doc = Document()
+    doc.add_paragraph('一、问题重述')
+    doc.add_paragraph('五、模型建立与求解')
+    doc.add_paragraph('误差为3.2%。')
+    doc.add_paragraph('六、结论')
+    doc.add_paragraph('误差为3.2%，验证了模型有效性。')
+    doc.add_paragraph('参考文献')
+    assert _conclusion_new_number_issues(doc) == []
+
+    doc2 = Document()
+    doc2.add_paragraph('一、问题重述')
+    doc2.add_paragraph('五、模型建立与求解')
+    doc2.add_paragraph('误差较低。')
+    doc2.add_paragraph('六、结论')
+    doc2.add_paragraph('误差仅为3.2%。')
+    doc2.add_paragraph('参考文献')
+    issues = _conclusion_new_number_issues(doc2)
+    assert len(issues) == 1
+    assert '3.2%' in issues[0]
+
+
+def test_keyword_body_consistency():
+    """关键词须在正文中出现。"""
+    from tools.docx.core.structure_validation import _keyword_body_consistency_issues
+    from docx import Document
+
+    doc = Document()
+    doc.add_paragraph('关键词：多目标优化；供应链；遗传算法')
+    doc.add_paragraph('一、问题重述')
+    doc.add_paragraph('本文研究供应链中的多目标优化问题，使用遗传算法求解。')
+    doc.add_paragraph('参考文献')
+    assert _keyword_body_consistency_issues(doc) == []
+
+    doc2 = Document()
+    doc2.add_paragraph('关键词：多目标优化；量子计算；遗传算法')
+    doc2.add_paragraph('一、问题重述')
+    doc2.add_paragraph('本文研究多目标优化问题，使用遗传算法求解。')
+    doc2.add_paragraph('参考文献')
+    issues = _keyword_body_consistency_issues(doc2)
+    assert len(issues) == 1
+    assert '量子计算' in issues[0]
+
+
+def test_subquestion_completeness():
+    """每问须具备变量设定、公式、求解/结果。"""
+    from tools.docx.core.structure_validation import _subquestion_completeness_issues
+    from docx import Document
+    from lxml import etree
+
+    OMML_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
+    OMML = f'<m:oMath xmlns:m="{OMML_NS}"><m:r><m:t>x</m:t></m:r></m:oMath>'
+
+    def add_omath(para):
+        para._p.append(etree.fromstring(OMML))
+
+    doc = Document()
+    doc.add_paragraph('五、模型建立与求解')
+    doc.add_paragraph('5.1 问题一')
+    doc.add_paragraph('设决策变量为x，目标函数为最小化成本。')
+    add_omath(doc.add_paragraph(''))
+    doc.add_paragraph('代入数据求解得到最优解x=3。')
+    doc.add_paragraph('5.2 问题二')
+    doc.add_paragraph('令y为时间变量，建立如下模型。')
+    add_omath(doc.add_paragraph(''))
+    doc.add_paragraph('计算结果如图1所示。')
+    doc.add_paragraph('参考文献')
+    assert _subquestion_completeness_issues(doc) == []
+
+    doc2 = Document()
+    doc2.add_paragraph('五、模型建立与求解')
+    doc2.add_paragraph('5.1 问题一')
+    doc2.add_paragraph('这个问题我们进行了分析。')
+    doc2.add_paragraph('参考文献')
+    issues = _subquestion_completeness_issues(doc2)
+    assert len(issues) == 1
+    assert '5.1' in issues[0]
+    assert '变量设定' in issues[0]
+    assert '数学公式' in issues[0]
+    assert '求解' in issues[0]

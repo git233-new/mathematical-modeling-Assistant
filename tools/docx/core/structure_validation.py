@@ -76,9 +76,9 @@ def _cn_to_int(text):
     return _CN_DIGIT.get(text, 5)
 
 def _result_chapter_prefix(doc):
-    """返回“模型建立与求解”所在一级章的阿拉伯数字（默认 5），使 5.x 类校验随章节号自适应。"""
+    """返回"模型建立与求解"所在一级章的阿拉伯数字（默认 5），使 5.x 类校验随章节号自适应。"""
     for paragraph in doc.paragraphs:
-        match = re.match(r'^([一二三四五六七八九十]+)、\s*模型建立', paragraph.text.strip())
+        match = re.match(r'^([一二三四五六七八九十]+)[、.．\s]\s*模型建立', paragraph.text.strip())
         if match:
             return _cn_to_int(match.group(1))
     return 5
@@ -658,7 +658,7 @@ def _figure_filename_issues(doc, project_root):
 
 
 def _effective_line_spacing_rule(paragraph):
-    """沿“段落直接格式 → 段落样式 → 基础样式链”解析有效行距规则。
+    """沿"段落直接格式 → 段落样式 → 基础样式链"解析有效行距规则。
 
     BODY_STYLE 在样式级设为固定 18 磅后，正文段落的直接 rule 为 None；
     只查直接格式会漏判正文段落内的图片/公式裁剪风险。
@@ -1232,7 +1232,7 @@ def _paragraph_style_issues(doc):
         else:
             expected = BODY_STYLE
         if paragraph.style.name != expected:
-            issues.append(f'段落样式错误：‘{text[:20]}’应为“{expected}”样式')
+            issues.append(f'段落样式错误：‘{text[:20]}’应为"{expected}"样式')
     return issues
 
 
@@ -1291,7 +1291,7 @@ def _appendix_size_issues(doc, project_root=None, *args, **kwargs):
 
 
 # ===================== 图片/版面闸门（见 文档/图片闸门配置与绘图规范.md）=====================
-# H 类 = 硬闸门（error，阻断交付）；W 类 = 预警（前缀“预警：”，不阻断）。
+# H 类 = 硬闸门（error，阻断交付）；W 类 = 预警（前缀"预警："，不阻断）。
 
 def _norm_text(text):
     return re.sub(r'\s+', '', text or '')
@@ -1353,7 +1353,7 @@ def _abstract_three_part_issues(doc):
     if len(non_empty) != 3:
         return [f'摘要须为三段式（虎头/猪肚/豹尾），当前 {len(non_empty)} 段']
     # H1b 摘要须含量化结果：至少一个带单位/百分比的指标或关键数值，
-    # 避免“效果良好”“精度提升”等空话。纯理论赛题可用准确率/误差上限等量化描述。
+    # 避免"效果良好""精度提升"等空话。纯理论赛题可用准确率/误差上限等量化描述。
     text = '\n'.join(p.text for p in paras)
     quantified = re.findall(
         r'(?<![A-Za-z0-9%])-?\d+(?:\.\d+)?\s*%|'
@@ -1361,7 +1361,7 @@ def _abstract_three_part_issues(doc):
         text,
     )
     if not quantified:
-        return ['摘要缺少量化结果（指标/单位/数值），请给出具体数字而非“效果良好”等空话']
+        return ['摘要缺少量化结果（指标/单位/数值），请给出具体数字而非"效果良好"等空话']
     return []
 
 
@@ -1534,16 +1534,16 @@ def _model_assumption_issues(doc):
         return []
     assumes = [p for p in paras if re.match(r'^假设\d+[:：]', p.text.strip())]
     if len(assumes) < 3:
-        return [f'模型假设须逐条以”假设N：”编号，当前仅 {len(assumes)} 条（建议 ≥ 3）']
+        return [f'模型假设须逐条以"假设N："编号，当前仅 {len(assumes)} 条（建议 ≥ 3）']
     issues = []
     for p in assumes:
         text = p.text.strip()
         if '依据' not in text:
-            issues.append(f'”{text[:20]}...” 缺少”依据：”环节（假设三链：依据→检验→回退）')
+            issues.append(f'"{text[:20]}..." 缺少"依据："环节（假设三链：依据→检验→回退）')
         if '检验' not in text:
-            issues.append(f'”{text[:20]}...” 缺少”检验：”环节（假设三链：依据→检验→回退）')
+            issues.append(f'"{text[:20]}..." 缺少"检验："环节（假设三链：依据→检验→回退）')
         if len(text) > 150:
-            issues.append(f'”{text[:20]}...” 过长（{len(text)}字）——假设须短句，不写长段解释')
+            issues.append(f'"{text[:20]}..." 过长（{len(text)}字）——假设须短句，不写长段解释')
     return issues
 
 
@@ -1616,7 +1616,7 @@ def _caption_format_issues(doc):
     for p in doc.paragraphs:
         t = p.text.strip()
         if re.match(r'^[图表]\s*\d+', t) and (not re.match(r'^[图表]\s*\d+[：:\s]', t)):
-            issues.append(f'题注须为“图N：/表N：”或“图N 文本”格式（数字后接分隔符），当前：{t[:16]}')
+            issues.append(f'题注须为"图N：/表N："或"图N 文本"格式（数字后接分隔符），当前：{t[:16]}')
     return []
 
 
@@ -1650,7 +1650,7 @@ def _anonymity_issues(doc):
     return issues
 
 
-# ---- W 类预警（前缀“预警：”，不阻断交付）----
+# ---- W 类预警（前缀"预警："，不阻断交付）----
 
 # W1 结果分析不重复插图
 def _no_duplicate_figure_warnings(doc):
@@ -1682,7 +1682,7 @@ def _no_image_formula_warnings(doc):
     for p in doc.paragraphs:
         t = p.text.strip()
         if re.match(r'^图\s*\d+', t) and ('公式' in t or 'equation' in t.lower()):
-            return ['题注含“公式”且为图片，公式应使用 OMML 原生而非图片']
+            return ['题注含"公式"且为图片，公式应使用 OMML 原生而非图片']
     return []
 
 
@@ -1937,7 +1937,7 @@ def _model_eval_generalization_warning(doc):
 
 
 def _soft_quality_warnings(doc, project_root):
-    """聚合 W 类预警，统一加“预警：”前缀（不阻断交付）。"""
+    """聚合 W 类预警，统一加"预警："前缀（不阻断交付）。"""
     ws = []
     ws += _no_duplicate_figure_warnings(doc)
     ws += _figure_table_context_warnings(doc)
@@ -2160,6 +2160,164 @@ def _object_and_reference_issues(doc, figures, tables):
     return errors
 
 
+def _section_text(doc, start_patterns, end_patterns):
+    """提取匹配 start_patterns 到 end_patterns 之间的段落文本拼接。"""
+    paras = list(doc.paragraphs)
+    start_idx = None
+    for i, p in enumerate(paras):
+        text = p.text.strip()
+        if any(re.match(pat, text) for pat in start_patterns):
+            start_idx = i
+            break
+    if start_idx is None:
+        return ''
+    end_idx = len(paras)
+    for i in range(start_idx + 1, len(paras)):
+        text = paras[i].text.strip()
+        if any(re.match(pat, text) for pat in end_patterns):
+            end_idx = i
+            break
+    return '\n'.join(p.text for p in paras[start_idx + 1:end_idx])
+
+
+def _body_text(doc):
+    """提取问题重述到参考文献之间的全部正文。"""
+    return _section_text(doc,
+        [r'^(?:[一二三四五六七八九十]+[、.．])?问题重述', r'^1[、.．]'],
+        [r'^参考文献', r'^八[、.．]'])
+
+
+def _extract_numbers(text):
+    """提取文本中的关键数值（多位整数、小数、百分比），排除年份。"""
+    raw = re.findall(r'(?<![A-Za-z0-9])-?(?:\d+\.\d+|\d{2,})%?', text)
+    return {t for t in raw if not t.startswith('20')}
+
+
+def _abstract_body_number_consistency_issues(doc):
+    """摘要中的关键数值须在正文中出现，否则视为无证据声称。"""
+    abstract_paras = _abstract_paragraphs(doc)
+    if not abstract_paras:
+        return []
+    abstract_text = '\n'.join(p.text for p in abstract_paras)
+    abstract_numbers = _extract_numbers(abstract_text)
+    if not abstract_numbers:
+        return []
+    body = _body_text(doc)
+    body_numbers = _extract_numbers(body)
+    issues = []
+    for num in sorted(abstract_numbers):
+        if num not in body_numbers:
+            issues.append(f'摘要数值 {num} 在正文中未出现——摘要结论须有正文数据支撑')
+    return issues
+
+
+_HEADING1_END = [
+    r'^(?:[一二三四五六七八九十]+[、.．])',
+    r'^\d+[、.．]',
+]
+
+def _conclusion_new_number_issues(doc):
+    """结论/模型检验段不得引入正文未出现过的数值。"""
+    conclusion_text = _section_text(doc,
+        [r'.*(?:结论|模型检验|结果分析|模型评价)', r'^6\.\d'],
+        _HEADING1_END + [r'^参考文献', r'^附录'])
+    if not conclusion_text.strip():
+        return []
+    conclusion_numbers = _extract_numbers(conclusion_text)
+    if not conclusion_numbers:
+        return []
+    pre_conclusion = _section_text(doc,
+        [r'^(?:[一二三四五六七八九十]+[、.．])?问题重述', r'^1[、.．]'],
+        [r'.*(?:结论|模型检验|结果分析|模型评价)', r'^6\.\d', r'^参考文献', r'^附录'])
+    body_numbers = _extract_numbers(pre_conclusion)
+    issues = []
+    for num in sorted(conclusion_numbers):
+        if num not in body_numbers:
+            issues.append(f'结论段数值 {num} 在正文中未出现——结论不得引入新数据')
+    return issues
+
+
+def _keyword_body_consistency_issues(doc):
+    """关键词须在正文中出现（至少一次），不得是论文未涉及的概念。"""
+    keyword_text = ''
+    for p in doc.paragraphs:
+        text = p.text.strip()
+        if text.startswith('关键词'):
+            keyword_text = text
+            break
+    if not keyword_text:
+        return []
+    cleaned = re.sub(r'^关键词\s*[:：]\s*', '', keyword_text)
+    keywords = [k.strip() for k in re.split(r'[；;]', cleaned) if k.strip()]
+    if not keywords:
+        return []
+    body = _body_text(doc).lower()
+    issues = []
+    for kw in keywords:
+        if len(kw) >= 2 and kw.lower() not in body:
+            issues.append(f'关键词「{kw}」在正文中未出现——关键词须反映论文实际内容')
+    return issues
+
+
+_VAR_SETUP_RE = re.compile(r'设[^，。,.\s]{1,15}[为等于]|[令记][^，。,.\s]{1,15}[为等于]|决策变量|定义|引入|记为')
+_SOLUTION_RE = re.compile(r'求解|计算|代入|解得|结果|得到|得出|可知|如图|如表|最优|迭代|收敛|程序|算法|输出')
+
+
+def _subquestion_completeness_issues(doc):
+    """模型建立与求解的每个子问（N.x）须具备：变量设定、公式、求解/结果。"""
+    n = _result_chapter_prefix(doc)
+    sub_pat = re.compile(rf'^{n}[.．]\d+(?:\s|、|：|:|$)')
+    issues = []
+
+    def flush(title, texts, has_formula):
+        if title is None:
+            return
+        joined = '\n'.join(texts)
+        missing = []
+        if not _VAR_SETUP_RE.search(joined):
+            missing.append('变量设定（设/令/记/决策变量）')
+        if not has_formula:
+            missing.append('数学公式')
+        if not _SOLUTION_RE.search(joined):
+            missing.append('求解过程或结果（求解/计算/代入/解得/如图/如表等）')
+        if missing:
+            issues.append(f'"{title}"缺少：{"、".join(missing)}——每问须完整呈现建模→求解→结果链')
+
+    current_title = None
+    current_texts = []
+    current_formula = False
+    in_model_chapter = False
+
+    for p in doc.paragraphs:
+        text = p.text.strip()
+        style_name = ''
+        try:
+            style_name = p.style.name or ''
+        except Exception:
+            pass
+        if _is_level1_heading(text, style_name):
+            flush(current_title, current_texts, current_formula)
+            current_title, current_texts, current_formula = None, [], False
+            in_model_chapter = bool(re.match(
+                rf'^[一二三四五六七八九十]+[、.．\s]\s*模型建立', text))
+            continue
+        if not in_model_chapter:
+            continue
+        if sub_pat.match(text):
+            flush(current_title, current_texts, current_formula)
+            current_title = text
+            current_texts = []
+            current_formula = False
+            continue
+        if current_title is not None:
+            current_texts.append(text)
+            if not current_formula and p._element.findall(f'.//{qn("m:oMath")}'):
+                current_formula = True
+
+    flush(current_title, current_texts, current_formula)
+    return issues
+
+
 def _deep_quality_issues(doc, project_root):
     """硬闸门深层质检：文风/公式/图表组织/证据链/附录/图片版面（全部 fatal）。"""
     errors = []
@@ -2210,6 +2368,10 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_empty_section_issues(doc))
     errors.extend(_appendix_numbering_issues(doc))
     errors.extend(_abstract_opening_issues(doc))
+    errors.extend(_abstract_body_number_consistency_issues(doc))
+    errors.extend(_conclusion_new_number_issues(doc))
+    errors.extend(_keyword_body_consistency_issues(doc))
+    errors.extend(_subquestion_completeness_issues(doc))
     return errors
 
 
@@ -2286,16 +2448,16 @@ def _font_and_forbidden_issues(doc):
     errors = []
     black_offenders = check_black_fonts(doc)
     if black_offenders:
-        sample = '；'.join((f'“{t}”({c})' for t, c in black_offenders[:5]))
+        sample = '；'.join((f'"{t}"({c})' for t, c in black_offenders[:5]))
         errors.append(f'检测到 {len(black_offenders)} 处非黑字体（须全部改为黑色）：{sample}')
     forbidden_hits = scan_forbidden_words(doc)
     if forbidden_hits:
-        sample = '；'.join((f'{words}@“{ctx}”' for words, ctx in forbidden_hits[:5]))
+        sample = '；'.join((f'{words}@"{ctx}"' for words, ctx in forbidden_hits[:5]))
         errors.append(f'检测到 {len(forbidden_hits)} 处禁用词（合并/skill 等身份泄露或生成痕迹，须清除）：{sample}')
     # AI 味通用痕迹（K1–K5）
     ai_hits = scan_ai_taste_patterns(doc)
     if ai_hits:
-        sample = '；'.join((f'[{label}]@“{ctx}”' for label, ctx in ai_hits[:5]))
+        sample = '；'.join((f'[{label}]@"{ctx}"' for label, ctx in ai_hits[:5]))
         errors.append(f'检测到 {len(ai_hits)} 处 AI 味痕迹（破折号/规则三/copula/空口号/对仗，须清洗）：{sample}')
     return errors
 
