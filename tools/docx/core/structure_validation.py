@@ -1928,6 +1928,67 @@ def _section_budget_warnings(doc):
     return issues
 
 
+_EVAL_NUMBER_RE = re.compile(
+    r'^\s*(?:'
+    r'\d+[.．、)\）]'
+    r'|[（(]\d+[）)]'
+    r'|[①②③④⑤⑥⑦⑧⑨⑩]'
+    r'|[一二三四五六七八九十]+[.．、]'
+    r')'
+)
+
+
+def _model_eval_bullet_format_issues(doc):
+    """模型评价章节分点作答硬闸门：须使用编号列表分点陈述，不得写成连续大段。
+
+    格式要求（见 七轮自审框架 §2 / §H）：
+    - 优点 3-5 条、局限与改进 2-4 条
+    - 每点 1-2 句，紧凑编号列表
+    - 避免大段叙述
+
+    检测逻辑：
+    - 章节内 ≥3 个段落以编号开头 → 通过
+    - 或同时出现"优点"和"局限"关键词 → 通过（内容分块证据）
+    - 否则 → 拒存
+    """
+    paras = [p.text.strip() for p in doc.paragraphs]
+    start = next(
+        (i for i, tx in enumerate(paras)
+         if re.match(r'^[一二三四五六七八九十]+、\s*模型评价', tx)),
+        None,
+    )
+    if start is None:
+        return []
+    end = next(
+        (i for i, tx in enumerate(paras)
+         if i > start and re.match(r'^[一二三四五六七八九十]+、', tx)),
+        len(paras),
+    )
+    section_paras = paras[start + 1:end]
+    if not section_paras:
+        return ['「模型评价」章节为空']
+    numbered_count = sum(1 for tx in section_paras if _EVAL_NUMBER_RE.match(tx))
+    if numbered_count >= 3:
+        return []
+    section_text = ''.join(section_paras)
+    has_pros = '优点' in section_text or '优势' in section_text
+    has_cons = '局限' in section_text or '不足' in section_text or '缺点' in section_text
+    if has_pros and has_cons:
+        return []
+    long_paras = [tx for tx in section_paras if len(tx) > 100]
+    if len(long_paras) >= 2 and numbered_count < 3:
+        return [
+            '「模型评价」须分点分段作答（优点 3-5 条、局限与改进 2-4 条，'
+            '每条 1-2 句，用紧凑编号列表），不得写成连续大段叙述'
+        ]
+    if numbered_count < 3 and not (has_pros or has_cons):
+        return [
+            '「模型评价」须分点分段作答（优点 3-5 条、局限与改进 2-4 条，'
+            '每条 1-2 句，用紧凑编号列表），并明确区分优点与局限'
+        ]
+    return []
+
+
 _GENERALIZATION_KEYWORDS = re.compile(r'推广|应用(?:场景|前景|范围)?|扩展|迁移|适用|泛化')
 
 
