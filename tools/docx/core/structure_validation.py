@@ -1536,8 +1536,12 @@ def _model_assumption_issues(doc):
     issues = []
     for p in assumes:
         text = p.text.strip()
+        if '依据' not in text:
+            issues.append(f'”{text[:20]}...” 缺少”依据：”环节（假设三链：依据→检验→回退）')
         if '检验' not in text:
             issues.append(f'”{text[:20]}...” 缺少”检验：”环节（假设三链：依据→检验→回退）')
+        if len(text) > 150:
+            issues.append(f'”{text[:20]}...” 过长（{len(text)}字）——假设须短句，不写长段解释')
     return issues
 
 
@@ -2213,7 +2217,65 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_caption_format_issues(doc))
     errors.extend(_meta_narrative_issues(doc))
     errors.extend(_anonymity_issues(doc))
+    errors.extend(_empty_section_issues(doc))
+    errors.extend(_appendix_numbering_issues(doc))
+    errors.extend(_abstract_opening_issues(doc))
     return errors
+
+
+def _empty_section_issues(doc):
+    """空节检测：标题后无任何正文即遇同级/上级标题，或标题含占位词。"""
+    _PLACEHOLDER = re.compile(r'XXX|xxx|TODO|待填|待补|占位', re.IGNORECASE)
+    heading_styles = {HEADING1_STYLE, HEADING2_STYLE, HEADING3_STYLE}
+    issues = []
+    paras = list(doc.paragraphs)
+    for i, p in enumerate(paras):
+        style = p.style.name if p.style else ''
+        if style not in heading_styles:
+            continue
+        text = p.text.strip()
+        if not text:
+            continue
+        if _PLACEHOLDER.search(text):
+            issues.append(f'标题含占位词: "{text[:30]}"——替换为实际内容或删除')
+            continue
+        has_body = False
+        for j in range(i + 1, len(paras)):
+            nxt_style = paras[j].style.name if paras[j].style else ''
+            nxt_text = paras[j].text.strip()
+            if nxt_style in heading_styles:
+                break
+            if nxt_text and nxt_style == BODY_STYLE:
+                has_body = True
+                break
+        if not has_body:
+            issues.append(f'标题下无正文: "{text[:30]}"——补充内容或删除空标题')
+    return issues
+
+
+def _appendix_numbering_issues(doc):
+    """附录不得编号（如"九、附录"属层级错位）。"""
+    issues = []
+    for p in doc.paragraphs:
+        text = p.text.strip()
+        if re.match(r'^[一二三四五六七八九十]+、\s*附录', text):
+            issues.append(f'附录不得编号: "{text}"——去掉序号，直接写"附录"')
+    return issues
+
+
+def _abstract_opening_issues(doc):
+    """摘要首段禁写"赛题给出/本题给出"式开头。"""
+    b = _abstract_bounds(doc)
+    if b is None:
+        return []
+    paras = list(doc.paragraphs)[b[0]:b[1]]
+    for p in paras:
+        if p.style.name == BODY_STYLE and p.text.strip():
+            text = p.text.strip()
+            if re.match(r'^(?:赛题|本题|题目|该题|这道题)(?:给出|提供|要求|描述了)', text):
+                return [f'摘要首段不得以"{text[:8]}..."开头——直接陈述问题本质与求解思路']
+            break
+    return []
 
 
 def _typesetting_issues(doc):
