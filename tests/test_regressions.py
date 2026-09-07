@@ -924,6 +924,16 @@ def test_soft_doc_structure_markers():
     assert "分层方法卡模板" in design
 
 
+def test_tournament_operational_section():
+    """Tournament 操作细则：冠军挑战者文档含实验记录格式、评分公式与预算约束。"""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    cc = (root / "知识库/建模增强/冠军挑战者建模流程.md").read_text(encoding="utf-8")
+    assert "## 11. Tournament 操作细则" in cc
+    assert "tournament_log.json" in cc
+    assert "S(M) = w_1" in cc or "S(M)=w1" in cc
+    assert "预算约束" in cc
+
+
 def test_plagiarism_warnings_detects_corpus_overlap(tmp_path):
     """W7 查重：论文含案例库连续 20 字片段 → 预警；干净论文与参考文献后内容不触发。"""
     from tools.docx.core.structure_validation import _plagiarism_warnings
