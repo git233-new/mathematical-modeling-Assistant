@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """文档↔代码同步契约：机器可查的清单禁止只在单侧修改（防硬闸门/软规则漂移失效）。
 
-规则来源：SKILL.md 铁律 7（冲突择优保留）——本文件是它的执行器：
+规则来源：SKILL.md 铁律 7（硬软分层）——本文件是它的执行器：
 任何一侧改动导致不一致，跑测即失败，冲突无法静默存活。
 """
 import re
@@ -82,9 +82,9 @@ def test_single_skill_entry_point():
 
 
 def test_iron_rule_numbering_stable():
-    """铁律 7=冲突仲裁、铁律 8=结果真实：编号错位曾让跨文件引用失效，此处锁死。"""
+    """铁律 7=硬软分层、铁律 8=结果真实：编号错位曾让跨文件引用失效，此处锁死。"""
     skill = _read("SKILL.md")
-    assert "7. **冲突仲裁" in skill
+    assert "7. **硬软分层" in skill
     assert "8. **结果真实可复现" in skill
     for ref in ("文档/论文写作.md", "知识库/建模增强/证据可复现审计.md"):
         assert re.search(r"铁律\s*5?/?8", _read(ref)), f"{ref} 的铁律引用编号漂移"

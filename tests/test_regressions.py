@@ -871,8 +871,8 @@ def test_cleanup_never_touches_files_dir_or_project_root(tmp_path):
     assert all(p.name != "我的笔记.txt" for p in targets)
 
 
-def test_cleanup_removes_paper_work_dir(tmp_path):
-    """.paper_work 写作中间稿目录整目录清除。"""
+def test_cleanup_preserves_paper_work_dir(tmp_path):
+    """.paper_work 草稿目录不强制删除，保留供回溯。"""
     from tools.project_ops.project_cleanup import plan_cleanup
     _mk_project(tmp_path)
     pw = tmp_path / ".paper_work"
@@ -880,7 +880,7 @@ def test_cleanup_removes_paper_work_dir(tmp_path):
     (pw / "01_abstract.md").write_text("x", encoding="utf-8")
 
     targets, _ = plan_cleanup(tmp_path)
-    assert pw in targets
+    assert pw not in targets
 
 
 def test_plot_pitfall_warnings_flags_pie_twinx_jet(tmp_path):

@@ -61,8 +61,6 @@ SOLUTION_COMMON_NAME = "solve_common.py"
 VIZ_MODULE_NAME = "viz.py"
 # 赛题原件目录：赛题文件与原附录存放处，清理器绝对不触碰
 FILES_DIR_NAME = "files"
-# 论文写作阶段中间稿目录：合并进 DOCX 后整目录强制删除
-PAPER_WORK_DIR = ".paper_work"
 # 交付模板名：终稿校验通过后删除，预览模式必须可见
 DELIVERY_TEMPLATE_NAME = "论文模板.docx"
 # 交付契约保留项（相对项目根）：清理器永不触碰；与 SKILL.md / 文档/代码规范.md 保持一致。
@@ -175,9 +173,6 @@ def collect_candidates(project: Path, whitelist=frozenset()) -> list[Path]:
         elif path.is_file() and _is_process_script(path):
             candidates.append(path)
     candidates += whitelist
-    paper_work = project / PAPER_WORK_DIR
-    if paper_work.is_dir():
-        candidates.append(paper_work)
     return sorted(set(candidates), key=lambda item: (len(item.parts), str(item)))
 
 
