@@ -65,9 +65,9 @@ PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
   subsubsection/number=\arabic{subsection}.\arabic{subsubsection},
 }
 \usepackage{titlesec}
-\titleformat{\section}{\centering\large\bfseries}{\thesection}{0.8em}{}
-\titleformat{\subsection}{\bfseries}{\thesubsection}{0.6em}{}
-\titleformat{\subsubsection}{\itshape}{\thesubsubsection}{0.5em}{}
+\titleformat{\section}{\centering\heiti\bfseries\zihao{4}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\heiti}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\heiti}{\thesubsubsection}{0.5em}{}
 \titlespacing{\section}{0pt}{1.25em}{0.82em}
 \titlespacing{\subsection}{0pt}{1.15em}{0.55em}
 \titlespacing{\subsubsection}{0pt}{1.15em}{0.55em}
@@ -84,7 +84,7 @@ PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
 \setlength{\parindent}{2em}
 \linespread{1.43}
 \newcommand{\res}[1]{\textbf{#1}}
-\newcommand{\papertitle}[1]{{\centering\large\bfseries #1\par}\vspace{1em}}
+\newcommand{\papertitle}[1]{{\centering\heiti\bfseries\zihao{3} #1\par}\vspace{1em}}
 \graphicspath{{{graphics_dir}/}}
 \begin{document}'''
 

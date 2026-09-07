@@ -166,7 +166,7 @@ def _disable_document_grid(doc):
         for grid in sect_pr.findall(qn('w:docGrid')):
             sect_pr.remove(grid)
 def _ensure_paper_styles(doc):
-    definitions = ((BODY_STYLE, '宋体', 12, False, WD_ALIGN_PARAGRAPH.JUSTIFY, True, False), (HEADING1_STYLE, '黑体', 14, False, WD_ALIGN_PARAGRAPH.CENTER, False, True), (HEADING2_STYLE, '黑体', 12, True, WD_ALIGN_PARAGRAPH.LEFT, False, True), (HEADING3_STYLE, '黑体', 12, True, WD_ALIGN_PARAGRAPH.LEFT, False, True), (CAPTION_STYLE, '宋体', 12, False, WD_ALIGN_PARAGRAPH.CENTER, False, False))
+    definitions = ((BODY_STYLE, '宋体', 12, False, WD_ALIGN_PARAGRAPH.JUSTIFY, True, False), (HEADING1_STYLE, '黑体', 14, False, WD_ALIGN_PARAGRAPH.CENTER, False, True), (HEADING2_STYLE, '黑体', 12, False, WD_ALIGN_PARAGRAPH.LEFT, False, True), (HEADING3_STYLE, '黑体', 12, False, WD_ALIGN_PARAGRAPH.LEFT, False, True), (CAPTION_STYLE, '宋体', 12, False, WD_ALIGN_PARAGRAPH.CENTER, False, False))
     for name, font, size, bold, alignment, first_line, keep_with_next in definitions:
         style = doc.styles[name] if name in doc.styles else doc.styles.add_style(name, WD_STYLE_TYPE.PARAGRAPH)
         _set_style_font(style, font, size, bold)
@@ -424,7 +424,7 @@ def abstract_title(doc):
     p.paragraph_format.first_line_indent = Pt(0)
     p.paragraph_format.space_before = Pt(7.8)
     p.paragraph_format.space_after = Pt(7.8)
-    set_run_font(p.add_run('摘 要'), '黑体', 16, False)
+    set_run_font(p.add_run('摘 要'), '黑体', 14, False)
     return p
 def body(doc, text):
     stripped = text.strip()
@@ -547,14 +547,14 @@ def heading2(doc, text):
     p = _claim_template_slot(doc, 'heading2', text) or paragraph(doc, style_name=HEADING2_STYLE)
     p.style = HEADING2_STYLE
     _set_heading_paragraph_layout(p, WD_ALIGN_PARAGRAPH.LEFT)
-    set_run_font(p.add_run(sanitize_text(text)), '黑体', size=12, bold=True)
+    set_run_font(p.add_run(sanitize_text(text)), '黑体', size=12, bold=False)
     return p
 def heading3(doc, text):
     _validate_heading_text(text)
     p = _claim_template_slot(doc, 'heading3', text) or paragraph(doc, style_name=HEADING3_STYLE)
     p.style = HEADING3_STYLE
     _set_heading_paragraph_layout(p, WD_ALIGN_PARAGRAPH.LEFT)
-    set_run_font(p.add_run(sanitize_text(text)), '黑体', size=12, bold=True)
+    set_run_font(p.add_run(sanitize_text(text)), '黑体', size=12, bold=False)
     return p
 def page_break(doc):
     p = paragraph(doc)
@@ -1210,7 +1210,7 @@ def _normalize_skeleton_headings(doc):
             paragraph.style = HEADING1_STYLE
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
             paragraph.paragraph_format.first_line_indent = Pt(0)
-            set_run_font(paragraph.add_run('摘 要'), font='黑体', size=16, bold=False)
+            set_run_font(paragraph.add_run('摘 要'), font='黑体', size=14, bold=False)
             item['protected'] = True
             continue
         if not role.startswith('heading'):

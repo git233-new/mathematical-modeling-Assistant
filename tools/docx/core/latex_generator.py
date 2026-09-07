@@ -14,8 +14,11 @@ from .latex_export import _escape, PREAMBLE
 END = r'\end{document}'
 
 
+_LATEX_ESCAPED = set('%$&#_{}\\')
+
+
 def _escape_preserving_math(text):
-    """转义 LaTeX 特殊字符，但保留 $...$ 行内数学原样输出。"""
+    """转义 LaTeX 特殊字符，但保留 $...$ 行内数学和已有转义序列（如 \\%）原样输出。"""
     parts = []
     i = 0
     while i < len(text):
@@ -25,6 +28,10 @@ def _escape_preserving_math(text):
                 parts.append(text[i:j + 1])
                 i = j + 1
                 continue
+        if text[i] == '\\' and i + 1 < len(text) and text[i + 1] in _LATEX_ESCAPED:
+            parts.append(text[i:i + 2])
+            i += 2
+            continue
         parts.append(_escape(text[i]))
         i += 1
     return ''.join(parts)
@@ -39,13 +46,13 @@ class PaperLatexBuilder:
 
     def title(self, text):
         self._body.append(r'\begin{center}')
-        self._body.append(rf'{{\bfseries\zihao{{3}} {_escape(text)}}}')
+        self._body.append(rf'{{\heiti\bfseries\zihao{{3}} {_escape(text)}}}')
         self._body.append(r'\end{center}')
         self._body.append(r'\vspace{0.5em}')
 
     def abstract_title(self):
         self._body.append(r'\begin{center}')
-        self._body.append(r'{\bfseries\zihao{4} 摘\quad 要}')
+        self._body.append(r'{\songti\zihao{-4} 摘\quad 要}')
         self._body.append(r'\end{center}')
         self._body.append(r'\vspace{0.5em}')
 
