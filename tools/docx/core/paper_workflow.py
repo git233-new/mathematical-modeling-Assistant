@@ -14,6 +14,12 @@ def _paper_format():
     except ImportError:
         import paper_format as pf
     return pf
+def _contest_profile():
+    try:
+        from . import contest_profile as cp
+    except ImportError:
+        import contest_profile as cp
+    return cp
 def _titles(value):
     found = []
     if isinstance(value, str):
@@ -53,23 +59,23 @@ def _questions_from_sections(sections, issues):
 
 def _planned_units_issues(planned_units, issues):
     """正文预计字数：缺失 / 低于交付下限 / 等效页数越界。"""
-    pf = _paper_format()
+    cp = _contest_profile()
     if planned_units is None:
         issues.append('未提供正文预计字数，无法按论文写作.md项目交付下限表核验')
-    elif int(planned_units) < pf.CUMCM_MIN_BODY_UNITS:
-        issues.append(f'正文预计 {planned_units} 字，距项目交付下限还差 {pf.CUMCM_MIN_BODY_UNITS - int(planned_units)} 字')
+    elif int(planned_units) < cp.CUMCM_MIN_BODY_UNITS:
+        issues.append(f'正文预计 {planned_units} 字，距项目交付下限还差 {cp.CUMCM_MIN_BODY_UNITS - int(planned_units)} 字')
     if planned_units is not None:
-        est_pages = int(planned_units) / pf.CUMCM_UNITS_PER_PAGE
-        if est_pages < pf.CUMCM_MIN_TOTAL_PAGES:
-            issues.append(f'正文预计 {planned_units} 字，等效篇幅约 {est_pages:.1f} 页，低于总页数下限 {pf.CUMCM_MIN_TOTAL_PAGES} 页（须达到 30–45 页）')
-        elif est_pages > pf.CUMCM_MAX_TOTAL_PAGES:
-            issues.append(f'正文预计 {planned_units} 字，等效篇幅约 {est_pages:.1f} 页，超过总页数上限 {pf.CUMCM_MAX_TOTAL_PAGES} 页（须达到 30–45 页）')
+        est_pages = int(planned_units) / cp.CUMCM_UNITS_PER_PAGE
+        if est_pages < cp.CUMCM_MIN_TOTAL_PAGES:
+            issues.append(f'正文预计 {planned_units} 字，等效篇幅约 {est_pages:.1f} 页，低于总页数下限 {cp.CUMCM_MIN_TOTAL_PAGES} 页（须达到 30–45 页）')
+        elif est_pages > cp.CUMCM_MAX_TOTAL_PAGES:
+            issues.append(f'正文预计 {planned_units} 字，等效篇幅约 {est_pages:.1f} 页，超过总页数上限 {cp.CUMCM_MAX_TOTAL_PAGES} 页（须达到 30–45 页）')
 
 
 def _planned_counts_issues(source, issues):
     """图/表/公式规划数量 vs 交付下限。"""
-    pf = _paper_format()
-    for label, minimum in (('figures', pf.CUMCM_MIN_FIGURES), ('tables', pf.CUMCM_MIN_TABLES), ('equations', pf.CUMCM_MIN_EQUATIONS)):
+    cp = _contest_profile()
+    for label, minimum in (('figures', cp.CUMCM_MIN_FIGURES), ('tables', cp.CUMCM_MIN_TABLES), ('equations', cp.CUMCM_MIN_EQUATIONS)):
         value = _metric(source, label, f'{label[:-1]}_count')
         if value is None:
             issues.append(f'未提供{label}规划数量，最低要求见论文写作.md项目交付下限表')
@@ -182,6 +188,7 @@ def preflight_check(outline):
 
 def progress_snapshot(doc, stage='writing', rendered_pages=None):
     pf = _paper_format()
+    cp = _contest_profile()
     units = pf.count_body_units(doc)
     # 图/表只统计正文（参考文献/附录之前的），附录图表不纳入计数与闸门（与结构校验口径一致）。
     figures, tables = pf._body_figure_table_counts(doc)
@@ -191,12 +198,12 @@ def progress_snapshot(doc, stage='writing', rendered_pages=None):
     return {
         'stage': stage,
         'body_units': units,
-        'body_shortage': max(0, pf.CUMCM_MIN_BODY_UNITS - units),
+        'body_shortage': max(0, cp.CUMCM_MIN_BODY_UNITS - units),
         'estimated_pages': round(estimated_pages, 1),
-        'equivalent_page_shortage': max(0, int(pf.CUMCM_MIN_TOTAL_PAGES - estimated_pages)),
-        'equivalent_page_overage': max(0, int(estimated_pages - pf.CUMCM_MAX_TOTAL_PAGES)),
+        'equivalent_page_shortage': max(0, int(cp.CUMCM_MIN_TOTAL_PAGES - estimated_pages)),
+        'equivalent_page_overage': max(0, int(estimated_pages - cp.CUMCM_MAX_TOTAL_PAGES)),
         'figures': figures,
-        'figures_shortage': max(0, pf.CUMCM_MIN_FIGURES - figures),
+        'figures_shortage': max(0, cp.CUMCM_MIN_FIGURES - figures),
         'tables': tables,
         'equations': equations,
         'rendered_pages': int(rendered_pages) if rendered_pages is not None else None,

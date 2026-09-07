@@ -212,19 +212,26 @@ def check_black_and_forbidden():
 def check_gate_sync():
     """检查论文写作规范中的门禁表是否同步代码常量。"""
     fmt = load("paper_format")
+    from tools.docx.core.contest_profile import (
+        CUMCM_MIN_BODY_UNITS, CUMCM_MIN_TOTAL_PAGES, CUMCM_MAX_TOTAL_PAGES,
+        CUMCM_MIN_ESTIMATED_PAGES, CUMCM_UNITS_PER_PAGE,
+        CUMCM_MIN_FIGURES, CUMCM_MIN_TABLES,
+        CUMCM_MIN_EQUATIONS, CUMCM_MAX_EQUATIONS,
+        CUMCM_MIN_FLOWCHARTS, CUMCM_MAX_FLOWCHARTS,
+        CUMCM_KEYWORD_MIN, CUMCM_KEYWORD_MAX,
+    )
     text = (ROOT / "文档" / "论文写作.md").read_text(encoding="utf-8")
     expected = {
-        "CUMCM_MIN_BODY_UNITS": "12222",
-        "CUMCM_MIN_TOTAL_PAGES": "30", "CUMCM_MAX_TOTAL_PAGES": "45",
-        "CUMCM_MIN_ESTIMATED_PAGES": "20", "CUMCM_UNITS_PER_PAGE": "407",
-        "CUMCM_MIN_FIGURES": "12", "CUMCM_MIN_TABLES": "8",
-        "CUMCM_MIN_EQUATIONS": "15", "CUMCM_MAX_EQUATIONS": "25",
-        "CUMCM_MIN_FLOWCHARTS": "1", "CUMCM_MAX_FLOWCHARTS": "2",
-        "CUMCM_KEYWORD_MIN": "4", "CUMCM_KEYWORD_MAX": "6",
+        "CUMCM_MIN_BODY_UNITS": CUMCM_MIN_BODY_UNITS,
+        "CUMCM_MIN_TOTAL_PAGES": CUMCM_MIN_TOTAL_PAGES, "CUMCM_MAX_TOTAL_PAGES": CUMCM_MAX_TOTAL_PAGES,
+        "CUMCM_MIN_ESTIMATED_PAGES": CUMCM_MIN_ESTIMATED_PAGES, "CUMCM_UNITS_PER_PAGE": CUMCM_UNITS_PER_PAGE,
+        "CUMCM_MIN_FIGURES": CUMCM_MIN_FIGURES, "CUMCM_MIN_TABLES": CUMCM_MIN_TABLES,
+        "CUMCM_MIN_EQUATIONS": CUMCM_MIN_EQUATIONS, "CUMCM_MAX_EQUATIONS": CUMCM_MAX_EQUATIONS,
+        "CUMCM_MIN_FLOWCHARTS": CUMCM_MIN_FLOWCHARTS, "CUMCM_MAX_FLOWCHARTS": CUMCM_MAX_FLOWCHARTS,
+        "CUMCM_KEYWORD_MIN": CUMCM_KEYWORD_MIN, "CUMCM_KEYWORD_MAX": CUMCM_KEYWORD_MAX,
     }
     for name, value in expected.items():
-        assert str(getattr(fmt, name)) == value
-        assert name in text and value in text
+        assert name in text and str(value) in text
     assert str(fmt.get_profile("cumcm").max_body_pages) == "30"
     assert str(fmt.get_profile("cumcm").min_body_pages) == "20"
     assert "total_page_shortage" not in fmt.progress_snapshot(fmt.new_document())

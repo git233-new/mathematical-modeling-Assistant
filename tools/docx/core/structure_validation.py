@@ -47,6 +47,7 @@ from .paper_format import (
     HEADING3_STYLE,
     check_page_layout,
     _document_texts,
+    _heading_key,
     _is_appendix_start,
     _is_body_start,
     _is_reference_start,
@@ -57,6 +58,7 @@ from .paper_format import (
     scan_forbidden_words,
     scan_ai_taste_patterns,
     check_black_fonts,
+    _CLAIM_STRENGTH_PATTERNS,
 )
 from tools.common.path_utils import is_within
 from tools.common.reproducibility import scan_code_files as _scan_repro
@@ -1544,18 +1546,6 @@ def _model_assumption_issues(doc):
             issues.append(f'”{text[:20]}...” 过长（{len(text)}字）——假设须短句，不写长段解释')
     return issues
 
-
-# Claim Guard：结论强度升级检测
-# 结论强度等级：观察 < 支持 < 证据表明 < 证实 < 推广
-# 检测无证据支撑的强度升级词（如"证明...普适性"、"充分验证"、"显著优于"）
-_CLAIM_STRENGTH_PATTERNS = [
-    (r'证明.{0,10}(普适|通用|广泛适用)', '结论强度升级："证明...普适性"需多场景验证支撑'),
-    (r'充分验证(了|其)', '"充分验证"需附验证数据或对比实验'),
-    (r'显著优于.{0,5}(模型|方法|算法)', '"显著优于"需附统计检验（p值/置信区间）'),
-    (r'鲁棒性(强|良好|极佳)', '"鲁棒性强"需附扰动实验数据'),
-    (r'完美(解决|处理|匹配)', '"完美"属绝对化表述，改具体指标'),
-    (r'彻底(解决|消除|克服)', '"彻底"属绝对化表述，改具体改进幅度'),
-]
 
 def _claim_strength_issues(doc):
     """检测结论强度升级：无证据支撑的强断言。"""

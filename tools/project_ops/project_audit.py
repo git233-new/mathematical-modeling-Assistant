@@ -19,8 +19,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 try:
     from tools.docx.core import paper_format as _PF
+    from tools.docx.core import contest_profile as _CP
 except (ImportError, ModuleNotFoundError):  # pragma: no cover - only when deps missing
     _PF = None
+    _CP = None
 LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 RETIRED = (
     "/home/user/.claude/skills/",
@@ -120,12 +122,15 @@ def gate_consistency_errors(sources: list[Path] | None = None) -> list[str]:
     if _PF is None:
         errors.append("无法导入 tools.docx.core.paper_format，跳过门禁常量检查")
         return errors
+    if _CP is None:
+        errors.append("无法导入 tools.docx.core.contest_profile，跳过门禁常量检查")
+        return errors
     if sources is None:
         sources = list(ROOT.rglob("*"))
 
-    # 1) 代码常量
+    # 1) 代码常量（从 contest_profile 检查，单一事实来源）
     for name, value in GATE_EXPECTED.items():
-        actual = getattr(_PF, name, None)
+        actual = getattr(_CP, name, None)
         if actual != value:
             errors.append(f"交付门禁常量不一致: {name} 应为 {value}，实际 {actual}")
     profile = _PF.get_profile("cumcm")

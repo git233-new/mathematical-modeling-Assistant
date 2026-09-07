@@ -39,25 +39,8 @@ def set_run_font(run, font='宋体', size=12, bold=False, color=BLACK):
     return run
 # 写前守卫统一走 tools/common（单一实现，避免双份漂移）
 from tools.common.path_utils import is_within
-# 竞赛画像与门禁阈值（单一事实来源，见 contest_profile.py）；此处导入并保持
-# 模块级同名常量/函数，兼容既有 `from paper_format import CUMCM_* / get_profile`。
 from .contest_profile import (
-    CONTEST_PROFILES,
-    CUMCM_KEYWORD_MAX,
-    CUMCM_KEYWORD_MIN,
-    CUMCM_MAX_EQUATIONS,
-    CUMCM_MAX_FLOWCHARTS,
-    CUMCM_MAX_TOTAL_PAGES,
-    CUMCM_MIN_BODY_UNITS,
-    CUMCM_MIN_EQUATIONS,
-    CUMCM_MIN_ESTIMATED_PAGES,
-    CUMCM_MIN_FIGURES,
-    CUMCM_MIN_FLOWCHARTS,
-    CUMCM_MIN_TABLES,
-    CUMCM_MIN_TOTAL_PAGES,
     CUMCM_UNITS_PER_PAGE,
-    _FLOWCHART_OVERALL_TERMS,
-    _FLOWCHART_TERMS,
     get_profile,
 )
 # PDF 渲染/页数测量辅助统一收口 rendering（单一实现）；此处别名导入保持
@@ -68,7 +51,6 @@ from .rendering import (
     _is_reference_start,
     check_docx_not_locked as _check_docx_not_locked,
 )
-SOFFICE_DEFAULT_TIMEOUT = 60
 BODY_LINE_SPACING_PT = 18
 FORMULA_CONTEXT_GAP_PT = int(BODY_LINE_SPACING_PT * 1.5)
 _REQUIRED_HEADING1_CANONICAL = {'问题重述': '一、问题重述', '问题分析': '二、问题分析', '模型假设': '三、模型假设', '符号说明': '四、符号说明', '模型建立': '五、模型建立与求解', '模型检验': '六、模型检验与分析', '模型优缺点': '七、模型评价与改进', 'AI工具使用声明': 'AI工具使用声明', '参考文献': '参考文献', '附录': '附录'}
