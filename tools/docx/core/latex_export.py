@@ -27,7 +27,9 @@ LATEX_ESCAPE_MAP = {
     '{': r'\{', '}': r'\}', '~': r'\textasciitilde{}', '^': r'\textasciicircum{}',
 }
 
-PREAMBLE = r'''\documentclass[zihao=-4,a4paper]{ctexart}
+PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
+% 字体集固定 fandol（随 TeX Live 分发，Overleaf/本地 TeX Live 开箱可用，pdfLaTeX/XeLaTeX 皆可；
+% 勿改 windows——Overleaf 无 SimSun/SimHei 真字体）。推荐 XeLaTeX 编译。
 % 与 DOCX 母版对应（唯一权威：文档/样式统一规定.md）。正文小四、首行缩进 2 字符、
 % 行距 18 磅/12pt=1.5 倍基线在此近似；竞赛排版以 DOCX 交付版为准，本文件是源码版。
 \usepackage[top=2.54cm,bottom=2.54cm,left=3.18cm,right=3.18cm]{geometry}

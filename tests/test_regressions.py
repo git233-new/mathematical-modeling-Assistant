@@ -697,6 +697,7 @@ def test_export_latex_source_covers_core_elements(tmp_path):
 
     out = export_latex_source(doc, tmp_path / "完整论文.tex")
     text = out.read_text(encoding="utf-8")
+    assert "fontset=fandol" in text  # 字体集确定性：Overleaf/本地 TeX Live 开箱可编译
     assert r"\section*{一、问题重述}" in text
     assert r"\begin{equation}y = k x + b\tag{1}\end{equation}" in text
     assert r"\noindent\textbf{关键词：}" in text
