@@ -124,8 +124,25 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 
    健全性检查不通过的结果**不得进入 Tournament 评分**，不得写入 run_manifest，不得写入论文。
 
-5. **生成论文**：**动笔前必须先通读 `知识库/写作增强/去AI味指南.md`**（写法阶段自动加载，主语具体化/禁空泛主语等措辞规则以它为准）。**前置校验清单（写作时逐条遵守，不等 gate 后修）**：① 摘要 = 向一页写满（问题少多写、问题多少写），首段直入问题本质（禁"赛题给出/本题给出"开头），结果段直说最终结论与关键数值（禁堆模型名算法名、禁列一串中间数据却说不出结果、禁大量数学符号），4-6 句、200-400 字；② 每个二级小节 ≥ 300 字，**禁止空标题/占位标题**（标题含 XXX/TODO/待填 或标题下无任何正文段落——机器闸门会拦截）；③ 公式→参数→数值链：正文引用公式中每个符号必须有定义（符号说明表或上下文），参数值必须对应 `run_manifest.json` 登记的来源；④ 模型结论断言（"最优"/"显著"/"收敛"）必须有 manifest 数据支撑，无登记依据的表述禁止写入；⑤ 统计结论守卫：声称"显著"须附 p 值与效应量，声称"最优"须附对比基线数值，声称"收敛"须附迭代/残差数据；⑥ 每张图/表在正文中首次出现前必须有引导句（如"如图 3 所示，…"），禁止图/表无前文铺垫直接出现，**图编号严格按正文出现顺序递增，不得乱跳**；⑦ 初始篇幅 ≥ 8000 正文单位再提交首次 gate 校验，避免 gate 反复打回扩写；⑧ 模型假设只写"假设N：内容。依据：…。检验：…。"短句，不堆解释性废话（假设后不跟长段说明"该模型是指…"）；⑨ 模型检验/灵敏度分析等内容只在"模型检验与分析"章节展开，除非赛题问题直接要求"进行检验"，否则各问求解小节不单独设检验子节。按 `文档/论文写作.md` 组织内容，**写作必须有依据**——每个关键数字、图表与结论必须对应 `run_manifest.json` 登记的结果（或 `manual_stats`/SPSS 来源），无登记依据的表述一律不得写入，gate 会逐字核对并拒存。调用 `pf.preflight_check(outline)` 和 `save_document()`；论文文件交付由 `latex_export.export_latex_source` 同快照生成、**先落位的 `完整论文.tex`** 与随后原子发布的 `完整论文.docx`，不依赖 Word/LibreOffice 渲染。`save_document()` 按项目交付下限和内容等效篇幅执行硬校验，任何要求未达标都拒绝保存。模板提供版式基底（A4/边距/页码）与章节槽位，标题与正文的字体字号规格由 `paper_format._ensure_paper_styles` 统一注入（按模板要求：标题一律黑体），题目需要时允许增删改标题。`code/build_paper.py` **完全自包含**（`python-docx` 排版逻辑就地内联），不 import 任何 skill 模块，运行时不依赖 SKILL_ROOT；**不得 import 赛题 `solve_common.py` 或 `Q<序号>.py`**。
+5. **生成论文**：**动笔前必须先通读 `知识库/写作增强/去AI味指南.md`**（写法阶段自动加载，主语具体化/禁空泛主语等措辞规则以它为准）。**前置校验清单（写作时逐条遵守，不等 gate 后修）**：① 摘要 = 向一页写满（问题少多写、问题多少写），首段直入问题本质（禁"赛题给出/本题给出"开头），结果段直说最终结论与关键数值（禁堆模型名算法名、禁列一串中间数据却说不出结果、禁大量数学符号），4-6 句、200-400 字；② 每个二级小节 ≥ 300 字，**禁止空标题/占位标题**（标题含 XXX/TODO/待填 或标题下无任何正文段落——机器闸门会拦截）；③ 公式→参数→数值链：正文引用公式中每个符号必须有定义（符号说明表或上下文），参数值必须对应 `run_manifest.json` 登记的来源；④ 模型结论断言（"最优"/"显著"/"收敛"）必须有 manifest 数据支撑，无登记依据的表述禁止写入；⑤ 统计结论守卫：声称"显著"须附 p 值与效应量，声称"最优"须附对比基线数值，声称"收敛"须附迭代/残差数据；⑥ 每张图/表在正文中首次出现前必须有引导句（如"如图 3 所示，…"），禁止图/表无前文铺垫直接出现，**图编号严格按正文出现顺序递增，不得乱跳**；⑦ 初始篇幅 ≥ 8000 正文单位再提交首次 gate 校验，避免 gate 反复打回扩写；⑧ 模型假设只写"假设N：内容。依据：…。检验：…。"短句，不堆解释性废话（假设后不跟长段说明"该模型是指…"）；⑨ 模型检验/灵敏度分析等内容只在"模型检验与分析"章节展开，除非赛题问题直接要求"进行检验"，否则各问求解小节不单独设检验子节。按 `文档/论文写作.md` 组织内容，**写作必须有依据**——每个关键数字、图表与结论必须对应 `run_manifest.json` 登记的结果（或 `manual_stats`/SPSS 来源），无登记依据的表述一律不得写入，gate 会逐字核对并拒存。调用 `pf.preflight_check(outline)` 和 `save_document()`；论文文件交付由 `latex_export.export_latex_source` 同快照生成、**先落位的 `完整论文.tex`** 与随后原子发布的 `完整论文.docx`，不依赖 Word/LibreOffice 渲染。**LaTeX-first 替代路径**：可用 `PaperLatexBuilder`（`tools/docx/core/latex_generator.py`）直接构建 LaTeX 源码，再调 `save_latex_first()` 经 pandoc 转 DOCX——公式零转换（原生 LaTeX math），适合 LLM 直接生成。两条路径产出等效，默认仍为 DOCX-native。`save_document()` 按项目交付下限和内容等效篇幅执行硬校验，任何要求未达标都拒绝保存。模板提供版式基底（A4/边距/页码）与章节槽位，标题与正文的字体字号规格由 `paper_format._ensure_paper_styles` 统一注入（按模板要求：标题一律黑体），题目需要时允许增删改标题。`code/build_paper.py` **完全自包含**（`python-docx` 排版逻辑就地内联），不 import 任何 skill 模块，运行时不依赖 SKILL_ROOT；**不得 import 赛题 `solve_common.py` 或 `Q<序号>.py`**。
    - 附录只保留**附录A 支撑材料清单**：由 `pf.append_code_files(project_root)` 按 `run_manifest.json` 的 `source_scripts` + 数据文件自动生成（`solve_common.py` 等公共模块与数据文件一并登记，排除 build_paper.py），代码本体不入论文、全部保留在 `code/` 目录。整题纯理论（无解题代码）时附录A 段仍保留并登记数据/说明。
+   - **LaTeX-first 调用示例**：
+     ```python
+     from tools.docx.core.latex_generator import PaperLatexBuilder
+     from tools.docx.core.paper_format import save_latex_first
+
+     builder = PaperLatexBuilder()
+     builder.title('论文标题')
+     builder.abstract_title()
+     builder.body('摘要正文 200-400 字...')
+     builder.keywords('优化；预测；评价')
+     builder.heading1('一、问题重述', page_break=True)
+     builder.body('正文内容...')
+     builder.equation(r'E = mc^2', number='(1-1)')
+     builder.three_line_table([['符号','说明'],['x','变量']], caption='符号说明')
+     builder.add_figure('results/图片/fig1.png', '图1 流程图')
+     save_latex_first(builder, project_root, overwrite=True)
+     ```
 5.5. **数学验证（论文生成后、评审前，独立检查点）**：此步骤的目的不是修改论文或重新建模，而是**独立检查已生成的论文与真实结果之间的一致性**。逐项核对，不通过则回 Step 5 修正后再继续：
 
    ① **公式-符号一致性**：论文中每个公式的符号是否都在符号说明表或上下文中有定义？公式编号是否连续？
@@ -134,6 +151,9 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
    ④ **图表-正文一致性**：正文提到的每张图/表是否实际存在？图编号是否按正文出现顺序连续？图题与图内容是否匹配？
    ⑤ **假设-检验闭环**：模型假设中的每一条是否在后文被检验、验证或说明其合理性？未检验的假设标记为风险。
    ⑥ **Model Contract 验收**：对照每问的 Model Contract validation 清单，确认论文中是否报告了要求的验证结果。
+   ⑦ **LaTeX 源文件完整性**（LaTeX-first 路径）：`完整论文.tex` 是否存在且非空？`\graphicspath` 是否指向正确的图片目录？含特殊字符（下划线等）的文件名是否使用了 `\detokenize{}`？
+   ⑧ **pandoc 转换产物**（LaTeX-first 路径）：`.tex → .docx` 转换是否成功？DOCX 文件是否可正常打开？公式是否正确转换为 OMML（而非残留 LaTeX 源码文本）？
+   ⑨ **ctex 命令剥离**（LaTeX-first 路径）：`.tex` 中是否残留 pandoc 不支持的 ctex 命令（`\ctexset`、`\zihao`、`\setCJKmainfont` 等）？这些命令会导致 pandoc 转换失败或输出异常。
 
    验证发现的不一致**必须修正后才进入 Step 6**。此步骤不生成新结果、不重新建模、不添加新内容——只检查已有内容的一致性。
 

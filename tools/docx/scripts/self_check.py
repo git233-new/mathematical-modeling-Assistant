@@ -46,6 +46,12 @@ def check_env():
     assert result.returncode == 0
 
 
+def check_pandoc():
+    """LaTeX-first 管线依赖 pandoc 做 .tex → .docx 转换。"""
+    import shutil
+    assert shutil.which('pandoc'), 'pandoc 未安装或不在 PATH 中，LaTeX-first 管线需要 pandoc'
+
+
 def check_formula():
     equations = load("equations")
     root = etree.fromstring(equations.latex2omml(r"\frac{1}{n}\sum_{i=1}^{n}x_i^2"))
@@ -276,6 +282,7 @@ def main(argv=None):
 
 def _run_checks(args):
     check_env()
+    check_pandoc()
     check_formula()
     check_three_line_table()
     check_black_and_forbidden()
