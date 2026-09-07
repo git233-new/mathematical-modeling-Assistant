@@ -34,11 +34,30 @@ PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
 % 与 DOCX 母版对应（唯一权威：文档/样式统一规定.md）。正文小四、首行缩进 2 字符、
 % 行距 18 磅/12pt=1.5 倍基线在此近似；竞赛排版以 DOCX 交付版为准，本文件是源码版。
 \usepackage[top=2.54cm,bottom=2.54cm,left=3.18cm,right=3.18cm]{geometry}
-\usepackage{amsmath}
+\usepackage{amsmath,amssymb}
+\usepackage{amsthm}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{caption}
 \usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage[colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue]{hyperref}
+\ctexset{
+  section/name={,},
+  section/number=\chinese{section}、,
+  section/format=\large\bfseries\centering,
+  subsection/number=\arabic{subsection},
+  subsection/format=\bfseries,
+  subsubsection/number=\arabic{subsection}.\arabic{subsubsection},
+  subsubsection/format=\itshape
+}
+\newtheorem{definition}{定义}[section]
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}{引理}[section]
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
 \captionsetup{labelsep=space,font={small}}
 \setlength{\parindent}{2em}
 \linespread{1.5}
@@ -48,7 +67,7 @@ PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
 
 END = r'\end{document}'
 
-HEADING_COMMANDS = {1: r'\section*', 2: r'\subsection*', 3: r'\subsubsection*'}
+HEADING_COMMANDS = {1: r'\section', 2: r'\subsection', 3: r'\subsubsection'}
 
 
 def _escape(text):
