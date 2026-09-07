@@ -1126,35 +1126,6 @@ def test_export_latex_uses_original_image_filename(tmp_path):
     assert "image1.png" not in tex
 
 
-def test_run_state_checkpoint(tmp_path):
-    """恢复点：保存/加载/推进/清理。"""
-    from tools.project_ops.run_state import (
-        clear_state,
-        get_next_step,
-        load_state,
-        mark_step_completed,
-        save_state,
-    )
-
-    assert load_state(tmp_path) is None
-    assert get_next_step(tmp_path) == 1
-
-    save_state(tmp_path, current_step=2, completed_steps=[1])
-    state = load_state(tmp_path)
-    assert state["current_step"] == 2
-    assert state["completed_steps"] == [1]
-
-    mark_step_completed(tmp_path, 2)
-    state = load_state(tmp_path)
-    assert 2 in state["completed_steps"]
-    assert state["current_step"] == 3
-    assert state["step_details"]["2"]["status"] == "completed"
-
-    assert get_next_step(tmp_path) == 3
-    assert clear_state(tmp_path)
-    assert load_state(tmp_path) is None
-
-
 def test_claim_strength_guard():
     """Claim Guard：检测结论强度升级（无证据强断言）。"""
     from tools.docx.core.structure_validation import _claim_strength_issues

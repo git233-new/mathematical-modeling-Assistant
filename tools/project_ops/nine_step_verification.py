@@ -1,5 +1,5 @@
 """
-9 步自动验收 + 12 硬错误标准（P3-16）
+8 步自动验收 + 11 硬错误标准（P3-16）
 
 来源：MathModelAgent 仓库 6verity，经 Modex 适配。
 职责：论文交付前自动验收，确保零低级错误。
@@ -12,8 +12,7 @@ STEP 4: 写作质量和泄露检查
 STEP 5: 数值和结果一致性
 STEP 6: 引用和模板规范
 STEP 7: DOCX 编译检查
-STEP 8: 视觉检查（可选）
-STEP 9: 验收汇总（默认 stdout 输出，显式传 write_report=True 才写报告）
+STEP 8: 验收汇总（默认 stdout 输出，显式传 write_report=True 才写报告）
 """
 
 from __future__ import annotations
@@ -39,7 +38,6 @@ HARD_ERROR_CODES = {
     "HE09": "关键数值与结果记录冲突",
     "HE10": "论文编译失败",
     "HE11": "PDF 为空/缺页/页数异常",
-    "HE12": "视觉检查发现重叠/裁切/越界/乱码",
 }
 
 # 7 项警告标准
@@ -49,7 +47,6 @@ WARNING_CODES = {
     "W03": "caption 偏长",
     "W04": "参考文献偏少",
     "W05": "图表后解释不足",
-    "W06": "视觉工具不可用",
     "W07": "代码复现耗时过长",
 }
 
@@ -71,89 +68,6 @@ INTERNAL_LEAK_PATTERNS = [
     re.compile(r"verify_paper_evidence\.py"),
     re.compile(r"result_contract\.py"),
     re.compile(r"structure_validation\.py"),
-    re.compile(r"prompt_builder\.py"),
-    re.compile(r"prompt_registry\.py"),
-    re.compile(r"prompt_utils\.py"),
-    re.compile(r"prompt_validation\.py"),
-    re.compile(r"prompt_versioning\.py"),
-    re.compile(r"prompt_cache\.py"),
-    re.compile(r"prompt_metrics\.py"),
-    re.compile(r"prompt_export\.py"),
-    re.compile(r"prompt_import\.py"),
-    re.compile(r"prompt_diff\.py"),
-    re.compile(r"prompt_search\.py"),
-    re.compile(r"prompt_analytics\.py"),
-    re.compile(r"prompt_dashboard\.py"),
-    re.compile(r"prompt_api\.py"),
-    re.compile(r"prompt_cli\.py"),
-    re.compile(r"prompt_web\.py"),
-    re.compile(r"prompt_mobile\.py"),
-    re.compile(r"prompt_desktop\.py"),
-    re.compile(r"prompt_server\.py"),
-    re.compile(r"prompt_client\.py"),
-    re.compile(r"prompt_database\.py"),
-    re.compile(r"prompt_storage\.py"),
-    re.compile(r"prompt_queue\.py"),
-    re.compile(r"prompt_worker\.py"),
-    re.compile(r"prompt_scheduler\.py"),
-    re.compile(r"prompt_monitor\.py"),
-    re.compile(r"prompt_logger\.py"),
-    re.compile(r"prompt_config\.py"),
-    re.compile(r"prompt_settings\.py"),
-    re.compile(r"prompt_env\.py"),
-    re.compile(r"prompt_secret\.py"),
-    re.compile(r"prompt_auth\.py"),
-    re.compile(r"prompt_permission\.py"),
-    re.compile(r"prompt_role\.py"),
-    re.compile(r"prompt_user\.py"),
-    re.compile(r"prompt_group\.py"),
-    re.compile(r"prompt_team\.py"),
-    re.compile(r"prompt_project\.py"),
-    re.compile(r"prompt_organization\.py"),
-    re.compile(r"prompt_company\.py"),
-    re.compile(r"prompt_enterprise\.py"),
-    re.compile(r"prompt_business\.py"),
-    re.compile(r"prompt_industry\.py"),
-    re.compile(r"prompt_market\.py"),
-    re.compile(r"prompt_customer\.py"),
-    re.compile(r"prompt_product\.py"),
-    re.compile(r"prompt_service\.py"),
-    re.compile(r"prompt_feature\.py"),
-    re.compile(r"prompt_function\.py"),
-    re.compile(r"prompt_capability\.py"),
-    re.compile(r"prompt_skill\.py"),
-    re.compile(r"prompt_talent\.py"),
-    re.compile(r"prompt_expertise\.py"),
-    re.compile(r"prompt_knowledge\.py"),
-    re.compile(r"prompt_wisdom\.py"),
-    re.compile(r"prompt_intelligence\.py"),
-    re.compile(r"prompt_ai\.py"),
-    re.compile(r"prompt_ml\.py"),
-    re.compile(r"prompt_dl\.py"),
-    re.compile(r"prompt_nlp\.py"),
-    re.compile(r"prompt_cv\.py"),
-    re.compile(r"prompt_rl\.py"),
-    re.compile(r"prompt_gan\.py"),
-    re.compile(r"prompt_vae\.py"),
-    re.compile(r"prompt_transformer\.py"),
-    re.compile(r"prompt_bert\.py"),
-    re.compile(r"prompt_gpt\.py"),
-    re.compile(r"prompt_llm\.py"),
-    re.compile(r"prompt_slm\.py"),
-    re.compile(r"prompt_mlm\.py"),
-    re.compile(r"prompt_clm\.py"),
-    re.compile(r"prompt_plm\.py"),
-    re.compile(r"prompt_eml\.py"),
-    re.compile(r"prompt_dml\.py"),
-    re.compile(r"prompt_sml\.py"),
-    re.compile(r"prompt_wml\.py"),
-    re.compile(r"prompt_cml\.py"),
-    re.compile(r"prompt_rml\.py"),
-    re.compile(r"prompt_tml\.py"),
-    re.compile(r"prompt_uml\.py"),
-    re.compile(r"prompt_vml\.py"),
-    re.compile(r"prompt_xml\.py"),
-    re.compile(r"prompt_zml\.py"),
 ]
 
 
@@ -310,21 +224,11 @@ def step7_docx_check(docx_path: Path) -> list[VerificationFinding]:
     return findings
 
 
-def step8_visual_check(docx_path: Path) -> list[VerificationFinding]:
-    """STEP 8: 视觉检查（可选，需要额外工具）"""
-    findings = []
-    findings.append(VerificationFinding(
-        step=8, code="W06", severity="warning",
-        message="视觉检查工具不可用，跳过",
-    ))
-    return findings
-
-
-def step9_write_report(
+def step8_write_report(
     result: VerificationResult,
     output_path: Path,
 ) -> None:
-    """STEP 9: 验收汇总（默认 stdout 输出，显式传 write_report=True 才写报告）"""
+    """STEP 8: 验收汇总（默认 stdout 输出，显式传 write_report=True 才写报告）"""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "# 论文验收报告",
@@ -339,7 +243,7 @@ def step9_write_report(
         "| 步骤 | 结果 |",
         "|------|------|",
     ]
-    for i in range(1, 10):
+    for i in range(1, 9):
         status = "✅" if i in result.steps_passed else "❌"
         lines.append(f"| STEP {i} | {status} |")
 
@@ -370,7 +274,7 @@ def run_verification(
     write_report: bool = False,
 ) -> VerificationResult:
     """
-    执行 9 步自动验收。
+    执行 8 步自动验收。
 
     Args:
         project_root: 项目根目录
@@ -394,7 +298,7 @@ def run_verification(
         except ImportError:
             pass
 
-    # STEP 1-8
+    # STEP 1-7
     all_findings: list[VerificationFinding] = []
     steps = [
         (1, step1_text_quality(text)),
@@ -404,7 +308,6 @@ def run_verification(
         (5, step5_numeric_consistency(text, manifest_path)),
         (6, step6_reference_check(text)),
         (7, step7_docx_check(docx_path) if docx_path else []),
-        (8, step8_visual_check(docx_path) if docx_path else []),
     ]
 
     for step_num, findings in steps:
@@ -418,9 +321,9 @@ def run_verification(
     result.findings = all_findings
     result.overall_passed = len(result.hard_errors) == 0
 
-    # STEP 9：默认只返回结果（stdout/exit code 权威），显式传 write_report=True 才落盘
+    # STEP 8：默认只返回结果（stdout/exit code 权威），显式传 write_report=True 才落盘
     if write_report:
         report_path = project_root / "results" / "论文验收报告.md"
-        step9_write_report(result, report_path)
+        step8_write_report(result, report_path)
 
     return result
