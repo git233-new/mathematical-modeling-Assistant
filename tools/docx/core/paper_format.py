@@ -277,11 +277,21 @@ def _claim_template_slot(doc, role, text):
     doc._mathmodeling_insert_cursor = chosen['element']
     return paragraph
 _CN_CHAPTER_NUM = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
-def _body_h1_numbers(body):
-    """正文中已写入的一级章号集合（一、二、…），用于识别模板槽位与内容标题重复。"""
+def _body_h1_numbers(doc, exclude_elements=()):
+    """正文中已写入的一级章号集合（一、二、…），用于识别模板槽位与内容标题重复。
+
+    只认 Heading 1 样式的段落（按样式名解析，兼容中文模板的数字 styleId）；
+    exclude_elements 用于跳过模板槽位自身段落，防止槽位文本自匹配成"已写过"。
+    """
     numbers = set()
+    body = doc._element.body
     for p in body.iter(qn('w:p')):
-        text = ''.join(node.text or '' for node in p.iter(qn('w:t'))).strip()
+        if p in exclude_elements:
+            continue
+        paragraph = Paragraph(p, doc._body)
+        if paragraph.style is None or paragraph.style.name != HEADING1_STYLE:
+            continue
+        text = paragraph.text.strip()
         m = re.match('^([一二三四五六七八九十]+)、', text)
         if m:
             value = 0
@@ -292,20 +302,33 @@ def _body_h1_numbers(body):
     return numbers
 def _prune_unused_template_slots(doc):
     body = doc._element.body
-    existing_numbers = _body_h1_numbers(body)
-    for item in getattr(doc, '_mathmodeling_template_slots', []):
+    slots = getattr(doc, '_mathmodeling_template_slots', [])
+    pending_elements = [item['element'] for item in slots
+                        if item['state'] == 'pending' and item['element'].getparent() is body]
+    existing_numbers = _body_h1_numbers(doc, exclude_elements=pending_elements)
+    for item in slots:
         element = item['element']
         if item['state'] != 'pending' or element.getparent() is not body:
             continue
         if item.get('protected'):
-            # protected 槽位（如 AI 声明）若正文已写同名标题，则槽位即幻影，删除
+            # protected 槽位（如 AI 声明）若正文已写同名标题，则槽位即幻影，删除；
+            # written 收集必须排除槽位自身元素，否则恒自匹配导致全部误删
             slot_text = ''.join(node.text or '' for node in element.iter(qn('w:t'))).strip()
             written = [''.join(node.text or '' for node in p.iter(qn('w:t'))).strip()
-                       for p in body.iter(qn('w:p'))]
+                       for p in body.iter(qn('w:p')) if p not in pending_elements]
             if slot_text and any(t and _heading_key(t) == _heading_key(slot_text) for t in written):
                 body.remove(element)
                 item['state'] = 'skipped'
                 continue
+            if item['role'] == 'heading1':
+                # protected 的必需章槽位同样按章号去重：正文已写同章号标题 → 槽位即幻影
+                canonical = next((_REQUIRED_HEADING1_CANONICAL[marker] for marker in _REQUIRED_HEADING1_CANONICAL if marker in item['key']), None)
+                m = re.match('^([一二三四五六七八九十]+)、', canonical) if canonical else None
+                slot_num = _CN_CHAPTER_NUM.get(m.group(1)) if m else None
+                if slot_num and slot_num in existing_numbers:
+                    body.remove(element)
+                    item['state'] = 'skipped'
+                    continue
             item['state'] = 'kept'
             continue
         if item['role'] == 'heading1':

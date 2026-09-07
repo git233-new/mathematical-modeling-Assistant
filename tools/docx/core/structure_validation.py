@@ -688,7 +688,8 @@ def _duplicate_heading_issues(doc):
         text = p.text.strip()
         if not text:
             continue
-        is_h1 = (p.style is not None and p.style.name == 'Heading 1') or             re.match('^[一二三四五六七八九十]+、', text) or text in {'参考文献', '附录', 'AI工具使用声明'}
+        # H1 只认样式（正文"一、xxx"式句子不误判为标题）
+        is_h1 = p.style is not None and p.style.name == 'Heading 1' and bool(text)
         if not is_h1:
             continue
         m = re.match('^([一二三四五六七八九十]+)、', text)
@@ -726,7 +727,8 @@ def _check_figure_placement_issues(doc, project_root=None):
     pending_check = False
     for index, p in enumerate(paras):
         text = p.text.strip()
-        is_h1 = (p.style is not None and p.style.name == 'Heading 1' and text) or             re.match('^[一二三四五六七八九十]+、', text)
+        # H1 只认样式（正文"一、xxx"式句子不是标题）
+        is_h1 = p.style is not None and p.style.name == 'Heading 1' and bool(text)
         if is_h1 and index >= check_start:
             in_check = re.search(r'模型检验', text) is not None
         has_picture = bool(p._p.findall('.//' + qn('a:blip')))
@@ -737,7 +739,8 @@ def _check_figure_placement_issues(doc, project_root=None):
             is_check = pending_check or any(kw in text for kw in _CHECK_FIGURE_KEYWORDS)
             if is_check and not in_check:
                 issues.append(f'检验类图"{text[:20]}"插在模型检验章之外：检验相关图片必须放在模型检验与分析章（文件名与题注同步）')
-            pending_check = False
+        # 非图片段落清空 pending：图与题注必须紧邻，隔段后 pending 失效
+        pending_check = False
     return issues
 
 
