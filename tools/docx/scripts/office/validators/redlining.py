@@ -158,6 +158,8 @@ class RedliningValidator:
                         [*head, str(original_file), str(modified_file)],
                         capture_output=True,
                         text=True,
+                        encoding='utf-8',
+                        errors='replace',
                     )
                     content_lines = _diff_content_lines(result.stdout)
                     if content_lines:

@@ -107,6 +107,8 @@ def accept_changes(input_file: str, output_file: str) -> tuple[Path | None, str 
                     command,
                     capture_output=True,
                     text=True,
+                    encoding='utf-8',
+                    errors='replace',
                     timeout=30,
                     check=False,
                     env=get_soffice_env(),

@@ -49,13 +49,12 @@ CUMCM_MIN_BODY_UNITS = 12222
 # 总页数 / 等效总页数（不依赖 Word/LibreOffice 渲染的硬下限，正文+附录合计）
 CUMCM_MIN_TOTAL_PAGES = 30
 CUMCM_MAX_TOTAL_PAGES = 45
-# 等效总页数下限（当外部未提供实际渲染页数时，按内容量估算的兜底下限）
-CUMCM_MIN_ESTIMATED_PAGES = 30
-# 等效页数换算系数：使 CUMCM_MIN_BODY_UNITS(12222) 恰好对应 30 等效页，
-# 保证“满足正文单位数下限即可达到总页下限”，避免两道最低门槛彼此冲突。
+# 等效总页数下限（独立于字数闸门的兜底篇幅检查：捕获字数达标但大量空白/空段的文档）
+CUMCM_MIN_ESTIMATED_PAGES = 20
+# 等效页数换算系数（粗略校准：每 ~407 字/词 ≈ 1 页，用于 estimate_equivalent_pages）
 CUMCM_UNITS_PER_PAGE = 407
 CUMCM_MIN_FIGURES = 12
-CUMCM_MIN_TABLES = 1
+CUMCM_MIN_TABLES = 8
 CUMCM_MIN_EQUATIONS = 15
 CUMCM_MAX_EQUATIONS = 25
 CUMCM_MIN_FLOWCHARTS = 1

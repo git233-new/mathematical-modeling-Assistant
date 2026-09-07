@@ -106,7 +106,7 @@ def _find_symbol_table(doc):
         if not table.rows:
             continue
         headers = [c.text.strip() for c in table.rows[0].cells]
-        if any(h == '符号' for h in headers):
+        if any('符号' in h for h in headers):
             return table
     return None
 
@@ -133,16 +133,21 @@ def _numbered_object_issues(doc, kind, object_count):
     caption_pattern = re.compile(f'^\\s*{kind}\\s*(\\d+)(?!\\d)')
     reference_pattern = re.compile(f'{kind}\\s*(\\d+)(?!\\d)')
     captions = {}
+    caption_order = []
     body_references = set()
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
         # 附录图表不纳入结构检验：关键注/编号连续性/正文引用校验从附录起停止。
         if _is_reference_start(text) or _is_appendix_start(text):
             break
-        caption = caption_pattern.match(text) if len(text) < 40 else None
+        style_name = paragraph.style.name if paragraph.style is not None else ''
+        is_caption_style = style_name == CAPTION_STYLE
+        caption = caption_pattern.match(text) if len(text) < 40 and is_caption_style else None
         if caption:
-            captions[int(caption.group(1))] = text
-        if caption_pattern.match(text) and len(text) < 40:
+            num = int(caption.group(1))
+            captions[num] = text
+            caption_order.append(num)
+        if is_caption_style and caption_pattern.match(text) and len(text) < 40:
             continue
         body_references.update((int(number) for number in reference_pattern.findall(text)))
     issues = []
@@ -155,6 +160,11 @@ def _numbered_object_issues(doc, kind, object_count):
         issues.append(f'{kind}题注没有对应对象或编号跳跃: {extra_captions}')
     for number in sorted(set(captions) - body_references):
         issues.append(f'{kind}{number} 已插入但未在正文引用')
+    seen = set()
+    unique_order = [n for n in caption_order if not (n in seen or seen.add(n))]
+    if unique_order != sorted(unique_order):
+        out_of_order = [n for i, n in enumerate(unique_order) if i > 0 and n < unique_order[i - 1]]
+        issues.append(f'{kind}编号未按出现顺序递增，首个乱序: {out_of_order[0]}（前一个为 {unique_order[unique_order.index(out_of_order[0]) - 1]}）')
     return issues
 
 
@@ -259,7 +269,7 @@ _AI_TONE_PATTERNS = (
     ),
     (
         '官样抽象词',
-        re.compile(r'赋能|抓手|闭环|生态|底层逻辑|价值沉淀|提质增效|协同发力'),
+        re.compile(r'赋能|抓手|生态|底层逻辑|价值沉淀|提质增效|协同发力'),
         '换成具体对象、动作、指标或结果文件',
     ),
     (
@@ -1416,7 +1426,7 @@ def _abstract_number_density_warnings(doc):
 
 
 # H12 "模型建立"类小节必须有数学表达
-_MODEL_SECTION_TITLE_RE = re.compile(r'建立|建模')
+_MODEL_SECTION_TITLE_RE = re.compile(r'建立|建模|求解|检验')
 
 
 def _is_level2_heading(text, style_name):
@@ -1711,7 +1721,6 @@ def _plot_pitfall_warnings(project_root):
         (r'twinx\s*\(', 'P2 双 Y 轴——两轴尺度可任意调，对比结论不可信；改散点或上下双子图'),
         (r'\.pie\s*\(', 'P3 饼图——人眼辨长度比角度准，改横向柱状/堆叠柱状'),
         (r"cmap\s*=\s*['\"]?(jet|rainbow|hsv|nipy_spectral)", 'P14 rainbow/jet 色图——感知不均匀产生虚假边界；改 viridis/RdBu_r'),
-        (r"(?<![_\w])legend\s*\(\s*\)", "P20 裸 legend() 默认画在图内会遮挡数据——放图外：下侧横排 loc='upper center', bbox_to_anchor=(0.5, -0.12) 或右侧竖排 bbox_to_anchor=(1.02, 0.5)"),
         (r"loc\s*=\s*['\"]best['\"]", "P20 loc='best' 仍是图内布局——图例放图外（下侧横排或右侧竖排），禁止压在画面上"),
     )
     issues = []
@@ -1720,6 +1729,18 @@ def _plot_pitfall_warnings(project_root):
         for pattern, advice in checks:
             if re.search(pattern, text):
                 issues.append(f'绘图脚本 {py.name} 命中画图避坑清单：{advice}')
+        import ast as _ast
+        try:
+            tree = _ast.parse(text)
+        except SyntaxError:
+            continue
+        for node in _ast.walk(tree):
+            if not (isinstance(node, _ast.Call) and isinstance(node.func, _ast.Attribute) and node.func.attr == 'legend'):
+                continue
+            has_loc = any(kw.arg == 'loc' for kw in node.keywords)
+            has_bbox = any(kw.arg == 'bbox_to_anchor' for kw in node.keywords)
+            if not has_loc and not has_bbox:
+                issues.append(f"绘图脚本 {py.name} 命中画图避坑清单：P20 legend() 未指定 loc 或 bbox_to_anchor——图例放图外：下侧横排 loc='upper center', bbox_to_anchor=(0.5, -0.12) 或右侧竖排 bbox_to_anchor=(1.02, 0.5)")
     return issues
 
 
@@ -1903,6 +1924,24 @@ def _section_budget_warnings(doc):
     return issues
 
 
+_GENERALIZATION_KEYWORDS = re.compile(r'推广|应用(?:场景|前景|范围)?|扩展|迁移|适用|泛化')
+
+
+def _model_eval_generalization_warning(doc):
+    paras = [p.text.strip() for p in doc.paragraphs]
+    start = next((i for i, tx in enumerate(paras) if re.match(r'^七、\s*模型评价', tx)), None)
+    if start is None:
+        return []
+    end = next(
+        (i for i, tx in enumerate(paras) if i > start and re.match(r'^[一二三四五六七八九十]+、', tx)),
+        len(paras),
+    )
+    section_text = ''.join(paras[start:end])
+    if not _GENERALIZATION_KEYWORDS.search(section_text):
+        return ['「模型评价与改进」缺少模型推广/适用性讨论——补充模型可推广到哪些场景、适用条件与边界']
+    return []
+
+
 def _soft_quality_warnings(doc, project_root):
     """聚合 W 类预警，统一加“预警：”前缀（不阻断交付）。"""
     ws = []
@@ -1917,6 +1956,7 @@ def _soft_quality_warnings(doc, project_root):
     ws += _data_file_warnings(project_root)
     ws += _figure_table_lead_in_warnings(doc)
     ws += _section_budget_warnings(doc)
+    ws += _model_eval_generalization_warning(doc)
     ws += _abstract_number_density_warnings(doc)
     return ['预警：' + w for w in ws]
 
