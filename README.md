@@ -4,7 +4,7 @@
 
 **数学建模竞赛高级队友 · AI Skill**
 
-模拟一支高水平建模队伍，从赛题 PDF 一路产出原创解题详解、可运行综合代码、真实结果图表、国奖水准 DOCX 论文与评审风险分析
+模拟一支高水平建模队伍，从赛题 PDF 一路产出原创解题详解、可运行综合代码、真实结果图表、DOCX 论文与评审风险分析
 
 [![Skill](https://img.shields.io/badge/type-Agent%20Skill-4B8BBE.svg)](SKILL.md)
 [![Compliance](https://img.shields.io/badge/CUMCM-2026%20%2F%20AI%202026-orange.svg)](文档/合规检查清单.md)

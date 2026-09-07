@@ -3,8 +3,6 @@
 包含 validate_paper_structure 及其全部私有校验助手。竞赛画像与门禁阈值
 取自 ``contest_profile``（单一事实来源）；模板/版式相关辅助函数仍位于
 ``paper_format``，本模块只依赖它们、不再被 paper_format 反向依赖，
-因此**可直接首引本模块**（旧版依赖 paper_format 尾部重导出形成循环，
-只有 paper_format 先导入才能加载，本版已解除）。
 """
 
 import hashlib
@@ -1924,7 +1922,7 @@ def _section_budget_warnings(doc):
         end = nxt if nxt is not None else len(paras)
         chars = sum(len(x) for x in paras[start + 1:end])
         if chars > hi * _BUDGET_SLACK:
-            issues.append(f"「{name}」约 {chars} 字，超出预算上限 {hi}（±20% 容差）——删减重复表述与空话，向预算表收敛；字数下限由全文 12222 统一兜底")
+            issues.append(f"「{name}」约 {chars} 字，超出预算上限 {hi}（±20% 容差）——删减重复表述与空话，向预算表收敛；字数下限由全文 11111 统一兜底")
         elif chars < lo / _BUDGET_SLACK:
             issues.append(f"「{name}」约 {chars} 字，低于预算下限 {lo}（±20% 容差）——补实质推导/分析，不要等收尾凑字")
     return issues

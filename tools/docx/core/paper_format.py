@@ -132,6 +132,13 @@ def _ensure_outline_levels(doc, style_names):
             outline = OxmlElement('w:outlineLvl')
             outline.set(qn('w:val'), level)
             p_pr.append(outline)
+def _disable_heading_auto_redefine(doc):
+    for name in (HEADING1_STYLE, HEADING2_STYLE, HEADING3_STYLE):
+        if name not in doc.styles:
+            continue
+        style_el = doc.styles[name]._element
+        for ar in style_el.findall(qn('w:autoRedefine')):
+            style_el.remove(ar)
 def _set_snap_to_grid_off(p_pr):
     """在 pPr 上强制关闭“对齐到文档网格”，防止 Word 打开时按网格重排行距。"""
     for existing in p_pr.findall(qn('w:snapToGrid')):
@@ -185,6 +192,7 @@ def _ensure_paper_styles(doc):
         style.paragraph_format.first_line_indent = Pt(24) if first_line else Pt(0)
         style.paragraph_format.keep_with_next = keep_with_next
     _ensure_outline_levels(doc, {HEADING1_STYLE, HEADING2_STYLE, HEADING3_STYLE})
+    _disable_heading_auto_redefine(doc)
     _disable_document_grid(doc)
 def _place_body_element(doc, element):
     if not hasattr(doc, '_mathmodeling_insert_cursor'):
