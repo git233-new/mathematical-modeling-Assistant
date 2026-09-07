@@ -1,10 +1,10 @@
 """命名契约与 SPSS 强制逻辑回归测试。
 
 覆盖 2026-08 修复：
-- append_code_files 默认 pattern 为 code/Q*.py（Q1.py 规范命名直接进附录；viz.py/build_paper/common 不进）
+- append_code_files 只渲染附录A 支撑材料清单（代码不入论文，本体保留 code/；build_paper.py 不登记）
 - load_spss_outputs 的 required=true 强制（漏填抛 ValueError）
 - project_cleanup 的 build_paper 纯净性检查（不得 import solve_common / Q<序号>.py）
-- _appendix_size_issues 对整题纯理论赛题豁免附录代码要求
+- _appendix_size_issues 附录必须含附录A 支撑材料清单（空附录/纯文字附录均拒存）
 """
 import json
 import sys

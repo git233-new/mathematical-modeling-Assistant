@@ -1,7 +1,8 @@
-"""论文硬闸门回归测试：全黑字体（有效颜色口径）/ 三线表形态 / 摘要数字密度 / 模型建立节公式。
+"""论文硬闸门回归测试。
 
-背景：2026-08 实测发现四类历史漏网——模板样式继承色、超链接蓝字、
-insideH=single 的伪三线表、无公式的"模型建立"节。本文件锁定修复行为。
+覆盖：全黑字体（有效颜色口径）/ 三线表与附录表形态 / 摘要数字密度 / 模型建立节公式 /
+图片文件名统一命名 / 固定值行距裁剪防护 / 分章图表配额 / 参考文献年份下限 /
+LaTeX 源码导出与保存链路。锁定的都是"拒存即修复"的硬闸门行为。
 """
 import base64
 import io
@@ -16,6 +17,7 @@ from docx.shared import RGBColor
 
 from tools.docx.core import paper_format as pf
 from tools.docx.core.structure_validation import (
+    _result_figure_issues,
     _three_line_table_issues,
     _appendix_boxed_table_issues,
     _abstract_number_density_issues,
@@ -597,3 +599,50 @@ def test_section_figure_quota_solve_chapter_needs_figure():
     ])
     issues = pf._section_figure_issues(doc)
     assert any("求解章缺少结果图" in i for i in issues)
+
+
+def test_section_budget_over_limit_warns():
+    """章节字数超预算上限（W10 双向约束）→ 预警删减。"""
+    from tools.docx.core.structure_validation import _section_budget_warnings
+
+    long_text = "检验内容说明。" * 300  # ≈2100 字，超过 1500×1.2=1800 容差线
+    doc = _doc_with_chapters([("六、模型检验与分析", [long_text])])
+    issues = _section_budget_warnings(doc)
+    assert any("超出预算上限" in i and "模型检验" in i for i in issues)
+
+
+def test_section_budget_under_limit_warns():
+    from tools.docx.core.structure_validation import _section_budget_warnings
+
+    doc = _doc_with_chapters([("六、模型检验与分析", ["太短了。"])])
+    issues = _section_budget_warnings(doc)
+    assert any("低于预算下限" in i for i in issues)
+
+
+def test_result_figure_issues_reports_unused_image(tmp_path):
+    """results/图片/ 里的图未插入正文 → 拒存清单。"""
+    from tools.docx.core.structure_validation import _result_figure_issues
+
+    img_dir = tmp_path / "results" / "图片"
+    img_dir.mkdir(parents=True)
+    png_1px = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+        "AAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    )
+    (img_dir / "1_流程图.png").write_bytes(png_1px)
+    doc = Document()  # 空文档：该图未插入
+    issues = _result_figure_issues(doc, str(tmp_path))
+    assert len(issues) == 1 and "1_流程图.png" in issues[0] and "未插入" in issues[0]
+
+
+def test_result_figure_issues_passes_when_embedded(tmp_path):
+    png_1px = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+        "AAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    )
+    img_dir = tmp_path / "results" / "图片"
+    img_dir.mkdir(parents=True)
+    (img_dir / "1_流程图.png").write_bytes(png_1px)
+    doc = Document()
+    doc.add_picture(io.BytesIO(png_1px))
+    assert _result_figure_issues(doc, str(tmp_path)) == []
