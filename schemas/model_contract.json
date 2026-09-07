@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Model Contract",
+  "description": "Step 2 结束、Step 3 开始前填写。描述每个小问打算用什么模型、输入什么、输出什么、如何验证、失败时回退到哪里。是 Problem Card（题目是什么）和 run_manifest（实际做了什么）之间的桥梁。",
+  "type": "object",
+  "properties": {
+    "question": {
+      "type": "string",
+      "description": "小问编号，如 Q1/Q2"
+    },
+    "problem_card_ref": {
+      "type": "string",
+      "description": "对应的 Problem Card question 字段"
+    },
+    "chosen_model": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "模型名称，如 NSGA-II / AHP+TOPSIS / XGBoost" },
+        "family": { "type": "string", "description": "模型族，如 multi_objective_evolutionary / comprehensive_evaluation / gradient_boosting" },
+        "role": {
+          "type": "string",
+          "enum": ["champion", "challenger", "sanity_baseline", "competitive_baseline"],
+          "description": "在冠军挑战者流程中的角色"
+        },
+        "reason": { "type": "string", "description": "选择该模型的理由（须对应 Problem Card 的数学结构）" }
+      },
+      "required": ["name", "family", "role", "reason"]
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "data_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "输入数据文件路径（相对于 PROJECT_ROOT）"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "value": { "description": "参数值（数值/字符串/数组均可）" },
+              "source": { "type": "string", "description": "参数来源：经验值/文献/网格搜索/收敛测试/赛题给定" }
+            },
+            "required": ["name", "value", "source"]
+          },
+          "description": "关键参数清单及来源"
+        }
+      },
+      "required": ["data_files"]
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "expected": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "预期产出物描述，如 Pareto前沿解集 / 最优妥协解 / 收敛曲线图"
+        },
+        "format": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["csv", "json", "png", "txt"] },
+          "description": "产出文件格式"
+        }
+      },
+      "required": ["expected"]
+    },
+    "validation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "check": { "type": "string", "description": "验证项描述，如 约束违反数=0 / R²>0.9 / 前沿非空" },
+          "method": { "type": "string", "description": "验证方法或函数名" },
+          "threshold": { "type": "string", "description": "通过阈值，如 <1e-6 / >0.9 / !=empty" }
+        },
+        "required": ["check"]
+      },
+      "description": "结果验证清单，Step 4 健全性检查时逐项核对"
+    },
+    "fallback": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string", "description": "备选模型名称" },
+        "family": { "type": "string", "description": "备选模型族" },
+        "trigger": { "type": "string", "description": "触发回退的条件，如 3次不收敛 / 前沿退化为单点 / R²<0.5" }
+      },
+      "required": ["model", "trigger"],
+      "description": "当前模型失败时的回退方案（对应失败恢复链 E3 第⑤步）"
+    }
+  },
+  "required": ["question", "problem_card_ref", "chosen_model", "inputs", "outputs", "validation"]
+}
