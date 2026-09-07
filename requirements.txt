@@ -1,4 +1,4 @@
-# 数学建模核心工作流依赖
+# 数学建模核心工作流依赖（目标环境 Python >= 3.10，版本下限经 2026-09 实测环境核验）
 numpy>=1.24
 # 解题代码常用（code/Q<序号>_*.py 用），skill 自身代码不直接 import：
 scipy>=1.10
@@ -26,4 +26,4 @@ pytest>=8.0
 # pywin32              — 仅 Windows；Word COM 版面检查 + PDF 导出
 # rapidocr_onnxruntime — 仅建「优秀论文案例库」或对扫描版 PDF 做 OCR 时需要
 pywin32>=306; platform_system == "Windows"
-rapidocr_onnxruntime>=1.4
+rapidocr_onnxruntime>=1.2,<1.4
