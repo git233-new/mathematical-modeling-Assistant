@@ -14,7 +14,6 @@ per-Qi 独立评分 + Verdict（P0-3）
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 # 经验分位锚点（CUMCM 公开样本统计，p25/p50/p75）

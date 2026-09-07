@@ -797,50 +797,6 @@ def scan_forbidden_words(doc, extra=None):
         if matched:
             hits.append((matched, text[:60]))
     return hits
-def check_abstract_page(docx_path, *, min_ratio=0.55, max_ratio=0.95):
-    try:
-        import win32com.client
-    except (ImportError, ModuleNotFoundError) as exc:
-        return {'ok': None, 'reason': f'无 Word/pywin32，跳过摘要占位检查: {exc}'}
-    import os as _os
-    word = None
-    doc = None
-    try:
-        word = win32com.client.DispatchEx('Word.Application')
-        word.Visible = False
-        # 安全加固：强制禁用宏（msoAutomationSecurityForceDisable=3），
-        # 抑制模态对话框防止损坏文档触发弹窗挂起。
-        word.AutomationSecurity = 3
-        word.DisplayAlerts = 0
-        doc = word.Documents.Open(_os.path.abspath(str(docx_path)))
-        page_height = float(doc.PageSetup.PageHeight)
-        keyword_page = None
-        fill_pt = None
-        body_start_page = None
-        for i in range(1, doc.Paragraphs.Count + 1):
-            t = doc.Paragraphs(i).Range.Text.strip()
-            if keyword_page is None and t.startswith('关键词'):
-                rng = doc.Paragraphs(i).Range
-                keyword_page = int(rng.Information(3))
-                fill_pt = float(rng.Information(6))
-            if body_start_page is None and (t.startswith('一、') or t.startswith('1.') or '问题重述' in t):
-                body_start_page = int(doc.Paragraphs(i).Range.Information(3))
-                break
-        ratio = fill_pt / page_height if fill_pt and page_height else None
-        ok = bool(keyword_page == 1 and body_start_page == 2 and (ratio is not None) and (min_ratio <= ratio <= max_ratio))
-        reason = '达标' if ok else f'关键词页={keyword_page}(应1) 正文起始页={body_start_page}(应2) 填充比={ratio:.2f}(应在{min_ratio}-{max_ratio})' if ratio is not None else f'未定位到关键词/正文段落(关键词页={keyword_page})'
-        return {'ok': ok, 'keyword_page': keyword_page, 'fill_ratio': ratio, 'body_start_page': body_start_page, 'reason': reason}
-    except Exception as exc:
-        return {'ok': None, 'reason': f'摘要占位检查异常: {exc}'}
-    finally:
-        try:
-            if doc is not None:
-                doc.Close(False)
-                doc = None
-        finally:
-            if word is not None:
-                word.Quit()
-                word = None
 def _border(val='nil', size='0'):
     elem = OxmlElement('w:bottom')
     elem.set(qn('w:val'), val)
@@ -923,16 +879,6 @@ def three_line_table(doc, rows):
     return table
 
 
-def _set_cell_width(cell, twips):
-    tc_pr = cell._tc.get_or_add_tcPr()
-    tc_w = tc_pr.find(qn('w:tcW'))
-    if tc_w is None:
-        tc_w = OxmlElement('w:tcW')
-        tc_pr.append(tc_w)
-    tc_w.set(qn('w:w'), str(twips))
-    tc_w.set(qn('w:type'), 'dxa')
-
-
 def _appendix_support_materials(doc, project_root):
     """附录A 支撑材料：自动列出 run_manifest 登记的可运行源码与数据文件清单。
 
@@ -988,14 +934,13 @@ def _appendix_support_materials(doc, project_root):
     return False
 
 
-def append_code_files(doc, project_root, patterns=('code/Q*.py',)):
+def append_code_files(doc, project_root):
     """渲染论文附录：只写附录A 支撑材料清单（2026 口径，代码附录已取消）。
 
     附录A 由 `results/run_manifest.json` 的 source_scripts + 数据文件自动生成清单
     （调用 `_appendix_support_materials`），非空赛题必有实质内容。
     各小问核心代码**不再进入论文**，全部保留在 PROJECT_ROOT/code/ 目录
     （Q<序号>_*.py + solve_common.py 等），支撑材料清单会登记其文件名与哈希。
-    保留函数名与签名以兼容既有调用方；patterns 参数已无效（仅保留签名兼容）。
     """
     _appendix_support_materials(doc, project_root)
 

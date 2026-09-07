@@ -32,7 +32,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 
 写作阶段硬拦截身份/痕迹词（`智能体`、`skill` 等，见闸门 3）；口语主语词不拦截，靠写作阶段先读去AI味指南约束措辞。正文生成前必须运行 `pf.preflight_check(outline)`，其中题目画像、公式计划和图表计划用于指导写作，不把所有题强行套进 A/B/C 或固定模型组合。生成中用 `pf.emit_progress` 观察字数、图数和缺口。
 
-> 对应代码：`tools/docx/core/paper_format.py`（`check_black_fonts` / `scan_forbidden_words` / `check_abstract_page` / `validate_paper_structure`）；工具链自检脚本：`tools/docx/scripts/self_check.py`；最终 DOCX 交付自检入口统一见 `文档/论文写作.md`。
+> 对应代码：`tools/docx/core/paper_format.py`（`check_black_fonts` / `scan_forbidden_words` / `validate_paper_structure`）；工具链自检脚本：`tools/docx/scripts/self_check.py`；最终 DOCX 交付自检入口统一见 `文档/论文写作.md`。
 
 ## 交付契约（PROJECT_ROOT 唯一产物）
 

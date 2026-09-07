@@ -386,25 +386,6 @@ def _formula_chain_issues(doc):
     return issues
 
 
-def _early_visual_issues(doc, max_blocks=24):
-    started = False
-    inspected = 0
-    for child in doc._element.body:
-        if child.tag == qn('w:p'):
-            text = ''.join((node.text or '' for node in child.findall('.//' + qn('w:t')))).strip()
-            if not started:
-                started = _is_body_start(text)
-                continue
-        if not started:
-            continue
-        if child.tag == qn('w:tbl') or child.find('.//' + qn('a:blip')) is not None:
-            return []
-        inspected += 1
-        if inspected >= max_blocks:
-            return ['正文前部连续纯文字，须在开篇分析中前置至少一幅图或一个表']
-    return []
-
-
 def _problem_analysis_visual_issues(doc):
     n = _result_chapter_prefix(doc)
     question_count = sum((bool(re.match('^' + str(n) + r'[.．]\d+(?:\s|、|：|:|$)', paragraph.text.strip())) for paragraph in doc.paragraphs))

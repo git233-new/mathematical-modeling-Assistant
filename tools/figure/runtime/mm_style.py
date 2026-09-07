@@ -274,16 +274,6 @@ def add_panel_label(
     )
 
 
-def style_dark_image_ax(ax, facecolor: str = "black"):
-    """为显微图或渲染图板准备坐标轴。"""
-    ax.set_facecolor(facecolor)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-    return ax
-
-
 def make_grouped_bar(
     ax,
     categories,
