@@ -254,6 +254,67 @@ def tools_readme_errors() -> list[str]:
     return errors
 
 
+HUB_DOCS = ("SKILL.md", "文档/论文写作.md")
+_HUB_REF = re.compile(r"`([^`\n]+)`")
+_HUB_PREFIX = re.compile(r"^(文档|知识库|schemas|tools)/[^`,，；;()（）]*")
+
+
+def _resolve_hub_ref(ref: str) -> tuple[str, list[str]] | None:
+    """剥掉 §/「」/附录 后缀，处理通配符与 .py 函数引用。返回 (路径, 锚点列表) 或 None。"""
+    anchors: list[str] = []
+    m = re.search(r"\s*§\s*(\S+)", ref)
+    if m:
+        anchors.append(m.group(1))
+        ref = ref[: m.start()].strip()
+    m = re.search(r"「([^」]+)」", ref)
+    if m:
+        anchors.append(m.group(1))
+        ref = ref[: m.start()].strip()
+    m = re.search(r"\s+附录\s*([AB\d+]?)", ref)
+    if m:
+        anchors.append(("附录 " + m.group(1)) if m.group(1) else "附录")
+        ref = ref[: m.start()].strip()
+    if "*" in ref:
+        base = ref.split("*")[0].rstrip("/")
+        return (base, anchors) if (ROOT / base).exists() else None
+    candidates = [ref]
+    dot = ref.rfind(".")
+    if dot > ref.rfind("/"):
+        candidates.append(ref[:dot] + ".py")
+    if not (ROOT / ref).suffix:
+        candidates.append(ref + ".py")
+    for c in candidates:
+        if (ROOT / c).exists():
+            return c, anchors
+    return None
+
+
+def hub_reference_errors() -> list[str]:
+    """枢纽文档（SKILL.md、论文写作.md）中反引号路径引用必须可达，标题名锚点必须命中。"""
+    errors: list[str] = []
+    for hub in HUB_DOCS:
+        hub_path = ROOT / hub
+        if not hub_path.is_file():
+            continue
+        text = hub_path.read_text(encoding="utf-8", errors="replace")
+        for m in _HUB_REF.finditer(text):
+            ref = m.group(1).strip()
+            pm = _HUB_PREFIX.match(ref)
+            if not pm:
+                continue
+            r = _resolve_hub_ref(pm.group(0).strip())
+            if r is None:
+                errors.append(f"{hub} 引用路径不存在: {ref}")
+                continue
+            path, anchors = r
+            if anchors:
+                body = (ROOT / path).read_text(encoding="utf-8", errors="replace")
+                for a in anchors:
+                    if a not in body:
+                        errors.append(f"{hub} 引用锚点未命中: {ref}（{a}）")
+    return errors
+
+
 def main() -> int:
     errors, warnings = [], []
     required = (
@@ -301,6 +362,7 @@ def main() -> int:
     errors.extend(gate_consistency_errors(all_sources))
     errors.extend(writing_enhancer_link_errors(all_sources))
     errors.extend(tools_readme_errors())
+    errors.extend(hub_reference_errors())
 
     for item in errors:
         print("ERROR:", item)
