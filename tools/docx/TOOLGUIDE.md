@@ -43,7 +43,7 @@ sys.path.insert(0, str(skill_root))
 from tools.docx.core import paper_format as pf
 
 # CUMCM 论文先把项目母版复制到赛题目录 `论文模板.docx`，再从该副本创建。
-# 母版为项目内 `文档/模板/2026数学建模国赛标准论文Word模板.docx`；不再运行时转换。
+# 母版为项目内 `文档/模板/2026数学建模国赛标准论文Word模板.doc`；不再运行时转换。
 # 保留标题骨架，复用同名/同编号标题；示例正文、图表、公式自动清除，缺少标题就地新增。
 project_root = Path("<PROJECT_ROOT>")
 doc = pf.new_project_document(project_root, contest="cumcm")

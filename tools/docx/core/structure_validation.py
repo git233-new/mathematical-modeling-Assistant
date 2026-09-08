@@ -24,9 +24,11 @@ from .contest_profile import (
     REFERENCE_MIN_YEAR,
     CUMCM_MAX_EQUATIONS,
     CUMCM_MAX_FLOWCHARTS,
+    CUMCM_MAX_REFERENCES,
     CUMCM_MAX_TOTAL_PAGES,
     CUMCM_MIN_BODY_UNITS,
     CUMCM_MIN_EQUATIONS,
+    CUMCM_MIN_REFERENCES,
     CUMCM_UNITS_PER_PAGE,
     CUMCM_MIN_ESTIMATED_PAGES,
     CUMCM_MIN_FIGURES,
@@ -2123,6 +2125,16 @@ def _base_compliance_issues(doc, contest, *, enforce_min=True):
     return errors
 
 
+def _count_references(paragraphs):
+    """统计参考文献条目数。"""
+    split_at = next((index for index, p in enumerate(paragraphs) if ('参考文献' in p.text or re.search('references', p.text, re.I)) and len(p.text.strip()) <= 30), None)
+    if split_at is None:
+        return 0
+    bibliography = [p.text.strip() for p in paragraphs[split_at + 1:] if p.text.strip()]
+    listed = {int(match.group(1)) for text in bibliography if (match := re.match('^\\[(\\d+)\\]', text))}
+    return len(listed)
+
+
 def _resolved_limits(doc, contest, profile, *, min_content_units, min_equations, min_figures, min_tables, min_pages, official_max_pages):
     """按竞赛解析交付下限并统计当前数量；返回 (limits, counts)。"""
     limits = {
@@ -2142,6 +2154,7 @@ def _resolved_limits(doc, contest, profile, *, min_content_units, min_equations,
         # 图/表只统计正文（参考文献/附录之前），附录图表不纳入结构计数与题注/引用校验。
         'figures': body_figures,
         'tables': body_tables,
+        'references': _count_references(doc.paragraphs),
     }
     return limits, counts
 
@@ -2167,6 +2180,11 @@ def _enforce_min_issues(doc, counts, limits, body_pages, rendered_pages, require
         errors.append('缺少总体研究思路/技术路线流程图（须至少 1 张标注"总体"或"研究思路/技术路线"的流程图）')
     if tables < limits['min_tables']:
         errors.append(f'仅 {tables} 个表，低于项目交付下限 {limits["min_tables"]}（符号说明表必需，其他表按证据需要保留）')
+    references = counts['references']
+    if references and references < CUMCM_MIN_REFERENCES:
+        errors.append(f'仅 {references} 篇参考文献，低于项目交付下限 {CUMCM_MIN_REFERENCES}（须真实且正文对应，近 5 年 ≥60%，中英文混合）')
+    if references and references > CUMCM_MAX_REFERENCES:
+        errors.append(f'参考文献 {references} 篇，超过项目建议上限 {CUMCM_MAX_REFERENCES}')
     if rendered_pages is None:
         if require_rendered_pages and limits['min_pages']:
             errors.append(f'未渲染 PDF 无法核验总页数；如需按实际页数核验，必须提供渲染结果并确认 ≥ {limits["min_pages"]} 页且 ≤ {limits["max_total_pages"]} 页')
