@@ -272,7 +272,7 @@ def add_panel_label(
         y,
         label,
         transform=ax.transAxes,
-        fontsize=fontsize or plt.rcParams["font.size"] * 1.15,
+        fontsize=fontsize or plt.rcParams["axes.labelsize"],
         fontweight=fontweight,
         color=color or NATURE_PALETTE["text"],
         ha="left",
@@ -353,7 +353,7 @@ def make_grouped_bar(
                     f"{value:.2f}",
                     ha="center",
                     va="bottom",
-                    fontsize=max(6, plt.rcParams["font.size"] * 0.8),
+                    fontsize=plt.rcParams["font.size"],  # 柱顶数值属正文标注，用基线字号（图片闸门 §0）
                 )
     ax.set_xticks(x)
     ax.set_xticklabels(categories)

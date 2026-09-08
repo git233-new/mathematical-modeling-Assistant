@@ -59,7 +59,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 5. **模型建立节公式**：标题含"建立/建模"的小节必须 ≥1 个 oMath 公式，空缺即拒。
 6. **结果与版式规则**：统一执行 `文档/论文写作.md`；机器校验统一执行 `tools/docx/core/paper_format.py`，运行结果统一执行 `tools/docx/core/result_contract.py`。本文件只规定流程，不重复阈值和校验细则。
 
-> 本文件 6 条为顶层分类入口；完整 H1–H12 / W1–W12 / D1–D4 清单见 `文档/图片闸门配置与绘图规范.md`，validator 直连该文件。
+> 本文件 6 条为顶层分类入口；图表相关 H/W 闸门的编号与机器判法见 `文档/图片闸门配置与绘图规范.md`（编号与 `structure_validation.py` 注释链对齐，该文档仅收录图表相关行）；文字/结构类闸门登记在各自主管文档（摘要/假设/写作/论文写作等），validator 直连 `structure_validation.py` 实现。
 
 写作阶段硬拦截身份/痕迹词（`智能体`、`skill` 等，见闸门 3）；口语主语词不拦截，靠写作阶段先读去AI味指南约束措辞。正文生成前必须运行 `pf.preflight_check(outline)`，其中题目画像、公式计划和图表计划用于指导写作，不把所有题强行套进 A/B/C 或固定模型组合。生成中用 `pf.emit_progress` 观察字数、图数和缺口。
 
@@ -123,8 +123,8 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 
 7. **生成论文**：
    - **强制读取**：按「强制读取协议」Step 7 行执行，每章动笔前确认已读对应文件；全文措辞按 `文档/去AI味指南.md` 约束；评审锚点与题型画像按 `知识库/评审增强/国赛评审标准.md`、`知识库/方法库/问题分类.md`
-   - **前置校验**：写作时逐条遵守 `文档/论文写作.md §前置校验清单`（9 条：摘要密度/小节篇幅/公式符号链/统计守卫/图表引导/假设格式等）
-   - **执行**：`pf.preflight_check(outline)` → `save_latex_first(builder, project_root)`（默认 LaTeX-first）；pandoc 不可用时回退 `save_document()`（DOCX-native），两条路径产出等效
+   - **前置校验**：写作时逐条遵守 `文档/论文写作.md` §4.2「前置校验清单」（6 条：小节最低篇幅/公式参数数值链/结论有据/统计结论守卫/图表前置引导/一次提交即达标）
+   - **执行**：`pf.preflight_check(outline)` → `save_document(doc, project_root)`（默认：python-docx 编程生成 DOCX，同一内容快照同时落 `.tex` 源码交付件，不编译、不要求 LaTeX 环境）；pandoc 版 LaTeX→DOCX（`save_latex_first` / `latex2docx.py`）为可选路径
    - **产出**：`完整论文.tex` + `完整论文.docx`；附录只留附录A 支撑材料清单（`pf.append_code_files` 自动生成）
    - **证据纪律**：每个关键数字/图表/结论必须对应 `run_manifest.json` 登记结果，gate 逐字核对，无依据不写入
    - **图表必须三件套（硬规则，违反即预警）**：每张图/表前必须有引导句（`body('如图 N 所示，…')`），后必须有解释段（`body('由图/表 N 可知，…')`）。禁止裸插图表。示例：
@@ -185,7 +185,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 | 文献检索（Step 3，必做） | `tools/paper_search/TOOLGUIDE.md`（唯一权威：数据源、核验规则、引用门禁、登记落盘） |
 | 题目 PDF | `tools/pdf/TOOLGUIDE.md`（读题提取：文本/表格/图像，扫描版 OCR） |
 | 数据处理 / Excel | `tools/xlsx/TOOLGUIDE.md`（读取、模板保留、公式重算、校验） |
-| 出图（全中文） | `tools/figure/TOOLGUIDE.md`（绘图运行链、模板、中文样式、选图论证与避坑清单、自检入口）+ `文档/图片闸门配置与绘图规范.md`（H1–H12 / W1–W12 / D1–D4 唯一权威）+ `知识库/方法库/图表规范.md` |
+| 出图（全中文） | `tools/figure/TOOLGUIDE.md`（绘图运行链、模板、中文样式、选图论证与避坑清单、自检入口）+ `文档/图片闸门配置与绘图规范.md`（图表闸门唯一权威，编号与 `structure_validation.py` 注释链对齐，仅收录图表相关行）+ `知识库/方法库/图表规范.md` |
 | 论文生成 | `tools/docx/TOOLGUIDE.md`（生成链路、结构校验、LaTeX 导出、可重建入口） |
 | 竞赛合规 | `文档/论文评审.md` 附录（写作期合规与自审）；当届官方文件（最终依据） |
 

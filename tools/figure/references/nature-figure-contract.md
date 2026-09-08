@@ -38,7 +38,7 @@
 ```bash
 python tools/figure/runtime/validate_figure.py <绘图脚本.py>
 python tools/figure/runtime/audit_figures.py <代码目录>
-python tools/figure/runtime/audit_pdf_text.py <图件.pdf> --min-pt 5
+python tools/figure/runtime/audit_pdf_text.py <图件.pdf>
 ```
 
 三项都是预检，不替代统计复核和最终视觉检查。现有模板继续使用 `mm_style.save_panel()` 输出 PNG/PDF/SVG；需要投稿 TIFF 或自定义格式时使用 `mm_style.finalize_figure()`。

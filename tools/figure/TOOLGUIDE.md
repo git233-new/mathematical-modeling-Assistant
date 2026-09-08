@@ -56,7 +56,7 @@ python tools/figure/runtime/render_template.py --list
 ```bash
 python tools/figure/runtime/validate_figure.py <绘图脚本.py>
 python tools/figure/runtime/audit_figures.py <代码目录>
-python tools/figure/runtime/audit_pdf_text.py <图件.pdf> --min-pt 5
+python tools/figure/runtime/audit_pdf_text.py <图件.pdf>
 ```
 
 静态预检和 PDF 字号审计只能发现机器可判的问题；仍须在最终论文物理尺寸下逐面板检查遮挡、裁切、图例间距、颜色层级和统计标注。

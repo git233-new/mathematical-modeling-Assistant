@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Model Contract",
-  "description": "Step 2 结束、Step 3 开始前填写。描述每个小问打算用什么模型、输入什么、输出什么、如何验证、失败时回退到哪里。是 Problem Card（题目是什么）和 run_manifest（实际做了什么）之间的桥梁。",
+  "description": "Step 4 模型选型阶段、Problem Card 完成后填写。描述每个小问打算用什么模型、输入什么、输出什么、如何验证、失败时回退到哪里。是 Problem Card（题目是什么）和 run_manifest（实际做了什么）之间的桥梁。",
   "type": "object",
   "properties": {
     "question": {

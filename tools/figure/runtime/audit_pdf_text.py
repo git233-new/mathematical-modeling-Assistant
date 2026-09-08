@@ -7,7 +7,7 @@ import argparse
 from pathlib import Path
 
 
-def find_small_text(pdf_path: Path, min_pt: float = 5.0) -> list[tuple[int, float, str]]:
+def find_small_text(pdf_path: Path, min_pt: float = 8.25) -> list[tuple[int, float, str]]:
     import fitz
 
     issues: list[tuple[int, float, str]] = []
@@ -26,7 +26,7 @@ def find_small_text(pdf_path: Path, min_pt: float = 5.0) -> list[tuple[int, floa
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("pdf", type=Path)
-    parser.add_argument("--min-pt", type=float, default=5.0)
+    parser.add_argument("--min-pt", type=float, default=8.25)
     args = parser.parse_args(argv)
     if args.min_pt <= 0:
         parser.error("--min-pt 必须大于 0")
