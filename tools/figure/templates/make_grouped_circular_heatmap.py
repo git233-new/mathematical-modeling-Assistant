@@ -12,7 +12,7 @@ if not RUNTIME.is_dir():
 if str(RUNTIME) not in sys.path:
     sys.path.insert(0, str(RUNTIME))
 
-from mm_style import bootstrap, configure_matplotlib, save_panel, text_rotation
+from mm_style import bootstrap, configure_matplotlib, save_panel
 
 bootstrap()
 
@@ -156,16 +156,21 @@ def draw_outer_labels(
     start_angle: float,
     step_angle: float,
 ) -> None:
+    """外圈 item 标签沿半径向外排布（spoke 式）。
+
+    92 个标签沿切线方向排布时文字长度大于弧间距必然重叠；
+    改为 baseline 沿半径（rotation = 极角），相邻标签只在
+    切线方向占 ~1 字高，92 个全量标签可无重叠放下。
+    """
     for idx, angle in enumerate(theta):
         angle_deg = start_angle + (idx + 0.5) * step_angle
-        rotation, ha = text_rotation(angle_deg)
         ax.text(
             angle,
             radius,
             f"脑表型{idx + 1}",
-            rotation=rotation,
+            rotation=angle_deg,
             rotation_mode="anchor",
-            ha=ha,
+            ha="left",
             va="center",
             color="#111111",
         )
@@ -282,7 +287,7 @@ def make_figure(output_stem: Path) -> None:
         ax.plot(angles, np.full_like(angles, radius), color="white", lw=1.0, zorder=5)
 
     draw_stars(ax, theta, values, ring_radii, ring_height)
-    draw_outer_labels(ax, theta, outer_radius + 0.265, start_angle, step_angle)
+    draw_outer_labels(ax, theta, outer_radius + 0.015, start_angle, step_angle)
 
     add_center_legend(fig)
     add_trait_colorbar_stack(fig, cmaps, norm)

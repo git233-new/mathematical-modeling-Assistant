@@ -613,7 +613,7 @@ _ALLOWED_FILENAME_TOKENS = {
 def _figure_filename_issues(doc, project_root):
     """图片文件名硬闸门：results/图片/ 下文件名必须符合统一命名规范。
 
-    规范（唯一权威见 文档/样式统一规定.md §八，示例见 文档/代码规范.md）：
+    规范（唯一权威见 文档/样式统一规定.md §六，示例见 文档/代码规范.md）：
       1. 文件名格式 ``<全局序号>_<描述>.png``，序号为全库递增整数且不得重复，
          描述为「流程图/技术路线」类全中文短语，或 ``Q<问号>_<中文描述>``；
       2. 不得以全局图号「图N」开头——图号只出现在正文题注，
@@ -1406,7 +1406,7 @@ def _abstract_one_page_issues(doc):
     return []
 
 
-# H12 "模型建立"类小节必须有数学表达
+# H4 "模型建立"类小节必须有数学表达
 _MODEL_SECTION_TITLE_RE = re.compile(r'建立|建模|求解|检验')
 
 
@@ -1459,7 +1459,7 @@ def _model_section_formula_issues(doc):
     return issues
 
 
-# H4 摘要独占开篇（代理：摘要区内不得插入一级标题）
+# H5 摘要独占开篇（代理：摘要区内不得插入一级标题）
 def _abstract_first_page_issues(doc):
     b = _abstract_bounds(doc)
     if b is None:
@@ -1470,7 +1470,7 @@ def _abstract_first_page_issues(doc):
     return []
 
 
-# H5 问题重述 0.5–1.5 页（上限放宽容差，避免误伤合理篇幅）
+# H6 问题重述 0.5–1.5 页（上限放宽容差，避免误伤合理篇幅）
 def _problem_restate_length_issues(doc):
     paras = _para_bounds(doc, r'^[一二三四五六七八九十]+、\s*问题重述', r'^[一二三四五六七八九十]+、\s*问题分析')
     if not paras:
@@ -1482,7 +1482,7 @@ def _problem_restate_length_issues(doc):
     return []
 
 
-# H6 问题分析平衡（导论 ≤ 2 段；2.x 每节 ≥ 2 段）
+# H7 问题分析平衡（导论 ≤ 2 段；2.x 每节 ≥ 2 段）
 def _problem_analysis_balance_issues(doc):
     issues = []
     chap = _para_bounds(doc, r'^[一二三四五六七八九十]+、\s*问题分析', r'^[一二三四五六七八九十]+、')
@@ -1506,7 +1506,7 @@ def _problem_analysis_balance_issues(doc):
     return issues
 
 
-# H7 模型假设逐条编号
+# H8 模型假设逐条编号（最低 6 条）
 def _model_assumption_issues(doc):
     paras = _para_bounds(doc, r'^[一二三四五六七八九十]+、\s*模型假设', r'^[一二三四五六七八九十]+、')
     if not paras:
@@ -1526,6 +1526,7 @@ def _model_assumption_issues(doc):
     return issues
 
 
+# H9 结论断言强度（防无证据支撑的强结论）
 def _claim_strength_issues(doc):
     """检测结论强度升级：无证据支撑的强断言。"""
     issues = []
@@ -1540,7 +1541,7 @@ def _claim_strength_issues(doc):
     return issues
 
 
-# H8 符号说明题注后不写描述段
+# H10 符号说明题注后不写描述段
 def _symbol_caption_no_prose_issues(doc):
     seen_cap = False
     for p in doc.paragraphs:
@@ -1556,7 +1557,7 @@ def _symbol_caption_no_prose_issues(doc):
     return []
 
 
-# H9 符号说明表 ≥ 12 行
+# H11 符号说明表 ≥ 12 行
 def _symbol_table_rows_issues(doc):
     table = _find_symbol_table(doc)
     if table is None:
@@ -1566,7 +1567,7 @@ def _symbol_table_rows_issues(doc):
     return []
 
 
-# H10 附录表格闭合方框（与正文三线表区分）
+# H12 附录表格闭合方框（与正文三线表区分）
 def _appendix_boxed_table_issues(doc):
     issues = []
     starts = [i for i, p in enumerate(doc.paragraphs) if _is_appendix_start(p.text)]
@@ -1589,7 +1590,7 @@ def _appendix_boxed_table_issues(doc):
     return issues
 
 
-# H11 题注格式统一（图N/表N 后须有分隔符：冒号或空格，全文统一风格）
+# H13 题注格式统一（图N/表N 后须有分隔符：冒号或空格，全文统一风格）
 def _caption_format_issues(doc):
     issues = []
     for p in doc.paragraphs:
@@ -1602,7 +1603,7 @@ def _caption_format_issues(doc):
     return issues
 
 
-# H12 元叙述空话红线
+# H14 元叙述空话红线
 _META_TERMS = ['整体技术路线', '论文整体技术路线', '研究范式', '综合评价方法', '研究逻辑是', '方法学价值', '本文研究范式']
 
 
@@ -1615,7 +1616,7 @@ def _meta_narrative_issues(doc):
     return issues
 
 
-# H13 匿名（正文区查身份词，排除参考文献）
+# H15 匿名（正文区查身份词，排除参考文献）
 _IDENTITY_TERMS = ['大学', '学院', '赛区', '姓名', '学校']
 
 

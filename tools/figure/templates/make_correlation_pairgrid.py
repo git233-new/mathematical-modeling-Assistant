@@ -95,6 +95,10 @@ def draw_scatter_cell(ax: plt.Axes, x: np.ndarray, y: np.ndarray, xlabel: str, y
     ax.plot(x_grid, y_fit, color="#9a4bb3", lw=1.0, zorder=3)
     ax.set_xlim(-3.1, 3.1)
     ax.set_ylim(-3.1, 3.1)
+    # 固定刻度 [-2.5,0,2.5]：AutoLocator 会额外生成越界刻度 ±5，
+    # 其标签外溢到相邻格/相邻行造成跨格文字重叠。
+    ax.set_xticks([-2.5, 0.0, 2.5])
+    ax.set_yticks([-2.5, 0.0, 2.5])
     ax.set_xlabel(xlabel, fontsize=FONT_SMALL, labelpad=1)
     ax.set_ylabel(ylabel, fontsize=FONT_SMALL, labelpad=1)
 
@@ -105,6 +109,8 @@ def draw_hist_cell(ax: plt.Axes, values: np.ndarray, xlabel: str) -> None:
     density = _kde_1d(values, grid, bw_floor=0.10)
     scaled = density / density.max() * max(counts) if density.max() > 0 else density
     ax.plot(grid, scaled, color="#225d78", lw=1.0)
+    # 同 scatter 格固定刻度，避免 auto 越界 tick 标签外溢相邻格。
+    ax.set_xticks([-2.5, 0.0, 2.5])
     ax.set_xlabel(xlabel, fontsize=FONT_SMALL, labelpad=1)
     ax.set_ylabel("频数", fontsize=FONT_SMALL, labelpad=1)
 
@@ -139,7 +145,7 @@ def make_figure(output_stem: Path) -> None:
     cmap = mpl.colormaps[CMAP_CORR]
     norm = correlation_norm()
 
-    fig = plt.figure(figsize=(9.2, 8.6))
+    fig = plt.figure(figsize=(10.8, 10.2))
     grid = fig.add_gridspec(
         n_vars,
         n_vars,
@@ -147,8 +153,8 @@ def make_figure(output_stem: Path) -> None:
         right=0.905,
         bottom=0.055,
         top=0.965,
-        wspace=0.08,
-        hspace=0.08,
+        wspace=0.38,
+        hspace=0.35,
     )
 
     for row in range(n_vars):

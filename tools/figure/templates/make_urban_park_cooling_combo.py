@@ -141,7 +141,7 @@ def draw_raincloud(ax: plt.Axes, grouped_values: dict[str, np.ndarray], metric: 
 
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(-0.55, 4.78)
-    ax.set_title(cfg["title"], fontweight="bold", pad=5)
+    ax.set_title(cfg["title"], fontweight="bold", pad=0)
     ax.grid(axis="x", color="#ececec", lw=0.45)
     ax.set_axisbelow(True)
     ax.set_yticks(range(len(GROUP_ORDER)))
@@ -149,8 +149,7 @@ def draw_raincloud(ax: plt.Axes, grouped_values: dict[str, np.ndarray], metric: 
     ax.tick_params(axis="y", length=0, pad=2)
     style_axis(ax)
     ax.set_xticks(cfg["xticks"])
-    if cfg["unit"]:
-        ax.text(1.01, -0.05, cfg["unit"], transform=ax.transAxes, ha="left", va="top")
+    _ = cfg["unit"]  # ylabel 中已含单位，无需右下角重复角标
 
 
 def draw_vertical_boxplot_panel(ax: plt.Axes, metric: str, metric_data: list[np.ndarray]) -> None:
@@ -182,8 +181,12 @@ def draw_vertical_boxplot_panel(ax: plt.Axes, metric: str, metric_data: list[np.
     ax.set_xlim(0.3, len(CITY_SPECS) + 0.7)
     ax.set_ylim(*METRICS[metric]["ylim"])
     ax.set_ylabel(METRICS[metric]["ylabel"])
-    ax.set_xticks(np.arange(1, len(CITY_SPECS) + 1))
-    ax.set_xticklabels([str(i) for i in range(1, len(CITY_SPECS) + 1)])
+    n_cities = len(CITY_SPECS)
+    tick_idx = list(range(1, n_cities + 1, 5))
+    if tick_idx[-1] != n_cities:
+        tick_idx.append(n_cities)
+    ax.set_xticks(tick_idx)
+    ax.set_xticklabels([str(i) for i in tick_idx])
     ax.tick_params(axis="x", length=0, pad=1)
     ax.tick_params(axis="y")
     ax.grid(axis="y", color="#efefef", lw=0.45)
@@ -301,8 +304,10 @@ def make_figure(output_stem: Path) -> None:
         draw_panel_a(ax_a)
 
         b_axes = {
-            "PCM": fig.add_axes([0.405, 0.720, 0.315, 0.225]),
-            "PCD": fig.add_axes([0.765, 0.720, 0.215, 0.225]),
+            # 上行抬到 y0=0.750（高缩至 0.210）：与下行(顶 0.68)净空约 210px，
+            # 容纳下行标题上行(~51px) + 本行 x-tick 下坠带(~69px)后仍留 >90px。
+            "PCM": fig.add_axes([0.405, 0.750, 0.315, 0.210]),
+            "PCD": fig.add_axes([0.765, 0.750, 0.215, 0.210]),
             "PCI": fig.add_axes([0.405, 0.455, 0.315, 0.225]),
             "PCG": fig.add_axes([0.765, 0.455, 0.215, 0.225]),
         }
