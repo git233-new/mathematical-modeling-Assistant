@@ -246,6 +246,47 @@ def emit_chapter_gate(doc, stream=None):
         raise RuntimeError('\n'.join(issues))
     print(json.dumps(payload, ensure_ascii=True), file=stream, flush=True)
     return payload
+# ---- 整章文本一次导入（一次成型，禁止分次追加同一章正文） ----
+_MD_HEADING_RE = re.compile(r'^(#{1,6})\s*(.*)$')
+
+def import_chapter_text(doc, text, *, first_break=False):
+    """把一章正文的整块文本一次性导入（每章一次调用，禁止分批追加同章）。
+
+    文本用 Markdown 标题子集：行首 '#' 个数 → 1–3 级标题
+    （'## 1.1 …' → heading2）；空行忽略；其余非空行按正文段写入
+    （经 pf.body 走统一换行/标点/假设/强结论校验）。图/表/公式等块
+    不在本文本内，由调用方在相邻调用按全文顺序插入。
+    first_break=True 时本章首个一级标题前加分页符（新章起新页）。
+    返回 {'headings': 标题行数, 'chapter_units': 净增正文单位}；
+    导入后仍用 emit_progress/emit_chapter_gate 复核本章预算，缺额即
+    整体改写本文本块后重建 doc，禁止向 doc 段落后补字。
+    """
+    pf = _paper_format()
+    before = pf.count_body_units(doc)
+    headings = 0
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        m = _MD_HEADING_RE.match(line)
+        if m:
+            level = min(len(m.group(1)), 3)
+            heading_text = ' '.join(m.group(2).split())
+            if not heading_text:
+                continue
+            if level == 1:
+                if first_break and headings == 0:
+                    pf.heading1(doc, heading_text, page_break=True)
+                else:
+                    pf.heading1(doc, heading_text)
+            elif level == 2:
+                pf.heading2(doc, heading_text)
+            else:
+                pf.heading3(doc, heading_text)
+            headings += 1
+            continue
+        pf.body(doc, line)
+    return {'headings': headings, 'chapter_units': pf.count_body_units(doc) - before}
 def _paragraph_text(element):
     return ''.join((node.text or '' for node in element.iter(qn('w:t')))).strip()
 def _classify_paragraph(text):

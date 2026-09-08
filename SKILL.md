@@ -124,7 +124,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 7. **生成论文**：
    - **强制读取**：按「强制读取协议」Step 7 行执行，每章动笔前确认已读对应文件；全文措辞按 `文档/去AI味指南.md` 约束；评审锚点与题型画像按 `知识库/评审增强/国赛评审标准.md`、`知识库/方法库/问题分类.md`
    - **前置校验**：写作时逐条遵守 `文档/论文写作.md` §4.2「前置校验清单」（6 条：小节最低篇幅/公式参数数值链/结论有据/统计结论守卫/图表前置引导/一次提交即达标）
-   - **执行**：`pf.preflight_check(outline)` → `save_document(doc, project_root)`（默认：python-docx 编程生成 DOCX，同一内容快照同时落 `.tex` 源码交付件，不编译、不要求 LaTeX 环境）；pandoc 版 LaTeX→DOCX（`save_latex_first` / `latex2docx.py`）为可选路径
+   - **执行**：`pf.preflight_check(outline)` → 逐章按 `文档/论文写作.md` 铁律与 §4.2 把每章正文写成整块文本并整章一次导入（`pf.import_chapter_text`，章源为 `.paper_work/NN_*.md`）→ `save_document(doc, project_root)`（默认：python-docx 编程生成 DOCX，同一内容快照同时落 `.tex` 源码交付件，不编译、不要求 LaTeX 环境）；pandoc 版 LaTeX→DOCX（`save_latex_first` / `latex2docx.py`）为可选路径
    - **产出**：`完整论文.tex` + `完整论文.docx`；附录只留附录A 支撑材料清单（`pf.append_code_files` 自动生成）
    - **证据纪律**：每个关键数字/图表/结论必须对应 `run_manifest.json` 登记结果，gate 逐字核对，无依据不写入
    - **图表必须三件套（硬规则，违反即预警）**：每张图/表前必须有引导句（`body('如图 N 所示，…')`），后必须有解释段（`body('由图/表 N 可知，…')`）。禁止裸插图表。示例：
