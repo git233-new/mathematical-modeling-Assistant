@@ -1693,6 +1693,7 @@ def _plot_pitfall_warnings(project_root):
     checks = (
         (r'twinx\s*\(', 'P2 双 Y 轴——两轴尺度可任意调，对比结论不可信；改散点或上下双子图'),
         (r'\.pie\s*\(', 'P3 饼图——人眼辨长度比角度准，改横向柱状/堆叠柱状'),
+        (r"projection\s*=\s*['\"]3d['\"]", 'P3 3D 图——视角扭曲数值，改 2D 热力图/平面投影'),
         (r"cmap\s*=\s*['\"]?(jet|rainbow|hsv|nipy_spectral)", 'P14 rainbow/jet 色图——感知不均匀产生虚假边界；改 viridis/RdBu_r'),
         (r"loc\s*=\s*['\"]best['\"]", "P20 loc='best' 仍是图内布局——图例放图外（下侧横排或右侧竖排），禁止压在画面上"),
     )
@@ -1792,7 +1793,7 @@ def _data_file_warnings(project_root):
     return issues
 
 
-# W9 图表上下文：每张图/表前必须有一行引导、后必须有一段解释（全文逻辑连贯）
+# W10 图表上下文：每张图/表前必须有一行引导、后必须有一段解释（全文逻辑连贯）
 _CAPTION_RE = re.compile(r'^[图表]\s*\d+')
 
 
@@ -1866,7 +1867,7 @@ def _figure_table_lead_in_warnings(doc):
     return issues
 
 
-# W10 章节预算双向约束：各节字数超出预算表区间（±20% 容差）→ 预警（注水与偷工都拦）
+# W11 章节预算双向约束：各节字数超出预算表区间（±20% 容差）→ 预警（注水与偷工都拦）
 _SECTION_BUDGETS = (
     (r"^一、\s*问题重述", 800, 1000, "问题重述"),
     (r"^二、\s*问题分析", 1000, 1200, "问题分析"),
@@ -1961,6 +1962,7 @@ def _model_eval_bullet_format_issues(doc):
 _GENERALIZATION_KEYWORDS = re.compile(r'推广|应用(?:场景|前景|范围)?|扩展|迁移|适用|泛化')
 
 
+# W12 模型评价推广性讨论缺失预警
 def _model_eval_generalization_warning(doc):
     paras = [p.text.strip() for p in doc.paragraphs]
     start = next((i for i, tx in enumerate(paras) if re.match(r'^七、\s*模型评价', tx)), None)

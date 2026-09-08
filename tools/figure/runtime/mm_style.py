@@ -35,9 +35,8 @@ CHINESE_FONT: str = "SimHei"
 CHINESE_FONT_FALLBACK: list[str] = [
     "Microsoft YaHei",  # 微软雅黑（Win10+ 常见，黑体缺失时回退）
     "SimSun",           # 宋体
-    "Arial",            # 拉丁字母兜底
-    "DejaVu Sans",      # 跨平台兜底
-    "sans-serif",
+    "NSimSun",          # 新宋体
+    "DejaVu Sans",      # 跨平台拉丁字母兜底
 ]
 
 # 国赛 / 期刊语义配色（源自 Nature 语义调色板，已适配中文论文场景）
@@ -90,12 +89,12 @@ def configure_chinese_style() -> None:
             "svg.fonttype": "none",         # SVG 导出保留可编辑文字
             "pdf.fonttype": 42,             # PDF 嵌入 TrueType 字体
             "ps.fonttype": 42,
-            "font.size": 10,
+            "font.size": 11,                # 图中文字基线 ≥11pt（样式统一规定）
             "axes.linewidth": 0.8,
             "axes.spines.right": False,     # 国赛常用：仅留左、下轴
             "axes.spines.top": False,
             "legend.frameon": False,        # 无边框图例更清爽
-            "figure.dpi": 150,
+            "figure.dpi": 300,              # 300 DPI 出图基线
             "savefig.dpi": 300,             # 满足 300 DPI 出图要求
             "savefig.bbox": "tight",
         }
@@ -103,7 +102,7 @@ def configure_chinese_style() -> None:
 
 
 def apply_publication_style(
-    font_size: float = 10,
+    font_size: float = 11,
     axes_linewidth: float = 0.8,
     *,
     use_tex: bool = False,

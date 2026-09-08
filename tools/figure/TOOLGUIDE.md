@@ -65,8 +65,8 @@ python tools/figure/runtime/audit_pdf_text.py <图件.pdf> --min-pt 5
 
 - 除非用户提供其他路径，否则在当前工作区内工作。
 - 默认项目文件夹：`绘图复刻`。
-- 脚本路径：`绘图复刻/scripts/make_<template>.py`。
-- 输出：`绘图复刻/outputs/<template>_replica.png`、`.pdf`、`.svg`。
+- 脚本路径：`绘图复刻/scripts/make_<script_stem>.py`（`<script_stem>` 为 `templates/make_*.py` 去掉 `make_` 前缀的主干名，下划线拼写，如 `paired_raincloud`）。
+- 输出：`绘图复刻/outputs/<script_stem>_replica.png`、`.pdf`、`.svg`（脚本主干名下划线命名；与 registry `--list` 打印的模板 id 连字符拼写互为别名）。
 - 新投稿图件可通过 `mm_style.finalize_figure()` 额外导出 `.tif/.tiff`；既有模板默认三格式契约不变。
 - 优先使用 `templates/` 中的打包脚本；仅在用户要求定制时，才编辑复制到工作区的脚本。
 - 打包脚本使用确定性的模拟数据。不要声称模拟数值能够精确复现某项源研究。

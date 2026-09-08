@@ -154,10 +154,8 @@ def main() -> None:
     project = Path(args.project).expanduser().resolve()
     scripts_dir = project / "scripts"
     outputs_dir = project / "outputs"
-    mpl_dir = project / ".mplconfig"
     scripts_dir.mkdir(parents=True, exist_ok=True)
     outputs_dir.mkdir(parents=True, exist_ok=True)
-    mpl_dir.mkdir(parents=True, exist_ok=True)
 
     dst = scripts_dir / src.name
     if dst.exists() and not args.overwrite:

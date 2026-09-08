@@ -59,7 +59,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 5. **模型建立节公式**：标题含"建立/建模"的小节必须 ≥1 个 oMath 公式，空缺即拒。
 6. **结果与版式规则**：统一执行 `文档/论文写作.md`；机器校验统一执行 `tools/docx/core/paper_format.py`，运行结果统一执行 `tools/docx/core/result_contract.py`。本文件只规定流程，不重复阈值和校验细则。
 
-> 本文件 6 条为顶层分类入口；完整 H1–H12 / W1–W5 / D1–D4 清单见 `文档/图片闸门配置与绘图规范.md`，validator 直连该文件。
+> 本文件 6 条为顶层分类入口；完整 H1–H12 / W1–W12 / D1–D4 清单见 `文档/图片闸门配置与绘图规范.md`，validator 直连该文件。
 
 写作阶段硬拦截身份/痕迹词（`智能体`、`skill` 等，见闸门 3）；口语主语词不拦截，靠写作阶段先读去AI味指南约束措辞。正文生成前必须运行 `pf.preflight_check(outline)`，其中题目画像、公式计划和图表计划用于指导写作，不把所有题强行套进 A/B/C 或固定模型组合。生成中用 `pf.emit_progress` 观察字数、图数和缺口。
 
@@ -185,7 +185,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 | 文献检索（Step 3，必做） | `tools/paper_search/TOOLGUIDE.md`（唯一权威：数据源、核验规则、引用门禁、登记落盘） |
 | 题目 PDF | `tools/pdf/TOOLGUIDE.md`（读题提取：文本/表格/图像，扫描版 OCR） |
 | 数据处理 / Excel | `tools/xlsx/TOOLGUIDE.md`（读取、模板保留、公式重算、校验） |
-| 出图（全中文） | `tools/figure/TOOLGUIDE.md`（绘图运行链、模板、中文样式、选图论证与避坑清单、自检入口）+ `文档/图片闸门配置与绘图规范.md`（H1–H12 / W1–W5 / D1–D4 唯一权威）+ `知识库/方法库/图表规范.md` |
+| 出图（全中文） | `tools/figure/TOOLGUIDE.md`（绘图运行链、模板、中文样式、选图论证与避坑清单、自检入口）+ `文档/图片闸门配置与绘图规范.md`（H1–H12 / W1–W12 / D1–D4 唯一权威）+ `知识库/方法库/图表规范.md` |
 | 论文生成 | `tools/docx/TOOLGUIDE.md`（生成链路、结构校验、LaTeX 导出、可重建入口） |
 | 竞赛合规 | `文档/论文评审.md` 附录（写作期合规与自审）；当届官方文件（最终依据） |
 
@@ -193,4 +193,4 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 
 > 来源：mathmodel-skill（42 项反模式/per-Qi 评分）、MathModeling-skills（三层审计/冻结数字）、MathModelAgent（9 步验收）。
 
-审计工具职责与调用方式见 `文档/论文评审.md §四`（`consistency_audit.py` 冻结数字 / `per_qi_scoring.py` 独立评分 / `three_layer_audit.py` 三层审计 / `nine_step_verification.py` 9 步验收），此处只登记入口，不重复明细。
+审计工具职责与调用方式见 `文档/论文评审.md §四`（`consistency_audit.py` 冻结数字 / `per_qi_scoring.py` 独立评分 / `three_layer_audit.py` 三层审计 / `nine_step_verification.py` 8 步验收），此处只登记入口，不重复明细。
