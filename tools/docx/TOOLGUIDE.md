@@ -1,6 +1,6 @@
 ---
 name: mathmodel-docx
-description: 数学建模流程中的 Word DOCX 处理：创建、编辑、校验和转换论文，支持数学建模论文模板、原生公式、三线表、修订和批注。
+description: 数学建模流程中的 Word DOCX 处理：创建、编辑、校验和转换论文，支持原生公式、三线表、修订和批注。
 ---
 
 # DOCX 工具
@@ -42,9 +42,7 @@ skill_root = Path("<SKILL_ROOT>")
 sys.path.insert(0, str(skill_root))
 from tools.docx.core import paper_format as pf
 
-# CUMCM 论文先把项目母版复制到赛题目录 `论文模板.docx`，再从该副本创建。
-# 母版为项目内 `文档/模板/2026数学建模国赛标准论文Word模板.doc`；不再运行时转换。
-# 保留标题骨架，复用同名/同编号标题；示例正文、图表、公式自动清除，缺少标题就地新增。
+# CUMCM 论文由 pf.new_document() 编程创建，样式与页面由 _ensure_paper_styles + setup_page 统一注入。
 project_root = Path("<PROJECT_ROOT>")
 doc = pf.new_project_document(project_root, contest="cumcm")
 pf.title(doc, "论文题目")
@@ -69,7 +67,7 @@ pf.save_document(doc, Path("<PROJECT_ROOT>"), contest="cumcm")
 
 ### 直接写入
 
-`core/equations.py` 实现 LaTeX 子集到 Word 原生 OMML 的转换，并自带 CLI 入口（`python tools/docx/core/equations.py`）。未知命令、未闭合分组和不支持环境会报错，不会静默生成错误文本。CUMCM 文档生成同时强制使用项目内 `.docx` 母版或其未修改的赛题目录副本，不能回退空白文档。
+`core/equations.py` 实现 LaTeX 子集到 Word 原生 OMML 的转换，并自带 CLI 入口（`python tools/docx/core/equations.py`）。未知命令、未闭合分组和不支持环境会报错，不会静默生成错误文本。
 
 核心公式在大纲中同时记录 `purpose`、`latex`、`derivation` 和 `conclusion`。论文正文按“定义/依据 → 代入或变形 → 结论/用途”展开；每个公式独占一段，不能把多个公式和解释文字塞进同一段。`pf.preflight_check(outline)` 会检查公式计划字段，`validate_paper_structure()` 会检查公式段的原生性、单式单行和推导衔接。
 
@@ -90,7 +88,7 @@ python tools/docx/core/equations.py generate "论文.md" `
   --output "<PROJECT_ROOT>/论文.docx"
 ```
 
-`generate` 默认使用项目内强制 `.docx` 模板；如显式传入模板，也必须传入同一母版的未修改副本。
+`generate` 支持通过 `--reference-doc` 指定参考样式文档。
 
 转换后仍须校验DOCX结构和对象尺寸。
 

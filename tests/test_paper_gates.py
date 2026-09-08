@@ -699,27 +699,6 @@ def test_tex_docx_sync_warning(tmp_path):
     assert warnings and "重新导出" in warnings[0]
 
 
-def test_prune_keeps_protected_slots_with_zero_content():
-    """🔴 回归：骨架模式零正文时 prune 不得误删 protected/必需 H1 槽位（自匹配 bug）。"""
-    doc = pf.new_document(preserve_template_skeleton=True)
-    pf._prune_unused_template_slots(doc)
-    texts = [p.text for p in doc.paragraphs if p.text.strip()]
-    assert any("摘 要" in t for t in texts)
-    assert any("模型建立" in t for t in texts)
-    assert any("AI工具使用声明" in t for t in texts)
-
-
-def test_prune_drops_phantom_slot_only_when_content_wrote_same_chapter():
-    """正文已写同章号标题（键不同未命中槽位）→ 只删模板槽位，不留双份。"""
-    doc = pf.new_document(preserve_template_skeleton=True)
-    h = doc.add_paragraph("六、模型检验")
-    h.style = doc.styles["Heading 1"]
-    pf._prune_unused_template_slots(doc)
-    six_texts = [p.text for p in doc.paragraphs
-                 if p.text.strip().startswith("六、")]
-    assert len(six_texts) == 1
-
-
 def test_duplicate_heading_ignores_numeral_body_sentence():
     """🟡 回归：正文"一、xxx"式句子（非 Heading 1 样式）不误判为幻影章节。"""
     doc = _doc_with_chapters([

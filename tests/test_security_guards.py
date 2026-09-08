@@ -89,31 +89,27 @@ def test_cleanup_whitelist_clears_code_and_protects_files_dir(tmp_path):
     assert keeper.exists()
 
 
-def test_cleanup_removes_root_process_file_and_template(tmp_path):
+def test_cleanup_removes_root_process_file(tmp_path):
     project = _make_project(tmp_path)
     junk = project / "write_paper_draft.py"
     junk.write_text("...", encoding="utf-8")
-    template = project / pc.DELIVERY_TEMPLATE_NAME
-    template.write_bytes(b"PK")
     removed = pc.cleanup_after_delivery(project)
     names = {p.name for p in removed}
-    assert "write_paper_draft.py" in names and pc.DELIVERY_TEMPLATE_NAME in names
-    assert not junk.exists() and not template.exists()
+    assert "write_paper_draft.py" in names
+    assert not junk.exists()
 
 
 def test_cli_apply_matches_library_guards(tmp_path, monkeypatch, capsys):
-    """CLI --apply 与 cleanup_after_delivery 行为一致：删根层过程文件与模板，保 code//results。"""
+    """CLI --apply 与 cleanup_after_delivery 行为一致：删根层过程文件，保 code//results。"""
     project = _make_project(tmp_path)
     junk = project / "render_paper.py"
     junk.write_text("...", encoding="utf-8")
-    template = project / pc.DELIVERY_TEMPLATE_NAME
-    template.write_bytes(b"PK")
     monkeypatch.setattr("sys.argv", ["project_cleanup.py", str(project), "--apply"])
     assert pc.main() == 0
     out = capsys.readouterr().out
     # 输出收敛：默认只给单行统计
     assert "[cleanup] 完成：" in out and "已删除" in out
-    assert not junk.exists() and not template.exists()
+    assert not junk.exists()
     assert (project / "code" / "Q1_求解.py").exists()
     assert (project / "results" / "__pycache__" / "junk.pyc").exists()
 
@@ -146,11 +142,10 @@ def test_cli_preview_shows_only_actual_targets(tmp_path, monkeypatch, capsys):
     project = _make_project(tmp_path)
     (project / "code" / "temporary_用户脚本.py").write_text("x", encoding="utf-8")
     (project / "write_paper_draft.py").write_text("junk", encoding="utf-8")
-    (project / pc.DELIVERY_TEMPLATE_NAME).write_bytes(b"PK")
     monkeypatch.setattr("sys.argv", ["project_cleanup.py", str(project), "--verbose"])
     assert pc.main() == 0
     out = capsys.readouterr().out
-    assert "write_paper_draft.py" in out and pc.DELIVERY_TEMPLATE_NAME in out
+    assert "write_paper_draft.py" in out
     assert "temporary_用户脚本.py" in out        # 瘦身白名单外，列待删
     assert "__pycache__" not in out             # results/ 内一律保护
     # 预览模式不产生任何删除

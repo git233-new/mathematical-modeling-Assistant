@@ -31,7 +31,7 @@ LATEX_ESCAPE_MAP = {
 PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
 % 字体集 fandol（TeX Live 自带，Overleaf 开箱可用）。推荐 XeLaTeX 编译。
 % 若系统有 SimSun/SimHei（Windows），可改 fontset=windows 获得规范字体。
-% 与 DOCX 母版对应（唯一权威：文档/样式统一规定.md）。正文小四、首行缩进 2 字符、
+% 与 DOCX 样式对应（唯一权威：文档/样式统一规定.md）。正文小四、首行缩进 2 字符、
 % 行距 ≈1.43 倍基线；竞赛排版以 DOCX 交付版为准，本文件是源码版。
 \IfFontExistsTF{SimSun}{\setmainfont{Times New Roman}}{}
 \IfFontExistsTF{Consolas}{\setmonofont{Consolas}}{}

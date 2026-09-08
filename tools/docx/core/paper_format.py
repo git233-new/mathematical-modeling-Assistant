@@ -16,6 +16,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 from docx.text.paragraph import Paragraph
 from lxml import etree
+from tools.common.io_utils import sha256_file as _file_sha256
 import logging
 logger = logging.getLogger(__name__)
 SKILL_ROOT = Path(__file__).resolve().parents[3]
@@ -25,8 +26,6 @@ HEADING1_STYLE = 'Heading 1'
 HEADING2_STYLE = 'Heading 2'
 HEADING3_STYLE = 'Heading 3'
 CAPTION_STYLE = '图表标题'
-DEFAULT_CUMCM_TEMPLATE = (SKILL_ROOT / '文档' / '模板' / '2026数学建模国赛标准论文Word模板.doc').resolve()
-PROJECT_TEMPLATE_FILENAME = '论文模板.docx'
 def set_run_font(run, font='宋体', size=12, bold=False, color=BLACK):
     run.font.name = font
     run.font.size = Pt(size)
@@ -936,27 +935,12 @@ def _appendix_support_materials(doc, project_root):
                          [p.relative_to(root).as_posix() for p in sorted((root / 'results' / '数据').glob('*')) if p.is_file()]
     heading2(doc, '附录A 支撑材料')
     if scripts or data_files:
-        script_hash = {}
-        if isinstance(data, dict):
-            for item in data.get('source_scripts', []) or []:
-                if isinstance(item, dict):
-                    pth = str(item.get('path', '')).replace(chr(92), '/')
-                    if pth:
-                        script_hash[pth] = str(item.get('sha256', ''))[:16]
-
-        def _hash(rel):
-            h = script_hash.get(rel)
-            if not h:
-                fp = root / rel
-                if fp.is_file():
-                    h = _file_sha256(fp)[:16]
-            return h or '—'
-        rows = [['文件/路径', '类型', 'sha256（前 16 位）']]
+        rows = [['文件/路径', '类型']]
         for entry in sorted(set(scripts)):
-            rows.append([entry, '源码', _hash(entry)])
+            rows.append([entry, '源码'])
         for entry in sorted(set(data_files)):
             kind = '工具链' if entry.endswith('.json') else '数据'
-            rows.append([entry, kind, _hash(entry)])
+            rows.append([entry, kind])
         three_line_table(doc, rows)
         paragraph(doc, '注：完整哈希与来源脚本见 results/run_manifest.json；核心代码以文件形式保留于 code/ 目录，不随论文排版。',
                   style_name=BODY_STYLE)
@@ -1038,200 +1022,17 @@ def _reorder_pr_children(parent, order):
         parent.append(el)
 # endregion ── 表格 ──
 
-# region ── 模板管理 ──
-def _clear_template_body(doc):
-    body_element = doc._element.body
-    for child in list(body_element):
-        if child.tag != qn('w:sectPr'):
-            body_element.remove(child)
-def _template_slot_role(paragraph, first_nonempty=False):
-    text = paragraph.text.strip()
-    compact = re.sub('\\s+', '', text)
-    if not text:
-        return None
-    if first_nonempty or compact == '论文题目':
-        return 'title'
-    if compact == '摘要':
-        return 'abstract'
-    if compact.startswith('关键词：') or compact.startswith('关键词:'):
-        return 'keywords'
-    style_name = paragraph.style.name
-    if style_name == 'Heading 1':
-        return 'heading1'
-    if style_name == 'Heading 2':
-        return 'heading2'
-    if style_name == 'Heading 3':
-        return 'heading3'
-    number = _heading_number(text)
-    if number:
-        return 'heading3' if number.count('.') == 2 else 'heading2'
-    return None
-def _retain_template_skeleton(doc):
-    body = doc._element.body
-    slots = []
-    first_nonempty = True
-    for child in list(body):
-        if child.tag == qn('w:sectPr'):
-            continue
-        if child.tag != qn('w:p'):
-            body.remove(child)
-            continue
-        paragraph = Paragraph(child, doc._body)
-        role = _template_slot_role(paragraph, first_nonempty=first_nonempty)
-        if paragraph.text.strip():
-            first_nonempty = False
-        if role is None:
-            body.remove(child)
-            continue
-        if role.startswith('heading') and not paragraph.style.name.startswith('Heading'):
-            paragraph.style = _heading_style_for(role)
-        slots.append({'element': child, 'role': role, 'number': _heading_number(paragraph.text), 'key': _heading_key(paragraph.text), 'state': 'pending', 'protected': False})
-    doc._mathmodeling_template_slots = slots
-    doc._mathmodeling_insert_cursor = None
-    return slots
-def _heading_style_for(role):
-    return {'heading1': 'Heading 1', 'heading2': 'Heading 2', 'heading3': 'Heading 3'}[role]
-def _normalize_skeleton_headings(doc):
-    slots = getattr(doc, '_mathmodeling_template_slots', None)
-    if not slots:
-        return
-    body = doc._element.body
-    for item in slots:
-        role = item['role']
-        if item['element'].getparent() is not body:
-            continue
-        if role == 'abstract':
-            paragraph = Paragraph(item['element'], doc._body)
-            _clear_paragraph_content(paragraph)
-            paragraph.style = HEADING1_STYLE
-            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            paragraph.paragraph_format.first_line_indent = Pt(0)
-            set_run_font(paragraph.add_run('摘 要'), font='黑体', size=14, bold=False)
-            item['protected'] = True
-            continue
-        if not role.startswith('heading'):
-            continue
-        if role == 'heading1':
-            canonical = next((_REQUIRED_HEADING1_CANONICAL[marker] for marker in _REQUIRED_HEADING1_CANONICAL if marker in item['key']), None)
-            if canonical is None:
-                continue
-            paragraph = Paragraph(item['element'], doc._body)
-            _clear_paragraph_content(paragraph)
-            paragraph.style = HEADING1_STYLE
-            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            paragraph.paragraph_format.first_line_indent = Pt(0)
-            set_run_font(paragraph.add_run(canonical), font='黑体', size=14, bold=False)
-        item['protected'] = True
-def _protected_slot_matches(item, role, text):
-    if role != item.get('role') or not item.get('protected'):
-        return False
-    if role in {'title', 'abstract', 'keywords'}:
-        return True
-    number = _heading_number(text)
-    key = _heading_key(text)
-    if number and item.get('number') == number:
-        return True
-    return bool(key) and item.get('key') == key
-def _load_template_document(path):
-    if path.suffix.lower() != '.docx':
-        raise ValueError(f'项目论文模板必须是 .docx: {path}')
-    return Document(str(path))
-# 兼容名：structure_validation 及外部按 .paper_format._file_sha256 引用
-from tools.common.io_utils import sha256_file as _file_sha256
-_TEMPLATE_SHA256 = None
-def _template_sha256():
-    """内置模板 hash 惰性缓存：模板为 skill 自带只读资源，每 save 重算纯属浪费。"""
-    global _TEMPLATE_SHA256
-    if _TEMPLATE_SHA256 is None:
-        _TEMPLATE_SHA256 = _file_sha256(DEFAULT_CUMCM_TEMPLATE)
-    return _TEMPLATE_SHA256
-def _matches_cumcm_template(path):
-    return path.is_file() and path.suffix.lower() == '.docx' and (_file_sha256(path) == _template_sha256())
-def install_project_template(project_root, filename=PROJECT_TEMPLATE_FILENAME, overwrite=False):
-    project = Path(project_root).resolve()
-    if is_within(project, SKILL_ROOT):
-        raise ValueError('PROJECT_ROOT 不能位于 SKILL_ROOT 内部')
-    source = DEFAULT_CUMCM_TEMPLATE
-    if not source.is_file():
-        raise FileNotFoundError(f'项目论文模板不存在: {source}')
-    target_name = Path(filename)
-    if target_name.name != str(filename) or target_name.suffix.lower() != '.docx':
-        raise ValueError('项目模板副本文件名必须是项目根目录下的 .docx 文件名')
-    target = (project / target_name).resolve()
-    if not is_within(target, project):
-        raise ValueError('项目模板副本必须位于 PROJECT_ROOT 内部')
-    project.mkdir(parents=True, exist_ok=True)
-    if target.exists() and (not overwrite):
-        if _matches_cumcm_template(target):
-            return target
-        raise FileExistsError(f'项目模板副本已存在且不是当前项目模板: {target}')
-    if target.exists():
-        _check_docx_not_locked(target)
-    shutil.copy2(source, target)
-    if not _matches_cumcm_template(target):
-        raise RuntimeError(f'项目模板复制后校验失败: {target}')
-    return target
-def _required_template_path(contest, template_path):
-    if contest.lower() == 'cumcm':
-        required = DEFAULT_CUMCM_TEMPLATE
-        path = required if template_path is None else Path(template_path).resolve()
-        if not path.is_file():
-            raise FileNotFoundError(f'项目论文模板不存在: {path}')
-        if not _matches_cumcm_template(path):
-            raise ValueError(f'CUMCM 论文必须使用项目模板或其未修改副本: {required}')
-    elif template_path is not None:
-        path = Path(template_path).resolve()
-    else:
-        raise ValueError('非 CUMCM 论文必须显式传入 template_path')
-    if not path.is_file():
-        raise FileNotFoundError(f'项目论文模板不存在: {path}')
-    if path.suffix.lower() != '.docx':
-        raise ValueError(f'项目论文模板必须是 .docx: {path}')
-    return path
-def new_document(contest='cumcm', template_path=None, preserve_template_content=False, preserve_template_skeleton=False):
-    if preserve_template_content and preserve_template_skeleton:
-        raise ValueError('preserve_template_content 与 preserve_template_skeleton 不能同时启用')
-    template = _required_template_path(contest, template_path)
-    doc = _load_template_document(template)
-    doc._mathmodeling_template_source = str(template)
-    doc._mathmodeling_template_sha256 = _file_sha256(template)
-    if preserve_template_skeleton:
-        _retain_template_skeleton(doc)
-    elif not preserve_template_content:
-        _clear_template_body(doc)
+def new_document(contest='cumcm', **_ignored):
+    doc = Document()
     _ensure_paper_styles(doc)
-    if preserve_template_skeleton:
-        _normalize_skeleton_headings(doc)
-        _seed_skeleton_body_anchors(doc)
     zoom = doc.settings.element.find(qn('w:zoom'))
     if zoom is not None and zoom.get(qn('w:percent')) is None:
         zoom.set(qn('w:percent'), '100')
-    setup_page(doc, contest, preserve_template_layout=True)
+    setup_page(doc, contest)
     ensure_page_numbers(doc)
     return doc
-def _seed_skeleton_body_anchors(doc):
-    slots = getattr(doc, '_mathmodeling_template_slots', None)
-    if not slots:
-        return
-    body = doc._element.body
-    protected_slots = [item for item in slots if item.get('protected') and item['element'].getparent() is body]
-    if not protected_slots:
-        return
-    last_element = None
-    for item in protected_slots:
-        element = item['element']
-        if element.getparent() is not body:
-            continue
-        anchor_para = doc.add_paragraph()
-        _place_body_element(doc, anchor_para._p)
-        element.addnext(anchor_para._p)
-        item['body_anchor'] = anchor_para._p
-        last_element = anchor_para._p
-    doc._mathmodeling_insert_cursor = last_element
-def new_project_document(project_root, contest='cumcm', template_filename=PROJECT_TEMPLATE_FILENAME, preserve_template_content=False):
-    template = install_project_template(project_root, filename=template_filename)
-    return new_document(contest=contest, template_path=template, preserve_template_content=preserve_template_content, preserve_template_skeleton=not preserve_template_content)
-# endregion ── 模板管理 ──
+def new_project_document(project_root, contest='cumcm', **_ignored):
+    return new_document(contest=contest)
 
 # region ── 文档统计 ──
 def _document_texts(doc):
@@ -1297,20 +1098,6 @@ def estimate_equivalent_pages(doc, units=None, figures=None, tables=None):
     return units / CUMCM_UNITS_PER_PAGE + tables * 0.35 + figures * 0.18
 def _content_units(text):
     return len(re.findall('[\\u4e00-\\u9fff]|[A-Za-z0-9]+', text))
-def _require_project_template(doc, contest):
-    """CUMCM 论文必须由项目母版创建（或其未修改副本）。"""
-    if contest.lower() != 'cumcm':
-        return
-    template_source_text = getattr(doc, '_mathmodeling_template_source', '')
-    template_hash = getattr(doc, '_mathmodeling_template_sha256', '')
-    template_source = Path(template_source_text).resolve() if template_source_text else None
-    if (
-        template_source is None
-        or not template_source.is_file()
-        or template_hash != _template_sha256()
-        or _file_sha256(template_source) != template_hash
-    ):
-        raise ValueError('论文必须由项目模板创建（项目母版或其未修改副本）：' + str(DEFAULT_CUMCM_TEMPLATE))
 
 
 # endregion ── 文档统计 ──
@@ -1403,13 +1190,11 @@ def save_document(
     project = Path(project_root).resolve()
     if is_within(project, SKILL_ROOT):
         raise ValueError('PROJECT_ROOT 不能位于 SKILL_ROOT 内部')
-    _require_project_template(doc, contest)
     output = (project / filename).resolve()
     if not is_within(output, project):
         raise ValueError('论文输出必须位于 PROJECT_ROOT 内部')
     if is_within(output, SKILL_ROOT):
         raise ValueError('论文输出不能位于 SKILL_ROOT 内部')
-    _prune_unused_template_slots(doc)
     manifest_image_paths = _manifest_figure_paths(project)
     ensure_page_numbers(doc)
     force_black_fonts(doc)
@@ -1482,9 +1267,10 @@ def save_latex_first(
 
     output.parent.mkdir(parents=True, exist_ok=True)
     builder.save_latex(tex_path, graphics_dir=graphics_dir)
-    if reference_doc is None:
-        reference_doc = DEFAULT_CUMCM_TEMPLATE
-    latex_to_docx(tex_path, output, reference_doc=reference_doc)
+    if reference_doc is not None:
+        latex_to_docx(tex_path, output, reference_doc=reference_doc)
+    else:
+        latex_to_docx(tex_path, output)
     print(json.dumps({'stage': 'delivered_latex_first',
                       'tex': str(tex_path), 'docx': str(output)}),
           file=sys.stderr, flush=True)

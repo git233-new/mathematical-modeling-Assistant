@@ -60,8 +60,6 @@ SOLUTION_COMMON_NAME = "solve_common.py"
 VIZ_MODULE_NAME = "viz.py"
 # 赛题原件目录：赛题文件与原附录存放处，清理器绝对不触碰
 FILES_DIR_NAME = "files"
-# 交付模板名：终稿校验通过后删除，预览模式必须可见
-DELIVERY_TEMPLATE_NAME = "论文模板.docx"
 # 交付契约保留项（相对项目根）：清理器永不触碰；与 SKILL.md / 文档/代码规范.md 保持一致。
 # 库函数与 CLI --apply 必须使用同一份清单，杜绝双路径守卫强度不一致。
 # 完整论文.tex 是 LaTeX 源码版交付物（save_document 与 DOCX 同快照写出），与 DOCX 同级保护。
@@ -217,9 +215,6 @@ def plan_cleanup(project: Path) -> tuple[list[Path], list[str]]:
     protected = tuple(project / name for name in PROTECTED_ITEMS)
     whitelist = frozenset(p.resolve() for p in _collect_whitelist_overruns(project))
     candidates = collect_candidates(project, whitelist)
-    template = project / DELIVERY_TEMPLATE_NAME
-    if template.is_file():
-        candidates.append(template)
 
     targets: list[Path] = []
     rejected: list[str] = []
