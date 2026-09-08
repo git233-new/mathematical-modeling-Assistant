@@ -153,13 +153,13 @@ def _draw_importance_bars(ax_imp, importances, y_positions) -> None:
     ax_imp.set_xlim(0.0, 0.54)
     ax_imp.set_ylim(len(y_positions) - 0.22, -0.82)
     ax_imp.set_yticks(y_positions)
-    ax_imp.set_yticklabels(FEATURES, fontsize=12)
+    ax_imp.set_yticklabels(FEATURES)
     ax_imp.tick_params(axis="y", pad=8, length=0)
     ax_imp.xaxis.tick_top()
     ax_imp.xaxis.set_label_position("top")
-    ax_imp.set_xlabel("重要性值", fontsize=16, labelpad=14)
+    ax_imp.set_xlabel("重要性值", labelpad=14)
     ax_imp.set_xticks(np.arange(0.0, 0.51, 0.1))
-    ax_imp.tick_params(axis="x", labelsize=12, pad=2, bottom=False, labelbottom=False)
+    ax_imp.tick_params(axis="x", pad=2, bottom=False, labelbottom=False)
     ax_imp.grid(axis="x", color="#222222", alpha=0.45, linewidth=0.75)
     ax_imp.spines["left"].set_visible(False)
     ax_imp.spines["right"].set_visible(False)
@@ -191,9 +191,9 @@ def _add_shap_panels(fig, ax_imp, shap_by_class, feature_values, y_positions, le
         ax.spines["bottom"].set_linewidth(0.85)
         ax.tick_params(axis="y", left=False, labelleft=False)
         ax.set_xticks(panel_ticks[class_idx])
-        ax.set_xticklabels([f"{tick:g}" for tick in panel_ticks[class_idx]], fontsize=11)
+        ax.set_xticklabels([f"{tick:g}" for tick in panel_ticks[class_idx]])
         ax.tick_params(axis="x", length=4, pad=2)
-        ax.set_xlabel("SHAP值", fontsize=13, labelpad=2)
+        ax.set_xlabel("SHAP值", labelpad=2)
 
         for feature_idx, y in enumerate(y_positions):
             values = feature_values[:, feature_idx]
@@ -222,9 +222,9 @@ def _add_feature_colorbar(fig, norm, bottom, height) -> None:
     cbar = fig.colorbar(sm, cax=cax)
     cbar.set_ticks([])
     cbar.outline.set_linewidth(0.8)
-    cbar.ax.text(2.2, 1.0, "高", transform=cbar.ax.transAxes, ha="left", va="center", fontsize=12)
-    cbar.ax.text(2.2, 0.0, "低", transform=cbar.ax.transAxes, ha="left", va="center", fontsize=12)
-    cbar.ax.set_ylabel("特征值", rotation=90, labelpad=28, fontsize=13)
+    cbar.ax.text(2.2, 1.0, "高", transform=cbar.ax.transAxes, ha="left", va="center")
+    cbar.ax.text(2.2, 0.0, "低", transform=cbar.ax.transAxes, ha="left", va="center")
+    cbar.ax.set_ylabel("特征值", rotation=90, labelpad=28)
 
 
 def _add_class_legend(fig) -> None:
@@ -245,7 +245,6 @@ def _add_class_legend(fig) -> None:
         ncol=5,
         handlelength=1.8,
         columnspacing=1.6,
-        fontsize=12,
     )
 
 

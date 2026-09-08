@@ -132,8 +132,8 @@ def render_diagnostic(out_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(6, 3))
     samples = ["图1 各车间工序流程图", "设备利用率 (%)", "C车间循环次数", "12345.6 万元", "RMSE (均方根误差)"]
     for i, s in enumerate(samples):
-        ax.text(0.5, 0.85 - i * 0.18, s, ha="center", fontsize=14, fontweight="bold")
-    ax.set_title("中文字体渲染诊断", fontsize=14, fontweight="bold")
+        ax.text(0.5, 0.85 - i * 0.18, s, ha="center", fontweight="bold")
+    ax.set_title("中文字体渲染诊断", fontweight="bold")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")

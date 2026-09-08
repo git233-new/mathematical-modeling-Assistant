@@ -141,16 +141,16 @@ def draw_raincloud(ax: plt.Axes, grouped_values: dict[str, np.ndarray], metric: 
 
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(-0.55, 4.78)
-    ax.set_title(cfg["title"], fontsize=11, fontweight="bold", pad=5)
+    ax.set_title(cfg["title"], fontweight="bold", pad=5)
     ax.grid(axis="x", color="#ececec", lw=0.45)
     ax.set_axisbelow(True)
     ax.set_yticks(range(len(GROUP_ORDER)))
-    ax.set_yticklabels(list(reversed(GROUP_ORDER)) if show_ylabels else [], fontsize=10)
+    ax.set_yticklabels(list(reversed(GROUP_ORDER)) if show_ylabels else [])
     ax.tick_params(axis="y", length=0, pad=2)
     style_axis(ax)
     ax.set_xticks(cfg["xticks"])
     if cfg["unit"]:
-        ax.text(1.01, -0.05, cfg["unit"], transform=ax.transAxes, ha="left", va="top", fontsize=10)
+        ax.text(1.01, -0.05, cfg["unit"], transform=ax.transAxes, ha="left", va="top")
 
 
 def draw_vertical_boxplot_panel(ax: plt.Axes, metric: str, metric_data: list[np.ndarray]) -> None:
@@ -181,11 +181,11 @@ def draw_vertical_boxplot_panel(ax: plt.Axes, metric: str, metric_data: list[np.
     ax.plot(np.arange(1, len(CITY_SPECS) + 1), means, color="#2f6791", lw=0.75, alpha=0.72, zorder=3)
     ax.set_xlim(0.3, len(CITY_SPECS) + 0.7)
     ax.set_ylim(*METRICS[metric]["ylim"])
-    ax.set_ylabel(METRICS[metric]["ylabel"], fontsize=11)
+    ax.set_ylabel(METRICS[metric]["ylabel"])
     ax.set_xticks(np.arange(1, len(CITY_SPECS) + 1))
-    ax.set_xticklabels([str(i) for i in range(1, len(CITY_SPECS) + 1)], fontsize=9)
+    ax.set_xticklabels([str(i) for i in range(1, len(CITY_SPECS) + 1)])
     ax.tick_params(axis="x", length=0, pad=1)
-    ax.tick_params(axis="y", labelsize=10)
+    ax.tick_params(axis="y")
     ax.grid(axis="y", color="#efefef", lw=0.45)
     for spine in ax.spines.values():
         spine.set_linewidth(0.75)
@@ -196,33 +196,33 @@ def add_city_and_legend_panel(ax: plt.Axes) -> None:
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.set_autoscale_on(False)
-    ax.text(-0.05, 1.03, "（c）", transform=ax.transAxes, fontsize=13)
+    ax.text(-0.05, 1.03, "（c）", transform=ax.transAxes)
 
     columns = [(1, CITY_SPECS[:9]), (10, CITY_SPECS[9:18]), (19, CITY_SPECS[18:])]
     x_positions = [0.00, 0.36, 0.70]
     for col, (start_idx, cities) in enumerate(columns):
         for row, city in enumerate(cities):
             original_idx = start_idx + row
-            ax.text(x_positions[col], 0.96 - row * 0.050, f"{original_idx:02d}.{city.name}", ha="left", va="top", fontsize=10)
+            ax.text(x_positions[col], 0.96 - row * 0.050, f"{original_idx:02d}.{city.name}", ha="left", va="top")
 
     y0 = 0.31
     ax.add_patch(Rectangle((0.00, y0), 0.09, 0.035, facecolor="white", edgecolor="#333333", linewidth=0.7))
-    ax.text(0.12, y0 + 0.017, "25%-75%", va="center", fontsize=10)
+    ax.text(0.12, y0 + 0.017, "25%-75%", va="center")
     ax.plot([0.00, 0.09], [y0 - 0.050, y0 - 0.050], color="#315f5e", lw=2.0)
-    ax.text(0.12, y0 - 0.050, "中位数线", va="center", fontsize=10)
+    ax.text(0.12, y0 - 0.050, "中位数线", va="center")
     ax.scatter(0.045, y0 - 0.105, marker="^", s=16, color="#d44d5d", edgecolor="white", linewidth=0.3)
-    ax.text(0.12, y0 - 0.105, "均值", va="center", fontsize=10)
+    ax.text(0.12, y0 - 0.105, "均值", va="center")
     ax.plot([0.00, 0.09], [y0 - 0.160, y0 - 0.160], color="#777777", lw=0.8)
     ax.plot([0.00, 0.00], [y0 - 0.177, y0 - 0.143], color="#777777", lw=0.8)
     ax.plot([0.09, 0.09], [y0 - 0.177, y0 - 0.143], color="#777777", lw=0.8)
-    ax.text(0.12, y0 - 0.160, "1.5倍四分位距范围", va="center", fontsize=10)
+    ax.text(0.12, y0 - 0.160, "1.5倍四分位距范围", va="center")
     ax.plot([0.00, 0.09], [y0 - 0.215, y0 - 0.215], color="#2f6791", lw=0.9)
-    ax.text(0.12, y0 - 0.215, "均值连接线", va="center", fontsize=10)
+    ax.text(0.12, y0 - 0.215, "均值连接线", va="center")
 
     for idx, group in enumerate(GROUP_ORDER):
         y = y0 - idx * 0.054
         ax.add_patch(Rectangle((0.57, y), 0.09, 0.035, facecolor=GROUP_COLORS[group], edgecolor="white", linewidth=0.5))
-        ax.text(0.69, y + 0.017, group, va="center", fontsize=10)
+        ax.text(0.69, y + 0.017, group, va="center")
 
 
 def draw_horizontal_box(ax: plt.Axes, values: np.ndarray, y: float, color: str) -> None:
@@ -268,9 +268,9 @@ def draw_panel_a(ax: plt.Axes) -> None:
     y = np.arange(len(names))[::-1]
     ax.barh(y, vals, color="#557280", height=0.7)
     ax.set_yticks(y)
-    ax.set_yticklabels(names, fontsize=9)
-    ax.set_xlabel("公园数量", fontsize=11)
-    ax.set_title("各城市公园数量", fontsize=11, fontweight="bold", pad=5)
+    ax.set_yticklabels(names)
+    ax.set_xlabel("公园数量")
+    ax.set_title("各城市公园数量", fontweight="bold", pad=5)
     ax.set_xlim(0, max(vals) * 1.1)
     style_axis(ax)
 
@@ -308,7 +308,7 @@ def make_figure(output_stem: Path) -> None:
         }
         for metric, ax in b_axes.items():
             draw_raincloud(ax, grouped_values[metric], metric, show_ylabels=metric in {"PCM", "PCI"})
-        b_axes["PCM"].text(-0.10, 1.06, "（b）", transform=b_axes["PCM"].transAxes, fontsize=13)
+        b_axes["PCM"].text(-0.10, 1.06, "（b）", transform=b_axes["PCM"].transAxes)
 
         ax_c_legend = fig.add_axes([0.055, 0.070, 0.295, 0.335])
         add_city_and_legend_panel(ax_c_legend)

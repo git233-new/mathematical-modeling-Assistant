@@ -167,7 +167,6 @@ def draw_outer_labels(
             rotation_mode="anchor",
             ha=ha,
             va="center",
-            fontsize=8.5,
             color="#111111",
         )
 
@@ -184,7 +183,7 @@ def draw_stars(
     for trait_outer_idx, item_idx in candidates:
         inner_order_idx = outer_to_inner_index[trait_outer_idx]
         radius = ring_radii_inner_to_outer[inner_order_idx] + ring_height * 0.50
-        ax.text(theta[item_idx], radius, "*", ha="center", va="center", color="#f8f8f8", fontsize=13, fontweight="bold")
+        ax.text(theta[item_idx], radius, "*", ha="center", va="center", color="#f8f8f8", fontweight="bold")
 
 
 def add_trait_colorbar_stack(fig: plt.Figure, cmaps: list[mpl.colors.Colormap], norm: mpl.colors.Normalize) -> None:
@@ -215,12 +214,12 @@ def add_trait_colorbar_stack(fig: plt.Figure, cmaps: list[mpl.colors.Colormap], 
         cax.axvline(0, color="#333333", lw=0.8, ls=(0, (3, 2)))
         cax.set_yticks([])
         cax.set_xticks([-5, 0, 5])
-        cax.set_xticklabels(["-5", "0", "5"], fontsize=10)
+        cax.set_xticklabels(["-5", "0", "5"])
         cax.tick_params(axis="x", length=0, pad=1)
         for spine in cax.spines.values():
             spine.set_color("#111111")
             spine.set_linewidth(0.8)
-        fig.text(left + width + 0.014, bottom + height / 2, spec.name, va="center", ha="left", fontsize=13, zorder=3)
+        fig.text(left + width + 0.014, bottom + height / 2, spec.name, va="center", ha="left", zorder=3)
 
 
 def add_center_legend(fig: plt.Figure) -> None:
@@ -228,7 +227,7 @@ def add_center_legend(fig: plt.Figure) -> None:
     ax = fig.add_axes([left, bottom, width, height])
     ax.set_zorder(4)
     ax.axis("off")
-    ax.text(0.00, 1.02, "暴露-结局配对", fontsize=12, fontweight="bold", ha="left", va="bottom")
+    ax.text(0.00, 1.02, "暴露-结局配对", fontweight="bold", ha="left", va="bottom")
 
     handles = [Patch(facecolor=group.color, edgecolor="white", label=group.label) for group in PAIR_GROUPS]
     ax.legend(
@@ -236,7 +235,6 @@ def add_center_legend(fig: plt.Figure) -> None:
         loc="upper left",
         bbox_to_anchor=(0.00, 0.98),
         frameon=False,
-        fontsize=10.3,
         handlelength=1.2,
         handleheight=1.2,
         borderaxespad=0,

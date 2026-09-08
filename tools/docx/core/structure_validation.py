@@ -1593,10 +1593,13 @@ def _appendix_boxed_table_issues(doc):
 def _caption_format_issues(doc):
     issues = []
     for p in doc.paragraphs:
+        style = p.style.name if p.style is not None else ''
+        if style != CAPTION_STYLE:
+            continue
         t = p.text.strip()
         if re.match(r'^[图表]\s*\d+', t) and (not re.match(r'^[图表]\s*\d+[：:\s]', t)):
             issues.append(f'题注须为"图N：/表N："或"图N 文本"格式（数字后接分隔符），当前：{t[:16]}')
-    return []
+    return issues
 
 
 # H12 元叙述空话红线

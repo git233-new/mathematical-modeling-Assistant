@@ -230,18 +230,18 @@ def _style_axes_and_labels(ax: plt.Axes) -> None:
     ax.set_xlim(0.30, 3.12)
     ax.set_ylim(2.0, 4.5)
     ax.set_yticks(np.arange(2.0, 4.51, 0.5))
-    ax.set_ylabel("萼片宽度", fontsize=20, fontweight="bold", labelpad=18)
+    ax.set_ylabel("萼片宽度", fontweight="bold", labelpad=18)
     ax.set_xticks([])
     ax.spines["bottom"].set_visible(False)
     ax.spines["left"].set_linewidth(2.8)
-    ax.tick_params(axis="y", labelsize=19, width=2.8, length=11, pad=6)
+    ax.tick_params(axis="y", width=2.8, length=11, pad=6)
 
     pre_label_x = 1.15
     post_label_x = 2.17
     draw_bottom_bracket(ax, pre_label_x, post_label_x)
     transform = ax.get_xaxis_transform()
-    ax.text(pre_label_x, -0.170, "前测", transform=transform, ha="center", va="top", fontsize=20)
-    ax.text(post_label_x, -0.170, "后测", transform=transform, ha="center", va="top", fontsize=20)
+    ax.text(pre_label_x, -0.170, "前测", transform=transform, ha="center", va="top")
+    ax.text(post_label_x, -0.170, "后测", transform=transform, ha="center", va="top")
     ax.text(
         (pre_label_x + post_label_x) / 2,
         -0.255,
@@ -249,7 +249,6 @@ def _style_axes_and_labels(ax: plt.Axes) -> None:
         transform=transform,
         ha="center",
         va="top",
-        fontsize=20,
         fontweight="bold",
     )
 
@@ -265,8 +264,6 @@ def _add_raincloud_legend(fig) -> None:
         title="鸢尾种类",
         loc="upper right",
         bbox_to_anchor=(0.96, 0.965),
-        fontsize=18,
-        title_fontsize=20,
         handlelength=1.8,
         borderaxespad=0,
     )

@@ -238,9 +238,6 @@ def draw_labels(ax: plt.Axes, layout: dict[str, dict[str, float]], nodes: list[N
             radius += (idx % 3) * 0.045
         if node.label in {"乙酰转移酶", "ATP酶", "肌动蛋白", "NADP结合结构", "罗斯曼折叠"}:
             radius += 0.030
-        size = 11.8 if arc > 7.0 else 9.6
-        if len(node.label.replace("\n", "")) > 11:
-            size -= 0.7
         ax.text(
             *polar_to_xy(mid, radius),
             node.label,
@@ -248,7 +245,6 @@ def draw_labels(ax: plt.Axes, layout: dict[str, dict[str, float]], nodes: list[N
             rotation_mode="anchor",
             ha=ha,
             va="center",
-            fontsize=size,
             color="#090909",
             zorder=8,
         )
@@ -265,7 +261,7 @@ def make_figure(output_stem: Path) -> None:
     ax.axis("off")
     ax.set_xlim(-1.38, 1.38)
     ax.set_ylim(-1.34, 1.39)
-    ax.text(0.0, 1.315, "弦图", ha="center", va="bottom", fontsize=22, fontfamily="sans-serif")
+    ax.text(0.0, 1.315, "弦图", ha="center", va="bottom", fontfamily="sans-serif")
 
     # 先绘制浅色细连接线，形成密集的 Nature 风格和弦纹理。
     sorted_flows = sorted(flows, key=lambda item: item[2])

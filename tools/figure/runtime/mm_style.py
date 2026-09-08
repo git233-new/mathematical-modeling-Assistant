@@ -516,7 +516,7 @@ def correlation_norm():
 
 
 def correlation_colorbar(fig, cax, *, label=None, tick_count=9, tickfmt=None,
-                         labelsize=9, tick_width=None, linewidth=0.7):
+                         labelsize=None, tick_width=None, linewidth=0.7):
     """相关性色条（``CMAP_CORR`` + (-1,1)），统一两份相关图模板的实现。"""
     import matplotlib as mpl
     import numpy as np
@@ -524,7 +524,7 @@ def correlation_colorbar(fig, cax, *, label=None, tick_count=9, tickfmt=None,
     sm = mpl.cm.ScalarMappable(norm=correlation_norm(), cmap=CMAP_CORR)
     cbar = fig.colorbar(sm, cax=cax)
     if label:
-        cbar.set_label(label, fontsize=10, fontweight="bold", labelpad=6)
+        cbar.set_label(label, fontweight="bold", labelpad=6)
     ticks = np.linspace(-1, 1, tick_count)
     cbar.set_ticks(ticks)
     if tickfmt:
