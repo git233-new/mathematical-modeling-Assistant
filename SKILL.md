@@ -104,7 +104,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 0. **开跑自检（约 10 秒，防旧版本白跑一整轮）**：① `python tools/docx/scripts/self_check.py` 秒级确认工具链健康；② 确认 `PROJECT_ROOT` 不在 skill 仓库内、`files/` 已放赛题；③ 若 `self_check` 报告缺失文件或版本过旧，提示用户手动更新 Skill（`git pull` 或重新下载），不自动执行。**SKILL_ROOT 只读**：解题流程不得修改 skill 仓库内任何文件，版本更新是人工维护操作。任何一步失败先修复，不带病开跑。
 1. **读题与附件**：从 `PROJECT_ROOT/files/`（兼容根层散置的历史附件）枚举赛题 PDF、赛题 DOCX 及全部附件（CSV、XLSX、DOCX 等），通过 `tools.project_ops.case_retrieval.load_input_bundle()` 全量读取 CSV/XLSX；DOCX 附件的全文、表格文本和对象清单都进入题目分析输入，并保留附件路径。读取失败抛 `InputBundleError`，携带出问题的文件路径与原始异常类型，便于定位；非致命附件预览失败仅记 warning 不阻断整包读取。只读取原生文本、表格和 OOXML 对象，不启用 OCR（`pdf_utils` 入口 `allow_ocr=False` 默认禁止）；DOCX 附件中的 WMF/EMF、VML 和 OLE 公式用 `tools/docx/scripts/extract_docx_content.py` 提取并按对象清单逐项视觉检查。**填表类赛题：读取 `files/` 原表后只在其副本上填值——保留原行列结构、表头、合并单元格与格式，结果写 `results/数据/`，绝不回写 `files/`**。优秀论文 PDF 建库才允许使用 `tools/paperingest/` 的 OCR，且必须显式传 `allow_ocr=True`。读取校验无误后立即删除临时资产，`PROJECT_ROOT` 不产生读题过程文件。
 2. **赛题分析（Problem Card）**：运行 `python tools/project_ops/case_retrieval.py --query-file <赛题 PDF> --query-file <赛题 DOCX> --top-k 5` 合并两个赛题版本检索优秀论文案例，先按宽题目画像，再按方法、约束和题目词精排；检索输出的匹配依据、可迁移方法和本题化候选**仅进入会话上下文**用于模型设计，**不落盘任何检索报告或分析 md**（赛题详解/结果分析内容并入论文正文与 `results/论文评审与分析.md`，杜绝多余过程文件）。解题计划/技术方案如需暂存只能放 `.paper_work/`——**项目根层禁止出现任何过程 md**（历史事故：`B技术方案.md` 堆根层）。**数学结构提取**：读题后按 `schemas/problem_card.json` 为每小问填写 Problem Card（变量类型/约束性质/目标方向/数据规模/不确定性/动态性），据此推导候选模型族——禁止"题型→算法"直连（如"预测题→XGBoost"），必须走"变量→约束→目标→数据结构→数学结构→模型族→算法"路径。**题意理解红线（读完题立即执行，任何题目通用）**：①题干明写的物理事实必须建模进去——题面给出物体有宽度/厚度/形状→碰撞/间隙判定必须用真实几何，严禁简化为质点间距；②几何初始条件必须用解析公式独立验证，禁止只信单一来源（凡能用公式从题干数字推出的参数一律推导核对）；③后问对前问误差高度敏感——初始条件错→中间判据错→后续连锁全错，问题间耦合必须每步验证；④无官方答案时逐条执行题目自查：题干数值→解析公式独立推导 / 单位与几何自洽 / 边界情形推演 / 多方法交叉验证 / 把"题面明写的物理事实"列清单逐项对照。
-3. **文献检索（必做，参考文献真实性的唯一来源）**：每题必做，检索范围按题自适应——围绕赛题的理论依据、方法来源与公开数据背景确定查询词，不为凑数堆文献。用 `tools/paper_search/` 执行：OpenAlex 发现候选 → Crossref 核验书目信息，仅 `citation_ready=true` 条目进入参考文献；结果登记 `results/数据/文献检索.json`（铁律 6，检索后必须落盘登记；文件为列表，每次检索追加一条记录，禁止覆盖），正文引用文献观点前须核对原文。它与案例库检索（Step 2/4 的 case_retrieval）用途不同——案例库只学方法不产生引用，文献检索产生正式引用。
+3. **文献检索（必做，参考文献真实性的唯一来源）**：每题必做，检索范围按题自适应——围绕赛题的理论依据、方法来源与公开数据背景确定查询词，不为凑数堆文献。**按 `tools/paper_search/TOOLGUIDE.md` 的流程执行检索、核验与引用门禁**，结果登记 `results/数据/文献检索.json`（铁律 6；文件为列表，每次检索追加一条记录，禁止覆盖）。它与案例库检索（Step 2/4 的 case_retrieval）用途不同：案例库只学方法不产生引用，文献检索产生正式引用。
 4. **模型选型与Tournament（Model Contract）**：**模型定向检索**：Problem Card 完成后，用 `model_families` 中的关键词作为查询，再运行一次 `case_retrieval.py`（`python tools/project_ops/case_retrieval.py "<模型族关键词>" --top-k 3`），找到"同类数学结构、用过这些模型族"的优秀论文案例——提取它们用了什么参数、遇到过什么坑、效果如何。此检索结果直接作为 Model Contract 的 chosen_model / fallback 决策依据，不单独落盘。**Model Contract 填写**：为每小问填写 `schemas/model_contract.json`（chosen_model / inputs / outputs / validation / fallback），明确本问打算用什么模型、输入什么、输出什么、如何验证、失败时回退到哪里。**Tournament 竞争**：按 `知识库/建模增强/冠军挑战者建模流程.md` 执行 Champion vs Challenger 实验比较，评分结果记入 `tournament_log.json`。Model Contract 是 Step 4→Step 5 的交接契约——Step 5 按它实现，Step 6 按它的 validation 清单检查。
 5. **全 Python 解题代码（逐问实现，短反馈循环）**：**按子问题顺序逐个实现，禁止一次性生成全部 Q 的代码。** 每个 Qi：① 读 Problem Card + Model Contract → ② 最小实现 `code/Q<序号>.py` → ③ 立即运行打印关键中间结果 → ④ 健全性判断（量级/约束/baseline/物理意义） → ⑤ 通过则补可视化 + 灵敏度 → ⑥ 不通过按失败恢复链处理（见 `文档/代码规范.md §失败恢复链`） → ⑦ 推进 Q(i+1)。
    - **代码结构与风格**：按 `文档/代码规范.md`（唯一权威）；通用核心算法放 `solve_common.py`（可选），统一生图放 `viz.py`（可选），逻辑过重可拆 `Q<序号>_<描述>.py`；图片与结果文件一律中文命名。
@@ -164,22 +164,22 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 
 | 任务 | 读取 |
 |---|---|
-| 解题分析 / 定模型 | `文档/论文写作.md §八` → `知识库/建模增强/冠军挑战者建模流程.md`、`知识库/建模增强/模型选型决策矩阵.md`、`知识库/建模增强/证据可复现审计.md`、`知识库/建模通用规范.md`、`知识库/方法库/设计原则.md`；schema：`schemas/problem_card.json` → `schemas/model_contract.json` |
+| 解题分析 / 定模型 | `文档/论文写作.md「赛题详解与结果分析规范」` → `知识库/建模增强/冠军挑战者建模流程.md`、`知识库/建模增强/模型选型决策矩阵.md`、`知识库/建模增强/证据可复现审计.md`、`知识库/建模通用规范.md`、`知识库/方法库/设计原则.md`；schema：`schemas/problem_card.json` → `schemas/model_contract.json` |
 | 选模型 / 查算法 | `知识库/算法索引.md` → `知识库/算法资料/*.md` |
 | 论文写法 / 去AI味 | `文档/论文写作.md §二路由表`（先读路由表，按表逐章读对应文件）→ `知识库/写作增强/摘要写作范式.md`、`知识库/写作增强/问题重述与分析写作.md`、`知识库/写作增强/假设与符号写作.md`、`知识库/写作增强/获奖论文模板与创新点.md`（全库蒸馏的章节骨架与创新点模式，定骨架与检验计划） → `知识库/写作增强/去AI味指南.md`（含 25 通用 + 15 数模专用模式，6-Pass 写作流程）、`知识库/写作增强/七轮自审框架.md`（含 42 项反模式清单）、`知识库/评审增强/国赛评审标准.md`、`知识库/方法库/问题分类.md`、`知识库/方法库/质检清单.md` |
 | 赛题附件解析 | `tools.docx.ingest` / `tools/docx/scripts/extract_docx_content.py` 读取 DOCX 原生文本、表格和旧式对象；赛题 PDF/DOCX 不启用 OCR |
 | 优秀论文经验 | `tools/project_ops/case_retrieval.py` 扫描 `知识库/优秀论文案例/*.md`，按题型/方法/约束排序五维方法卡；不依赖单独案例索引 |
 | 评审 / 风险分析 | `文档/论文评审.md` → `知识库/评审增强/国赛评审标准.md` |
-| 文献检索（Step 3，必做） | `tools/paper_search/`（OpenAlex 发现 + Crossref 书目信息核验；仅 `citation_ready=true` 条目进入参考文献，正文观点仍须核对原文） |
+| 文献检索（Step 3，必做） | `tools/paper_search/TOOLGUIDE.md`（唯一权威：数据源、核验规则、引用门禁、登记落盘） |
 | 题目 PDF | `tools/pdf/` |
 | 数据处理 / Excel | `tools/xlsx/` |
-| 出图（全中文） | `tools/figure/`（`references/图表选型与论证.md` 先答论证意图再选图、`references/画图避坑清单.md` 18 条坑对照、`registry.py` 按名发现/渲染、`tools/figure/runtime/mm_style.py` 中文样式、`tools/figure/runtime/audit_figures.py` 自检、`tools/figure/references/nature-figure-contract.md` 规范与质量门禁、`知识库/方法库/图表规范.md`） |
+| 出图（全中文） | `tools/figure/`（`references/图表选型与论证.md` 先答论证意图再选图、`references/画图避坑清单.md` 18 条坑对照、`registry.py` 按名发现/渲染、`tools/figure/runtime/mm_style.py` 中文样式、`tools/figure/runtime/audit_figures.py` 自检、`tools/figure/references/nature-figure-contract.md` 规范与质量门禁、`知识库/方法库/图表规范.md`）；图闸门 H1–H13 / W1–W5 / D1–D4 清单唯一权威：`文档/图片闸门配置与绘图规范.md` |
 | 论文生成 | `tools/docx/` |
 | 竞赛合规 | `知识库/写作增强/七轮自审框架.md`（核验，含附录 A 官方 AI 规定原文） |
 
 ## 模块索引
 
-规范唯一索引见上表；执行文档：`文档/论文写作.md`（§四题型画像、§八赛题详解、§十优秀论文学习、§十一 11 文件契约）、`文档/代码规范.md`、`文档/论文评审.md`、`文档/图片闸门配置与绘图规范.md`、`知识库/写作增强/七轮自审框架.md`（含 AI 规定附录 A、内部模板附录 B）。
+规范唯一索引见上表；执行文档：`文档/论文写作.md`（§二逐节路由表、§四交付前自检；附录：题型画像判定、优秀论文学习与经验迁移、赛题详解与结果分析规范）、`文档/代码规范.md`、`文档/论文评审.md`、`文档/图片闸门配置与绘图规范.md`、`知识库/写作增强/七轮自审框架.md`（含 AI 规定附录 A、内部模板附录 B）。
 
 ## 知识库增强模块
 

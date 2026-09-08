@@ -54,7 +54,9 @@ def pack(
 
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_content_dir = Path(temp_dir) / "content"
-        shutil.copytree(input_dir, temp_content_dir)
+        # Preserve links so they can be excluded below instead of being
+        # dereferenced into the temporary archive staging area.
+        shutil.copytree(input_dir, temp_content_dir, symlinks=True)
 
         for pattern in ["*.xml", "*.rels"]:
             for xml_file in temp_content_dir.rglob(pattern):
@@ -63,7 +65,9 @@ def pack(
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for f in temp_content_dir.rglob("*"):
-                if f.is_file():
+                # Do not follow links from an untrusted unpacked tree into
+                # files outside the project when creating the Office archive.
+                if f.is_file() and not f.is_symlink():
                     zf.write(f, f.relative_to(temp_content_dir))
 
     return None, f"Successfully packed {input_dir} to {output_file}"

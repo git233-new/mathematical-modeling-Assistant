@@ -238,6 +238,28 @@ def test_zip_limit_constant_sane():
     assert ZIP_MAX_TOTAL_BYTES >= 100_000_000
 
 
+def test_office_pack_skips_symlink_files(tmp_path):
+    """打包不应把输入目录外的符号链接目标泄露进 Office 压缩包。"""
+    from tools.docx.scripts.office.pack import pack
+
+    source = tmp_path / "unpacked"
+    source.mkdir()
+    (source / "word.xml").write_text("<doc/>", encoding="utf-8")
+    outside = tmp_path / "secret.txt"
+    outside.write_text("secret", encoding="utf-8")
+    link = source / "leak.txt"
+    try:
+        link.symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("当前环境不支持创建符号链接")
+
+    output = tmp_path / "out.docx"
+    _, message = pack(str(source), str(output), validate=False)
+    assert "Successfully packed" in message
+    with zipfile.ZipFile(output) as archive:
+        assert "leak.txt" not in archive.namelist()
+
+
 # ---------------------------------------------------------------------------
 # scan_reproducibility_warnings：赛题 code/ 自包含（零 skill 依赖）+视觉红线
 # ---------------------------------------------------------------------------
