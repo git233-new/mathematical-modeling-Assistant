@@ -22,7 +22,8 @@ import urllib.request
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from openalex_scholar import OpenAlexScholar, Paper
+from openalex_scholar import OpenAlexScholar
+from scholar_models import Paper
 
 _SKILL_ROOT = Path(__file__).resolve().parents[3]
 if str(_SKILL_ROOT) not in sys.path:
@@ -961,7 +962,27 @@ def build_parser() -> argparse.ArgumentParser:
                         help="领域过滤")
     parser.add_argument("--json", "-j", action="store_true",
                         help="以 JSON 格式输出")
+    parser.add_argument("--append-to", type=Path, metavar="FILE",
+                        help="将本次 JSON 结果追加到列表文件（隐含 --json）")
     return parser
+
+
+def append_json_result(path: Path, payload: str) -> None:
+    """Atomically append one query result to the audit JSON list."""
+    existing = []
+    if path.exists():
+        with path.open(encoding="utf-8") as stream:
+            existing = json.load(stream)
+        if not isinstance(existing, list):
+            raise ValueError(f"追加文件顶层必须是 JSON 列表: {path}")
+    existing.append(json.loads(payload))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    try:
+        temporary.write_text(json.dumps(existing, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def main():
@@ -984,7 +1005,9 @@ def main():
         field_filter=args.field,
     )
 
-    if args.json:
+    if args.append_to:
+        append_json_result(args.append_to, scholar.results_to_json(result))
+    elif args.json:
         print(scholar.results_to_json(result))
     else:
         scholar.print_results(result)

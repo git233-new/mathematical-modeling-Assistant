@@ -18,6 +18,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.common.method_patterns import METHOD_PATTERNS
+from tools.common.io_utils import configure_stdio
+
+configure_stdio()
 
 SIGNAL_PATTERNS = (
     "现实约束量化",

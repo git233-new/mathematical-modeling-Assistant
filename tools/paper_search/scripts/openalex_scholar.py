@@ -18,13 +18,13 @@ import urllib.request
 import urllib.parse
 from pathlib import Path
 from typing import List, Dict, Optional
-from dataclasses import dataclass
 
 _SKILL_ROOT = Path(__file__).resolve().parents[3]
 if str(_SKILL_ROOT) not in sys.path:
     sys.path.insert(0, str(_SKILL_ROOT))
 
 from tools.common.io_utils import configure_stdio
+from scholar_models import Paper
 
 configure_stdio()
 
@@ -50,46 +50,6 @@ FIELD_CONCEPT_ALIASES = {
     'stats': 'statistics',
     'or': 'operations_research', '运筹': 'operations_research',
 }
-
-
-@dataclass
-class Paper:
-    """论文数据类"""
-    title: str
-    authors: List[str]
-    publication_year: Optional[int]
-    cited_by_count: int
-    doi: Optional[str]
-    abstract: Optional[str]
-    source: str = "openalex"
-    venue: Optional[str] = None
-    volume: Optional[str] = None
-    issue: Optional[str] = None
-    first_page: Optional[str] = None
-    last_page: Optional[str] = None
-    url: Optional[str] = None
-
-    @property
-    def pages(self) -> Optional[str]:
-        if self.first_page and self.last_page:
-            return f"{self.first_page}-{self.last_page}"
-        return self.first_page or self.last_page
-
-    def to_dict(self) -> Dict:
-        """转换为字典格式"""
-        return {
-            'title': self.title,
-            'authors': self.authors,
-            'publication_year': self.publication_year,
-            'cited_by_count': self.cited_by_count,
-            'doi': self.doi,
-            'abstract': self.abstract,
-            'venue': self.venue,
-            'volume': self.volume,
-            'issue': self.issue,
-            'pages': self.pages,
-            'url': self.url,
-        }
 
 
 class OpenAlexScholar:
