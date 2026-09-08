@@ -4,13 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-import sys
-
-RUNTIME = ROOT / "runtime"
-if not RUNTIME.is_dir():
-    RUNTIME = Path(__file__).resolve().parent
-if str(RUNTIME) not in sys.path:
-    sys.path.insert(0, str(RUNTIME))
 
 from mm_style import bootstrap, configure_matplotlib, save_panel, text_rotation
 
@@ -137,6 +130,10 @@ def build_flows(nodes: list[NodeSpec]) -> list[tuple[str, str, float]]:
     ]
 
     high_weight_labels = np.array([node.label for node in nodes if node.weight > 1.0])
+    # 去重（含反向）：同一通道只画一次，避免透明带重复叠加、通道被凭空加浓
+    seen: set[tuple[str, str]] = set()
+    for source, target, _weight in flows:
+        seen.add((source, target))
     for _ in range(92):
         source = str(rng.choice(labels))
         if rng.random() < 0.55:
@@ -145,6 +142,9 @@ def build_flows(nodes: list[NodeSpec]) -> list[tuple[str, str, float]]:
             target = str(rng.choice(labels))
         if source == target:
             continue
+        if (source, target) in seen or (target, source) in seen:
+            continue
+        seen.add((source, target))
         weight = float(rng.gamma(shape=1.35, scale=0.75) + 0.25)
         flows.append((source, target, min(weight, 3.4)))
     return flows
@@ -277,6 +277,9 @@ def make_figure(output_stem: Path) -> None:
         if weight >= 3.5:
             alpha = 0.25
             ribbon_width = 0.48 + 0.70 * weight
+        # 带宽按角度计，不能超过两端弧中较窄者，否则盖过相邻扇区
+        flow_cap = 0.9 * min(s_arc, t_arc)
+        ribbon_width = max(0.20, min(ribbon_width, flow_cap))
         patch = ribbon_patch(
             s_mid,
             t_mid,

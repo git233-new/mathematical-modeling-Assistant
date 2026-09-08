@@ -3,13 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-import sys
-
-RUNTIME = ROOT / "runtime"
-if not RUNTIME.is_dir():
-    RUNTIME = Path(__file__).resolve().parent
-if str(RUNTIME) not in sys.path:
-    sys.path.insert(0, str(RUNTIME))
 
 from mm_style import bootstrap, configure_matplotlib, kde_1d as _kde_1d, save_panel
 

@@ -31,7 +31,7 @@ import re
 import sys
 from pathlib import Path
 
-from mm_style import (
+from tools.figure.templates.mm_style import (
     CHINESE_FONT,
     CHINESE_FONT_FALLBACK as CJK_FALLBACK,
 )
@@ -126,7 +126,7 @@ def render_diagnostic(out_path: Path) -> None:
     import matplotlib.pyplot as plt
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[0]))
-    from mm_style import configure_chinese_style
+    from tools.figure.templates.mm_style import configure_chinese_style
 
     configure_chinese_style()
     fig, ax = plt.subplots(figsize=(6, 3))

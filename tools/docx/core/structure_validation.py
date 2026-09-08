@@ -22,6 +22,7 @@ from .contest_profile import (
     CUMCM_KEYWORD_MAX,
     CUMCM_KEYWORD_MIN,
     REFERENCE_MIN_YEAR,
+    SECTION_BUDGET_ROWS,
     CUMCM_MAX_EQUATIONS,
     CUMCM_MAX_FLOWCHARTS,
     CUMCM_MAX_REFERENCES,
@@ -235,7 +236,92 @@ def _reference_issues(paragraphs):
                 f'参考文献 [{number}] 年份 {min(years)} 早于 {REFERENCE_MIN_YEAR}，'
                 f'仅收录 {REFERENCE_MIN_YEAR} 年及之后的文献: {item_text[:48]}'
             )
+    # 文献取向预警（md §2.10，只提示不拒存）：以近 10 年为主、中文文献为主
+    recent_years = []
+    cn_total = 0
+    for item_text in bibliography:
+        scan_text = re.sub(r'https?://\S+|doi[:：]\s*\S+|10\.\d{4,9}/\S+|ISBN\S*', ' ', item_text, flags=re.I)
+        scan_text = re.sub(r'(?<!\d)\d{1,4}\s*[-–—]\s*\d{1,4}(?!\d)', ' ', scan_text)
+        item_years = [int(y) for y in re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', scan_text)]
+        if item_years:
+            recent_years.append(max(item_years))
+        if re.search(r'[\u4e00-\u9fff]', item_text):
+            cn_total += 1
+    recent_cutoff = datetime.now().year - 9
+    if len(recent_years) >= 4 and sum((y >= recent_cutoff for y in recent_years)) * 2 < len(recent_years):
+        issues.append(f'参考文献整体偏旧：近 10 年（≥{recent_cutoff}）文献不足半数——以近 10 年文献为主')
+    if len(bibliography) >= 4 and cn_total * 2 < len(bibliography):
+        issues.append('参考文献以英文为主、中文文献不足半数——建议中文文献为主')
     return issues
+
+
+def _reference_registry_issues(paragraphs, project_root):
+    """硬闸门：每条参考文献须在 results/数据/文献检索.json 命中书目来源（md §2.10），无源即拒存。
+
+    真实性只允许两条路径：tools/paper_search 实际检索落盘，或人工向登记文件补真实书目。
+    离线/无 project_root 的调用（纯结构单测）跳过本闸门。
+    """
+    split_at = next((index for index, p in enumerate(paragraphs)
+                     if ('参考文献' in p.text or re.search('references', p.text, re.I)) and len(p.text.strip()) <= 30), None)
+    if split_at is None:
+        return []
+    bibliography = [p.text.strip() for p in paragraphs[split_at + 1:] if p.text.strip()]
+    if not bibliography or not project_root:
+        return []
+    registry = Path(project_root).resolve() / 'results' / '数据' / '文献检索.json'
+    norm = lambda s: re.sub(r'\s+', '', s or '')
+    exact = set()
+    titles = []
+    if not registry.is_file():
+        return [f'参考文献 {len(bibliography)} 条但未找到登记文件 results/数据/文献检索.json——拒存：'
+                f'只收录 tools/paper_search 检索（citation_ready=true）或人工登记（标题/作者/年份/DOI/GB/T 著录）的真实文献']
+    try:
+        payload = json.loads(registry.read_text(encoding='utf-8', errors='replace'))
+    except (OSError, ValueError):
+        return [f'参考文献 {len(bibliography)} 条但 results/数据/文献检索.json 无法解析——拒存：修复登记文件后重试']
+
+    def _walk(node):
+        if isinstance(node, str):
+            s = norm(node)
+            if s:
+                exact.add(s)
+        elif isinstance(node, dict):
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                _walk(v)
+    _walk(payload)
+
+    def _collect_titles(node):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                key = str(k).lower()
+                if isinstance(v, str) and ('title' in key or '标题' in key):
+                    t = norm(v)
+                    if len(t) >= 6:
+                        titles.append(t)
+                _collect_titles(v)
+        elif isinstance(node, list):
+            for v in node:
+                _collect_titles(v)
+    _collect_titles(payload)
+
+    unmatched = []
+    for item in bibliography:
+        item_norm = norm(item)
+        if not item_norm or item_norm in exact:
+            continue
+        if any((t and t in item_norm for t in titles)):
+            continue
+        if any((e and len(e) >= 15 and e in item_norm for e in exact)):
+            continue
+        unmatched.append(item)
+    if unmatched:
+        samples = '\n'.join((u[:120] for u in unmatched[:3]))
+        return [f'{len(unmatched)} 条参考文献未在 results/数据/文献检索.json 命中书目，无源即拒存'
+                f'（真实来源：tools/paper_search 检索或人工补登记到该文件）:\n{samples}']
+    return []
 
 
 def _plain_language_issues(doc):
@@ -635,13 +721,13 @@ def _figure_filename_issues(doc, project_root):
     for path in files:
         stem = path.name[: path.name.rindex('.')] if '.' in path.name else path.name
         if re.match(r'^图\s*\d+', stem):
-            issues.append(f'图片文件名以图号「{path.name}」开头，图号只应写在题注；请改用 <序号>_<描述>.png（如 2_Q1_误差对比.png）')
+            issues.append(f'图片文件名以图号「{path.name}」开头，图号只应写在题注；请改用 <序号>_Q<问题号>_<描述>.png（如 2_Q1_误差对比.png）')
             continue
         serial_match = re.match(r'^(\d+)_(.+)$', stem)
         if not serial_match:
             issues.append(
                 f'图片文件名「{path.name}」缺少全局序号前缀；'
-                f'请按 <序号>_<描述>.png 命名（如 1_流程图.png、2_Q1_误差对比.png）'
+                f'请按 <序号>_Q<问题号>_<描述>.png 命名（如 1_流程图.png、2_Q1_误差对比.png）'
             )
             continue
         serial = int(serial_match.group(1))
@@ -1669,7 +1755,17 @@ def _no_image_formula_warnings(doc):
     return []
 
 
-# W5 出图中文正常（查 code/ 脚本是否设 font.sans-serif 却缺少中文字体）
+# W5 出图中文正常（查 code/ 脚本：中文图必须显式配置中文字体，SimHei 优先）
+_FONT_FAMILY_HINTS = re.compile(
+    r"font\.sans-serif|rcParams\s*\[\s*['\"]font|font\.family|fontmanager|\.rc\s*\(\s*['\"]font"
+)
+_CJK_CHARS = re.compile(r"[\u4e00-\u9fff]")
+_PLOT_CALLS = re.compile(
+    r"\.(?:plot|scatter|bar|barh|hist|imshow|contourf|fill_between|errorbar|pie|"
+    r"legend|annotate|xlabel|ylabel|set_title|text|savefig)\s*\("
+)
+
+
 def _plot_font_warnings(project_root):
     if not project_root:
         return []
@@ -1677,12 +1773,31 @@ def _plot_font_warnings(project_root):
     code_dir = root / 'code'
     if not code_dir.is_dir():
         return []
-    issues = []
     cjk = ('SimHei', 'SimSun', 'NSimSun', 'KaiTi', 'FangSong', '宋体', 'Microsoft YaHei', '微软雅黑')
-    for py in code_dir.glob('*.py'):
-        text = py.read_text(encoding='utf-8', errors='replace')
-        if 'font.sans-serif' in text and not any(k in text for k in cjk):
+    files = sorted((p for p in code_dir.glob('*.py') if p.is_file()))
+    texts = [p.read_text(encoding='utf-8', errors='replace') for p in files]
+    # 任一 code 脚本统一配置过字体族（共享样式模块场景）→ 跳过整目录中文缺字预警，避免误报
+    aggregate = '\n'.join(texts)
+    globally_configured = bool(
+        _FONT_FAMILY_HINTS.search(aggregate) or any(k in aggregate for k in cjk)
+    )
+    issues = []
+    for py, text in zip(files, texts):
+        has_cjk_font = any(k in text for k in cjk)
+        if 'font.sans-serif' in text and not has_cjk_font:
             issues.append(f'绘图脚本 {py.name} 另设字体但缺少中文字体（SimHei 打头），中文会渲染成方块，应统一就地 `plt.rcParams` 注册')
+        if (
+            not globally_configured
+            and _CJK_CHARS.search(text)
+            and _PLOT_CALLS.search(text)
+            and not _FONT_FAMILY_HINTS.search(text)
+        ):
+            issues.append(
+                f'绘图脚本 {py.name} 含中文字符并调用绘图 API，却未就地配置中文字体——'
+                '若图面输出中文标题/标签会渲染成方块，开图前先注册：'
+                '`plt.rcParams["font.sans-serif"] = ["SimHei"]; '
+                'plt.rcParams["axes.unicode_minus"] = False`'
+            )
     return issues
 
 
@@ -1871,34 +1986,65 @@ def _figure_table_lead_in_warnings(doc):
     return issues
 
 
-# W11 章节预算双向约束：各节字数超出预算表区间（±20% 容差）→ 预警（注水与偷工都拦）
-_SECTION_BUDGETS = (
-    (r"^一、\s*问题重述", 800, 1000, "问题重述"),
-    (r"^二、\s*问题分析", 1000, 1200, "问题分析"),
-    (r"^三、\s*模型假设", 300, 600, "模型假设"),
-    (r"^五、\s*模型建立与求解", 5000, 6000, "模型建立与求解"),
-    (r"^六、\s*模型检验与分析", 1300, 1500, "模型检验与分析"),
-    (r"^七、\s*模型评价与改进", 800, 1000, "模型评价与改进"),
+# 章节预算约束（区间/章名取单一事实来源 contest_profile.SECTION_BUDGET_ROWS，
+# 与 paper_workflow.CONTENT_BUDGET 同源；±20% 容差 = _BUDGET_SLACK）：
+# - 下限缺额 = 硬闸门 section_budget_errors：接入 validate_paper_structure（终稿拒存），
+#   并经 paper_workflow.emit_chapter_gate 做逐章写作断点（写完一章不达标不许进下一章，
+#   逼初稿一次写满，杜绝收尾「一段段补」）；
+# - 上限越界 = W11 预警 section_budget_warnings：只提示删水，不阻断交付。
+_SECTION_BUDGETS = tuple(
+    (row.pattern, row.lo, row.hi, row.note or row.label)
+    for row in SECTION_BUDGET_ROWS
+    if row.pattern is not None
 )
 _BUDGET_SLACK = 1.2
 
 
-def _section_budget_warnings(doc):
+def section_budget_report(doc):
+    """逐章实测字数清单（共享判据）。
+
+    每章区间 = 该章中文序号一级标题段后到下一个一级标题前（小节标题计入字数）；
+    文档中未出现的章节不入列。返回 (name, chars, lo, hi)。
+    """
     paras = [p.text.strip() for p in doc.paragraphs]
     idx = [(i, tx) for i, tx in enumerate(paras) if re.match(r"^[一二三四五六七八九十]+、", tx)]
-    issues = []
-    for pi, (pattern, lo, hi, name) in enumerate(_SECTION_BUDGETS):
+    rows = []
+    for pattern, lo, hi, name in _SECTION_BUDGETS:
         start = next((i for i, tx in idx if re.match(pattern, tx)), None)
         if start is None:
             continue
-        end = next((i for i, tx in idx if i > start and (pi + 1 >= len(_SECTION_BUDGETS) or i < idx[-1][0])), None)
         nxt = next((i for i, tx in idx if i > start), None)
         end = nxt if nxt is not None else len(paras)
         chars = sum(len(x) for x in paras[start + 1:end])
+        rows.append((name, chars, lo, hi))
+    return rows
+
+
+def section_budget_errors(doc):
+    """H：章节预算下限缺额硬闸门——任一预算章低于下限（±20% 容差）即拦。"""
+    issues = []
+    for name, chars, lo, _hi in section_budget_report(doc):
+        if lo is None:
+            continue
+        if chars < lo / _BUDGET_SLACK:
+            issues.append(
+                f"「{name}」约 {chars} 字，低于预算下限 {lo}（±20% 容差）"
+                f"——补实质推导/分析，写满本章再进入下一章，禁止收尾凑字"
+            )
+    return issues
+
+
+def _section_budget_warnings(doc):
+    """W11 超预算预警：各章字数超过上限（±20% 容差）→ 提示删水（不阻断交付）。"""
+    issues = []
+    for name, chars, _lo, hi in section_budget_report(doc):
+        if hi is None:
+            continue
         if chars > hi * _BUDGET_SLACK:
-            issues.append(f"「{name}」约 {chars} 字，超出预算上限 {hi}（±20% 容差）——删减重复表述与空话，向预算表收敛；字数下限由全文 11111 统一兜底")
-        elif chars < lo / _BUDGET_SLACK:
-            issues.append(f"「{name}」约 {chars} 字，低于预算下限 {lo}（±20% 容差）——补实质推导/分析，不要等收尾凑字")
+            issues.append(
+                f"「{name}」约 {chars} 字，超出预算上限 {hi}（±20% 容差）"
+                f"——删减重复表述与空话，向预算表收敛"
+            )
     return issues
 
 
@@ -2158,7 +2304,7 @@ def _enforce_min_issues(doc, counts, limits, body_pages, rendered_pages, require
         errors.append(f'仅 {tables} 个表（不含符号说明表），低于项目交付下限 {limits["min_tables"]}')
     references = counts['references']
     if references and references < CUMCM_MIN_REFERENCES:
-        errors.append(f'仅 {references} 篇参考文献，低于项目交付下限 {CUMCM_MIN_REFERENCES}（须真实且正文对应，近 5 年 ≥60%，中英文混合）')
+        errors.append(f'仅 {references} 篇参考文献，低于项目交付下限 {CUMCM_MIN_REFERENCES}（须真实、正文一一对应且在 results/数据/文献检索.json 有源登记；以近 10 年、中文文献为主）')
     if references and references > CUMCM_MAX_REFERENCES:
         errors.append(f'参考文献 {references} 篇，超过项目建议上限 {CUMCM_MAX_REFERENCES}')
     if rendered_pages is None:
@@ -2570,8 +2716,10 @@ def validate_paper_structure(doc, contest='cumcm', *, quality_checks=True, min_c
     errors.extend(_body_page_issues(body_pages, limits['official_max_pages'], profile.min_body_pages))
     errors.extend(_extra_issues(doc, project_root))
     errors.extend(_object_and_reference_issues(doc, counts['figures'], counts['tables']))
+    errors.extend(_reference_registry_issues(doc.paragraphs, project_root))
     if enforce_min:
         errors.extend(_deep_quality_issues(doc, project_root))
+        errors.extend(section_budget_errors(doc))
         errors.extend(_soft_quality_warnings(doc, project_root))
     errors.extend(_typesetting_issues(doc))
     errors.extend(_font_and_forbidden_issues(doc))

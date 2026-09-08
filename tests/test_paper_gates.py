@@ -567,6 +567,26 @@ def test_section_figure_quota_solve_chapter_needs_figure():
     assert any("求解章缺少结果图" in i for i in issues)
 
 
+def test_emit_chapter_gate_raises_on_under_budget():
+    """逐章断点：任一定稿章低于预算下限即抛错，不许进下一章。"""
+    from tools.docx.core.paper_workflow import emit_chapter_gate
+
+    doc = _doc_with_chapters([("六、模型检验与分析", ["太短了。"])])
+    with pytest.raises(RuntimeError, match="低于预算下限"):
+        emit_chapter_gate(doc)
+
+
+def test_emit_chapter_gate_passes_above_floor():
+    from tools.docx.core.paper_workflow import emit_chapter_gate
+
+    long_text = "检验内容说明。" * 300
+    doc = _doc_with_chapters([("六、模型检验与分析", [long_text])])
+    payload = emit_chapter_gate(doc)
+    assert payload["stage"] == "chapter_gate"
+    assert payload["chapters"] and payload["chapters"][0]["name"] == "模型检验与分析"
+    assert not payload["chapters"][0]["lo"] or payload["chapters"][0]["chars"] >= payload["chapters"][0]["lo"] / 1.2
+
+
 def test_section_budget_over_limit_warns():
     """章节字数超预算上限（W10 双向约束）→ 预警删减。"""
     from tools.docx.core.structure_validation import _section_budget_warnings
@@ -577,12 +597,18 @@ def test_section_budget_over_limit_warns():
     assert any("超出预算上限" in i and "模型检验" in i for i in issues)
 
 
-def test_section_budget_under_limit_warns():
-    from tools.docx.core.structure_validation import _section_budget_warnings
+def test_section_budget_under_limit_is_hard_error():
+    from tools.docx.core.structure_validation import (
+        _section_budget_warnings,
+        section_budget_errors,
+    )
 
     doc = _doc_with_chapters([("六、模型检验与分析", ["太短了。"])])
-    issues = _section_budget_warnings(doc)
-    assert any("低于预算下限" in i for i in issues)
+    issues = section_budget_errors(doc)
+    assert any("低于预算下限" in i and "模型检验" in i for i in issues)
+    # 缺额已从 W 预警升级为硬闸门：同一缺额不得再以预警形式重复报
+    warns = _section_budget_warnings(doc)
+    assert not any("低于预算下限" in i for i in warns)
 
 
 def test_result_figure_issues_reports_unused_image(tmp_path):

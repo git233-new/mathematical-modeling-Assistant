@@ -115,11 +115,18 @@ Outputs:
 
 
 def sync_shared_runtime(scripts_dir: Path, *, overwrite: bool) -> list[Path]:
-    """将公共绘图运行时复制到模板脚本旁边。"""
-    skill_scripts = Path(__file__).resolve().parent
+    """将共享出图模块复制到模板脚本旁边。
+
+    mm_style 与模板同目录（templates/）；figure_safety 仍在 runtime/。
+    模板脚本直接运行时会从自身目录 import mm_style，故复刻目录里两者都必须就位。
+    """
+    runtime_dir = Path(__file__).resolve().parent
+    sources = {
+        "mm_style.py": runtime_dir.parent / "templates" / "mm_style.py",
+        "figure_safety.py": runtime_dir / "figure_safety.py",
+    }
     copied: list[Path] = []
-    for name in ("mm_style.py", "figure_safety.py"):
-        source = skill_scripts / name
+    for name, source in sources.items():
         if not source.is_file():
             continue
         target = scripts_dir / name

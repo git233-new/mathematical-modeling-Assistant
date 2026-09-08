@@ -728,6 +728,60 @@ def _validate_figure_caption_seq(doc, caption):
         )
 
 
+# 图号权威 = DOCX 正文题注（CAPTION_STYLE）。绘图脚本若在 set_title/suptitle/text
+# 内再写 "图N …"（含 f"图{...}"），渲染后图内文字与 DOCX 题注重复。逐像素反查
+# PNG 不可行，改为扫描生成脚本的可疑调用并作硬闸门，杜绝图注重复。
+_EMBEDDED_TITLE_CALL = re.compile(
+    r'\.(?:set_title|suptitle)\(\s*[fF]?["\'](?:\{[^{}]*\})?\s*图\s*(\d|\{)'
+)
+_EMBEDDED_TEXT_CALL = re.compile(r'\.text\([^)\n]*?["\']\s*图\s*(\d|\{)')
+_EMBEDDED_SCRIPT_DIRS = ('code', '.paper_work')
+
+
+def _scan_embedded_caption_hits(path):
+    """返回该脚本内嵌"图N"题注的命中描述列表（文件级，不重复计数同一行）。"""
+    try:
+        text = path.read_text(encoding='utf-8')
+    except (OSError, UnicodeDecodeError):
+        return []
+    hits = []
+    for pattern, kind in ((_EMBEDDED_TITLE_CALL, 'set_title/suptitle'),
+                          (_EMBEDDED_TEXT_CALL, 'text')):
+        for m in pattern.finditer(text):
+            line = text.count('\n', 0, m.start()) + 1
+            snippet = ' '.join(text[m.start():m.end()].split())[:48]
+            hits.append(
+                f'{path} L{line}：绘图{kind}内嵌图号 "{snippet}…"'
+            )
+    # 同一行多个调用只报一次
+    seen = set()
+    return [h for h in hits if not (h in seen or seen.add(h))]
+
+
+def _embedded_figure_caption_errors(project_root):
+    """扫描项目绘图脚本，返回图内嵌图号（与 DOCX 题注重复）的硬错误。
+
+    覆盖 code/、.paper_work/ 与项目根目录的 *.py；命中即拒绝交付。
+    """
+    project = Path(project_root).resolve()
+    if not project.is_dir():
+        return []
+    scripts = []
+    for sub in _EMBEDDED_SCRIPT_DIRS:
+        scripts_dir = project / sub
+        if scripts_dir.is_dir():
+            scripts.extend(sorted(scripts_dir.glob('*.py')))
+    scripts.extend(sorted(project.glob('*.py')))
+    errors = []
+    for script in scripts:
+        for hit in _scan_embedded_caption_hits(script):
+            errors.append(
+                f'绘图脚本图注重复：{hit}——图号只写正文题注，'
+                f'图内标题去掉「图N」前缀改纯描述（如"转化率随温度变化"）'
+            )
+    return errors
+
+
 def _validate_abstract_at_keywords(doc):
     abs_start = None
     abs_end = None
@@ -1199,7 +1253,8 @@ def save_document(
     ensure_page_numbers(doc)
     force_black_fonts(doc)
     sweep_count = len(auto_clean_code(project))
-    issues = validate_paper_structure(doc, contest, require_rendered_pages=False, project_root=project)
+    issues = _embedded_figure_caption_errors(project)
+    issues += validate_paper_structure(doc, contest, require_rendered_pages=False, project_root=project)
     hard_errors = [i for i in issues if not i.startswith('预警：')]
     warnings = [w for w in issues if w.startswith('预警：')]
     if warnings:
@@ -1287,6 +1342,9 @@ def progress_snapshot(doc, stage='writing', rendered_pages=None):
 def emit_progress(doc, stage='writing', rendered_pages=None, stream=None):
     from .paper_workflow import emit_progress as _emit_progress
     return _emit_progress(doc, stage, rendered_pages, stream)
+def emit_chapter_gate(doc, stream=None):
+    from .paper_workflow import emit_chapter_gate as _emit_chapter_gate
+    return _emit_chapter_gate(doc, stream)
 if __name__ == '__main__':
     doc = new_document()
     title(doc, '论文题目')

@@ -22,16 +22,23 @@ _TEMPLATE = _TEMPLATES / "make_urban_park_cooling_combo.py"
 
 
 def _load_module() -> object:
-    spec = importlib.util.spec_from_file_location("make_urban_park_cooling_combo", _TEMPLATE)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    sys.path.insert(0, str(_TEMPLATES))
+    try:
+        spec = importlib.util.spec_from_file_location("make_urban_park_cooling_combo", _TEMPLATE)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        try:
+            sys.path.remove(str(_TEMPLATES))
+        except ValueError:
+            pass
 
 
-def _load_script_module(name: str) -> object:
-    path = _RUNTIME / f"{name}.py"
+def _load_script_module(name: str, base: Path | None = None) -> object:
+    path = (base or _RUNTIME) / f"{name}.py"
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -62,7 +69,7 @@ def test_verify_outputs_exist_detects_missing() -> None:
 
 
 def test_publication_helpers_export_and_validate_shapes() -> None:
-    style = _load_script_module("mm_style")
+    style = _load_script_module("mm_style", _TEMPLATES)
     style.bootstrap()
     style.apply_publication_style()
 
@@ -139,7 +146,9 @@ def test_render_template_syncs_shared_runtime(tmp_path: Path) -> None:
 
 def test_figure_layout_is_single_chain() -> None:
     root = _REPO / "tools" / "figure"
-    assert (root / "runtime" / "mm_style.py").is_file()
+    # mm_style 与模板同目录：模板直接运行即可 from mm_style import，不再依赖 runtime 目录 hack
+    assert (root / "templates" / "mm_style.py").is_file()
+    assert not (root / "runtime" / "mm_style.py").exists()
     assert (root / "runtime" / "render_template.py").is_file()
     assert (root / "templates" / "make_paired_raincloud.py").is_file()
     assert (root / "references" / "nature-figure-contract.md").is_file()

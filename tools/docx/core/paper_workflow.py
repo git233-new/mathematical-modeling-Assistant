@@ -7,7 +7,15 @@ from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
 from lxml import etree
-CONTENT_BUDGET = {'摘要（含关键词）': {'characters': '800-900', 'pages': '1'}, '问题重述': {'characters': '800-1000', 'pages': '1-1.5'}, '问题分析': {'characters': '1000-1200', 'pages': '1.5'}, '模型假设': {'characters': '300-600', 'pages': '0.5 以内'}, '符号说明': {'characters': '表格为主，不按正文凑字', 'pages': '0.3-0.5'}, '模型建立（5.x）': {'characters': '5000-6000', 'pages': '8-10'}, '灵敏度/检验': {'characters': '1300-1500', 'pages': '3-4'}, '优缺点/推广': {'characters': '800-1000', 'pages': '1'}, '参考文献': {'characters': '300', 'pages': '0.5'}, '附录': {'characters': '按最终源码实际长度', 'pages': '不设项目自定义上限'}, '合计': {'characters': '见论文写作.md项目交付下限表', 'pages': '总 30–45 页（正文 20–30，其余为附录/参考文献）'}}
+
+# 预算表单一事实来源：contest_profile.SECTION_BUDGET_ROWS（与 structure_validation
+# W11 的 _SECTION_BUDGETS 同源；展示文本与 文档/论文写作.md §1.2 逐行镜像）。
+from .contest_profile import SECTION_BUDGET_ROWS as _SECTION_BUDGET_ROWS
+
+CONTENT_BUDGET = {
+    row.label: {'characters': row.chars, 'pages': row.pages}
+    for row in _SECTION_BUDGET_ROWS
+}
 def _paper_format():
     try:
         from . import paper_format as pf
@@ -216,6 +224,28 @@ def emit_progress(doc, stage='writing', rendered_pages=None, stream=None):
     snapshot = progress_snapshot(doc, stage, rendered_pages)
     print(json.dumps(snapshot, ensure_ascii=True), file=stream, flush=True)
     return snapshot
+def emit_chapter_gate(doc, stream=None):
+    """逐章预算下限硬断点：写完一章、新开下一中文序号一级章前调用。
+
+    任一已写预算章字数低于预算下限（±20% 容差）即抛错 = 不许进入下一章，
+    须给缺额章补实质内容（机理/推导/结果分析），逼初稿一次写满、禁止收尾凑字。
+    通过时打印逐章字数清单供观察。摘要无独立标题 pattern，不入逐章闸门，
+    由全文 11111 与首页字数覆盖。
+    """
+    from .structure_validation import (
+        section_budget_errors as _section_budget_errors,
+        section_budget_report as _section_budget_report,
+    )
+    stream = stream or sys.stderr
+    rows = [dict(zip(('name', 'chars', 'lo', 'hi'), row)) for row in _section_budget_report(doc)]
+    payload = {'stage': 'chapter_gate', 'chapters': rows}
+    issues = _section_budget_errors(doc)
+    if issues:
+        payload['issues'] = issues
+        print(json.dumps(payload, ensure_ascii=True), file=stream, flush=True)
+        raise RuntimeError('\n'.join(issues))
+    print(json.dumps(payload, ensure_ascii=True), file=stream, flush=True)
+    return payload
 def _paragraph_text(element):
     return ''.join((node.text or '' for node in element.iter(qn('w:t')))).strip()
 def _classify_paragraph(text):

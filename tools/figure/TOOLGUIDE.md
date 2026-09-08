@@ -43,7 +43,7 @@ python tools/figure/runtime/render_template.py --list
 项目固定使用 Python + matplotlib/seaborn；不再引入 R 绘图后端。需要优化论文图件时，先读
 `references/nature-figure-contract.md`，明确核心结论、面板证据链、数据契约和导出契约。
 
-共享样式入口在 `runtime/mm_style.py`：
+共享样式入口在 `templates/mm_style.py`（与绘图模板同目录，模板直接 `from mm_style import ...`，无需运行时路径 hack）：
 
 - `apply_publication_style()`：紧凑出版级样式，保留国赛中文字体和 300 DPI 基线；
 - `add_panel_label()`：稳定的多面板标签；

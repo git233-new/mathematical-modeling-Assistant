@@ -27,6 +27,10 @@ _HARD_PATTERNS = {
         r"^\s*(?:from|import)\s+(?:tools(?:\.|\s|$)|mm_style\b)",
         re.MULTILINE,
     ),
+    # IDE 工作区目录/托管根：赛题独立复现路径不得依赖 .codebuddy 内部数据
+    "引用了 .codebuddy 工作区目录": re.compile(r"\b\.codebuddy\b"),
+    # skill 根环境变量：交付代码读取它即回到"依赖 skill 安装位置"的机器迁移陷阱
+    "引用了 MATH_MODELING_SKILL_ROOT": re.compile(r"MATH_MODELING_SKILL_ROOT"),
     "调用 configure_chinese_style(应就地设置 plt.rcParams)": re.compile(
         r"\bconfigure_chinese_style\b"
     ),
