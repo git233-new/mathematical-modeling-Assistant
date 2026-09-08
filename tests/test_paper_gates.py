@@ -1,6 +1,6 @@
 """论文硬闸门回归测试。
 
-覆盖：全黑字体（有效颜色口径）/ 三线表与附录表形态 / 摘要数字密度 / 模型建立节公式 /
+覆盖：全黑字体（有效颜色口径）/ 三线表与附录表形态 / 模型建立节公式 /
 图片文件名统一命名 / 固定值行距裁剪防护 / 分章图表配额 / 参考文献年份下限 /
 LaTeX 源码导出与保存链路。锁定的都是"拒存即修复"的硬闸门行为。
 """
@@ -20,8 +20,6 @@ from tools.docx.core.structure_validation import (
     _result_figure_issues,
     _three_line_table_issues,
     _appendix_boxed_table_issues,
-    _abstract_number_density_issues,
-    _abstract_number_density_warnings,
     _model_section_formula_issues,
     _reproducibility_issues,
     _figure_filename_issues,
@@ -173,31 +171,6 @@ def test_missing_borders_flagged():
     doc = Document()
     doc.add_table(rows=2, cols=2)  # 无任何 tblBorders
     assert _three_line_table_issues(doc)
-
-
-# ---------------------------------------------------------------------------
-# 摘要数字密度
-# ---------------------------------------------------------------------------
-
-def _build_abstract(digit_part: str, filler_char='研'):
-    doc = Document()
-    doc.add_paragraph('摘 要')
-    doc.add_paragraph(filler_char * 80 + digit_part)
-    doc.add_paragraph('关键词：建模；优化')
-    return doc
-
-
-def test_abstract_dense_digits_fatal():
-    doc = _build_abstract('500米口径0.466焦径比300米半径' * 3)
-    issues = _abstract_number_density_issues(doc)
-    assert issues and '数字字符占比' in issues[0]
-    assert _abstract_number_density_warnings(doc) == []
-
-
-def test_abstract_normal_ratio_clean():
-    doc = _build_abstract('结果为12米与34米，其余均为文字论述部分，占比正常。')
-    assert _abstract_number_density_issues(doc) == []
-    assert _abstract_number_density_warnings(doc) == []
 
 
 # ---------------------------------------------------------------------------

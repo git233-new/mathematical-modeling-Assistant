@@ -7,7 +7,7 @@ from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
 from lxml import etree
-CONTENT_BUDGET = {'摘要（含关键词）': {'characters': '700-800', 'pages': '1'}, '问题重述': {'characters': '800-1000', 'pages': '1-1.5'}, '问题分析': {'characters': '1000-1200', 'pages': '1.5'}, '模型假设': {'characters': '300-600', 'pages': '0.5 以内'}, '符号说明': {'characters': '表格为主，不按正文凑字', 'pages': '0.3-0.5'}, '模型建立（5.x）': {'characters': '5000-6000', 'pages': '8-10'}, '灵敏度/检验': {'characters': '1300-1500', 'pages': '3-4'}, '优缺点/推广': {'characters': '800-1000', 'pages': '1'}, '参考文献': {'characters': '300', 'pages': '0.5'}, '附录': {'characters': '按最终源码实际长度', 'pages': '不设项目自定义上限'}, '合计': {'characters': '见论文写作.md项目交付下限表', 'pages': '总 30–45 页（正文 20–30，其余为附录/参考文献）'}}
+CONTENT_BUDGET = {'摘要（含关键词）': {'characters': '800-900', 'pages': '1'}, '问题重述': {'characters': '800-1000', 'pages': '1-1.5'}, '问题分析': {'characters': '1000-1200', 'pages': '1.5'}, '模型假设': {'characters': '300-600', 'pages': '0.5 以内'}, '符号说明': {'characters': '表格为主，不按正文凑字', 'pages': '0.3-0.5'}, '模型建立（5.x）': {'characters': '5000-6000', 'pages': '8-10'}, '灵敏度/检验': {'characters': '1300-1500', 'pages': '3-4'}, '优缺点/推广': {'characters': '800-1000', 'pages': '1'}, '参考文献': {'characters': '300', 'pages': '0.5'}, '附录': {'characters': '按最终源码实际长度', 'pages': '不设项目自定义上限'}, '合计': {'characters': '见论文写作.md项目交付下限表', 'pages': '总 30–45 页（正文 20–30，其余为附录/参考文献）'}}
 def _paper_format():
     try:
         from . import paper_format as pf
@@ -163,8 +163,8 @@ def _manifest_and_abstract_issues(source, issues):
     abstract_units = _metric(source, 'abstract_units', 'abstract_characters')
     if abstract_units is None:
         abstract_units = abstract_data.get('units', abstract_data.get('characters'))
-    if abstract_units is not None and (not 700 <= int(abstract_units) <= 800):
-        issues.append(f'摘要预计 {abstract_units} 字，建议控制在 700-800 字')
+    if abstract_units is not None and (not 800 <= int(abstract_units) <= 900):
+        issues.append(f'摘要预计 {abstract_units} 字，建议控制在 800-900 字')
     return abstract_page, abstract_units
 
 

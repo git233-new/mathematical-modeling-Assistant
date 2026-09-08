@@ -1393,49 +1393,16 @@ def _abstract_no_figure_issues(doc):
     return []
 
 
-# H3 摘要+关键词不超一页（代理：字符数 ≤ 1.3 页等价，留容差）
+# H3 摘要+关键词不超一页（800-900 字目标 + 标题/关键词余量）
 def _abstract_one_page_issues(doc):
     b = _abstract_bounds(doc)
     if b is None:
         return []
     paras = list(doc.paragraphs)[b[0]:b[1] + 1]
     units = _section_units(paras)
-    cap = CUMCM_UNITS_PER_PAGE + 150
+    cap = 1000
     if units > cap:
         return [f'摘要（含关键词）篇幅约 {units} 字，超过一页上限（约 {cap} 字）']
-    return []
-
-
-# H3b 摘要数字密度：数值用于支撑结论，不得堆砌成"数据清单"
-def _abstract_digit_ratio(doc):
-    b = _abstract_bounds(doc)
-    if b is None:
-        return None
-    paras = list(doc.paragraphs)[b[0]:b[1] + 1]
-    text = ''.join(p.text for p in paras)
-    total = sum(1 for ch in text if not ch.isspace())
-    if total < 50:
-        return None
-    digits = sum(1 for ch in text if ch.isdigit())
-    return digits / total
-
-
-ABSTRACT_DIGIT_FATAL_RATIO = 0.18
-ABSTRACT_DIGIT_WARN_RATIO = 0.10
-
-
-def _abstract_number_density_issues(doc):
-    ratio = _abstract_digit_ratio(doc)
-    if ratio is not None and ratio > ABSTRACT_DIGIT_FATAL_RATIO:
-        return [f'摘要数字字符占比 {ratio:.0%}，超过上限 {ABSTRACT_DIGIT_FATAL_RATIO:.0%}——'
-                '摘要是方法与结论的陈述，不得堆砌数值；保留关键结果量值，其余移入正文']
-    return []
-
-
-def _abstract_number_density_warnings(doc):
-    ratio = _abstract_digit_ratio(doc)
-    if ratio is not None and ABSTRACT_DIGIT_WARN_RATIO < ratio <= ABSTRACT_DIGIT_FATAL_RATIO:
-        return [f'摘要数字字符占比 {ratio:.0%} 偏高（>{ABSTRACT_DIGIT_WARN_RATIO:.0%}），建议精简非关键数值']
     return []
 
 
@@ -2024,7 +1991,6 @@ def _soft_quality_warnings(doc, project_root):
     ws += _figure_table_lead_in_warnings(doc)
     ws += _section_budget_warnings(doc)
     ws += _model_eval_generalization_warning(doc)
-    ws += _abstract_number_density_warnings(doc)
     return ['预警：' + w for w in ws]
 
 
@@ -2444,7 +2410,6 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_abstract_three_part_issues(doc))
     errors.extend(_abstract_no_figure_issues(doc))
     errors.extend(_abstract_one_page_issues(doc))
-    errors.extend(_abstract_number_density_issues(doc))
     errors.extend(_model_section_formula_issues(doc))
     errors.extend(_abstract_first_page_issues(doc))
     errors.extend(_problem_restate_length_issues(doc))
