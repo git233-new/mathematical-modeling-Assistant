@@ -1799,7 +1799,7 @@ def _plagiarism_warnings(doc, project_root, corpus_dir=None):
             shingle = text[i:i + _PLAGIARISM_SHINGLE]
             if shingle in corpus_shingles and shingle not in seen:
                 seen.add(shingle)
-                issues.append(f'正文与优秀论文案例库存在连续 {_PLAGIARISM_SHINGLE} 字雷同：「{shingle[:30]}…」——只可迁移方法，文字必须重写（铁律 3/6）')
+                issues.append(f'正文与登记语料（案例库/网查文献）存在连续 {_PLAGIARISM_SHINGLE} 字雷同：「{shingle[:30]}…」——只可迁移方法，文字必须重写（铁律 3/6）')
                 break
     return issues
 
