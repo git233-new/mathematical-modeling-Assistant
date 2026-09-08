@@ -88,8 +88,15 @@ EXPECTED_TESTS = {
     },
     "tests/test_regressions.py": {
         "test_paper_quality_gate_rejects_short_rendered_paper",
-        "test_input_bundle_separates_questions_from_attachments",
         "test_self_check_docx_option_reports_template_tone",
+    },
+    "tests/test_ingestion.py": {
+        "test_input_bundle_separates_questions_from_attachments",
+        "test_case_retrieval_bounded_csv_read",
+    },
+    "tests/test_sync_contracts.py": {
+        "test_forbidden_words_doc_matches_code",
+        "test_cleanup_whitelist_doc_matches_code",
     },
 }
 
@@ -250,7 +257,7 @@ def main() -> int:
     required = (
         "README.md", "SKILL.md", "requirements.txt",
         "文档/代码规范.md", "文档/论文评审.md",
-        "文档/论文写作.md", "文档/合规检查清单.md",
+        "文档/论文写作.md", "知识库/写作增强/七轮自审框架.md",
     )
     for item in required:
         if not (ROOT / item).exists():

@@ -4,19 +4,12 @@ import json
 from docx.oxml.ns import qn
 import pathlib
 import sys
-import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 from docx import Document
 
-from tools.project_ops.case_retrieval import (
-    discover_attachments,
-    discover_problem_files,
-    load_input_bundle,
-)
-from tools.common.io_utils import safe_extract_zip
 from tools.docx.core import paper_format
 from tools.docx.core.structure_validation import _plot_pitfall_warnings
 from tools.docx.core import paper_workflow
@@ -28,46 +21,6 @@ from tools.paper_search.scripts.hybrid_scholar import (
 from tools.paper_search.scripts.openalex_scholar import Paper
 from tools.pdf.scripts.convert_pdf_to_images import convert
 from tools.xlsx.scripts.recalc import recalc
-
-
-def test_input_bundle_separates_questions_from_attachments(tmp_path: Path):
-    question = tmp_path / "题目.pdf"
-    data = tmp_path / "附件.csv"
-    question.write_bytes(b"%PDF-test")
-    data.write_text("x,y\n1,2\n", encoding="utf-8")
-
-    assert discover_problem_files(tmp_path) == [question]
-    assert discover_attachments(tmp_path) == [data]
-
-    bundle = load_input_bundle(tmp_path)
-    assert bundle["question_files"] == [question]
-    assert [item["path"] for item in bundle["attachments"]] == [data]
-    assert bundle["attachments"][0]["data"] == [["x", "y"], ["1", "2"]]
-
-
-def test_input_bundle_large_csv_reports_count_without_full_materialization(tmp_path: Path):
-    (tmp_path / "题目.pdf").write_bytes(b"%PDF-test")  # 赛题目录需含题目文件
-    rows = [f"a{i},b{i}" for i in range(5000)]
-    (tmp_path / "big.csv").write_text(
-        "col1,col2\n" + "\n".join(rows) + "\n", encoding="utf-8"
-    )
-
-    bundle = load_input_bundle(tmp_path)
-    item = bundle["attachments"][0]
-
-    # 行数/列信息齐全，可用于案例检索
-    assert item["row_count"] == 5001
-    assert item["column_count"] == 2
-    assert item["columns"] == ["col1", "col2"]
-    # 但只保留有界预览，不把整张大表读入内存
-    assert len(item["data"]) <= 200
-
-
-def test_input_bundle_requires_a_question_file(tmp_path: Path):
-    (tmp_path / "data.csv").write_text("x\n1\n", encoding="utf-8")
-
-    with pytest.raises(ValueError, match="未找到 PDF、DOCX 或文本题目文件"):
-        discover_problem_files(tmp_path)
 
 
 def test_hybrid_paper_is_json_serializable():
@@ -531,19 +484,6 @@ def test_manifest_does_not_require_source_script_mtime_during_run(tmp_path: Path
     issues = paper_format._run_manifest_issues(Document(), project)
 
     assert not any("生成脚本修改时间不在本次运行区间" in issue for issue in issues)
-
-
-def test_safe_extract_zip_rejects_path_traversal(tmp_path: Path):
-    payload = io.BytesIO()
-    with zipfile.ZipFile(payload, "w") as archive:
-        archive.writestr("../outside.txt", "blocked")
-    payload.seek(0)
-
-    with zipfile.ZipFile(payload) as archive:
-        with pytest.raises(ValueError, match="越出目标目录"):
-            safe_extract_zip(archive, tmp_path / "out")
-
-    assert not (tmp_path / "outside.txt").exists()
 
 
 def test_pdf_conversion_creates_output_directory(tmp_path: Path):

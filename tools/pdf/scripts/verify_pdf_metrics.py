@@ -29,6 +29,9 @@ def verify(
     key_numbers: tuple[str, ...] = (),
     right_margin_cm: float = DEFAULT_RIGHT_MARGIN_CM,
 ) -> int:
+    if not pdf_path.is_file():
+        print(f"PDF 不存在: {pdf_path}")
+        return 2
     doc = fitz.open(pdf_path)
     warnings = 0
 

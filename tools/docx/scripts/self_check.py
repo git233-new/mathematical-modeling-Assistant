@@ -242,7 +242,7 @@ def check_gate_sync():
     assert str(fmt.get_profile("cumcm").min_body_pages) == "20"
     assert "total_page_shortage" not in fmt.progress_snapshot(fmt.new_document())
     stale = re.compile(r"(?:≤28 页|总页.*≥30|参考文献.*≤6|13000|图.?≥.?8|公式.?≥.?5|≥8 篇|≥6 篇作下限)")
-    for path in ["SKILL.md", "文档/合规检查清单.md", "知识库/方法库/质检清单.md", "文档/论文评审.md"]:
+    for path in ["SKILL.md", "知识库/写作增强/七轮自审框架.md", "知识库/方法库/质检清单.md", "文档/论文评审.md"]:
         assert not stale.search((ROOT / path).read_text(encoding="utf-8")), path
     writing_rules = (ROOT / "文档" / "论文写作.md").read_text(encoding="utf-8")
     assert "完整论文.docx" in writing_rules

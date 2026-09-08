@@ -1,11 +1,10 @@
-"""命名契约与 SPSS 强制逻辑回归测试。
+# -*- coding: utf-8 -*-
+"""跨文件同步契约测试：文档↔代码一致性 + 命名契约 + SPSS 强制逻辑。
 
-覆盖 2026-08 修复：
-- append_code_files 只渲染附录A 支撑材料清单（代码不入论文，本体保留 code/）
-- load_spss_outputs 的 required=true 强制（漏填抛 ValueError）
-- _appendix_size_issues 附录必须含附录A 支撑材料清单（空附录/纯文字附录均拒存）
+合并自 test_doc_code_sync.py + test_naming_contract.py。
 """
 import json
+import re
 import sys
 import pathlib
 
@@ -16,9 +15,81 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 
-from tools.docx.core.paper_format import append_code_files, HEADING3_STYLE
+from tools.docx.core.paper_format import append_code_files, FORBIDDEN_WORDS, HEADING3_STYLE
 from tools.docx.core.result_contract import load_spss_outputs
 from tools.docx.core.structure_validation import _appendix_size_issues
+from tools.project_ops.project_cleanup import CODE_KEEP_RE, DATA_ALWAYS_KEEP
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def _read(rel):
+    return (ROOT / rel).read_text(encoding="utf-8")
+
+
+# ── 文档↔代码同步 ──────────────────────────────────────────────
+
+
+class TestForbiddenWordsSync:
+    def test_forbidden_words_doc_matches_code(self):
+        from tools.docx.core.paper_format import FORBIDDEN_WORDS as fw
+
+        guide = _read("知识库/写作增强/去AI味指南.md")
+        block = guide[guide.find("**硬闸门禁用词"):]
+        block = block[:block.find("\n\n")]
+        doc_words = set()
+        for line in block.splitlines():
+            if line.startswith("- "):
+                for word in line.split("：", 1)[-1].split("、"):
+                    word = word.strip()
+                    if word:
+                        doc_words.add(word)
+        assert doc_words, "去AI味指南硬闸门词表解析为空（格式漂移）"
+        code_words = set(fw)
+        assert {w.lower() for w in doc_words} <= {w.lower() for w in code_words}, (
+            f"文档列出的禁用词不在代码中: {sorted(doc_words - code_words)}")
+        doc_lower = {w.lower() for w in doc_words}
+        missing = {w for w in code_words if w.lower() not in doc_lower}
+        assert not missing, f"代码禁用词未写入去AI味指南: {sorted(missing)}"
+        soft = {"我们", "本文", "该模型", "本研究"}
+        assert not (soft & code_words), f"口语主语词重新混入硬闸门: {soft & code_words}"
+
+
+class TestCleanupWhitelistSync:
+    def test_cleanup_whitelist_doc_matches_code(self):
+        literal_names = [
+            "Q<序号>.py", "Q<序号>_<描述>.py", "solve_common.py", "viz.py",
+            "requirements.txt",
+        ]
+        for doc_rel in ("SKILL.md", "文档/代码规范.md"):
+            text = _read(doc_rel)
+            for name in literal_names:
+                assert name.replace("<序号>", "") in text.replace("<序号>", "") or name in text, (
+                    f"{doc_rel} 缺少白名单项描述: {name}")
+        for sample in ("Q1.py", "Q1_求解.py", "solve_common.py", "viz.py", "requirements.txt"):
+            assert CODE_KEEP_RE.match(sample), f"CODE_KEEP_RE 未覆盖文档承诺项: {sample}"
+
+    def test_toolchain_json_whitelist_doc_matches_code(self):
+        code_spec = _read("文档/代码规范.md")
+        for name in sorted(DATA_ALWAYS_KEEP):
+            assert name in code_spec, f"代码规范.md 未登记工具链 json: {name}"
+        assert "run_manifest.json" in code_spec
+
+
+class TestIronRules:
+    def test_single_skill_entry_point(self):
+        assert sorted(p.name for p in ROOT.glob("SKILL.md")) == ["SKILL.md"]
+        assert not list(ROOT.glob("tools/*/SKILL.md")), "嵌套 SKILL.md 会再次导致导入分散"
+
+    def test_iron_rule_numbering_stable(self):
+        skill = _read("SKILL.md")
+        assert "7. **硬软分层" in skill
+        assert "8. **结果真实可复现" in skill
+        for ref in ("文档/论文写作.md", "知识库/建模增强/证据可复现审计.md"):
+            assert re.search(r"铁律\s*5?/?8", _read(ref)), f"{ref} 的铁律引用编号漂移"
+
+
+# ── 命名契约 + SPSS 强制 ──────────────────────────────────────
 
 
 def _mk_doc():
@@ -54,7 +125,7 @@ class TestAppendCodeFilesAppendixAOnly:
         assert not any('附录B' in h or '附录C' in h for h in headings)
         assert not any('核心代码' in h for h in headings)
         assert not any(h.endswith('.py') for h in headings)
-        assert not doc.tables  # 无代码表
+        assert not doc.tables
 
     def test_manifest_scripts_listed_in_support_materials(self, tmp_path):
         code = tmp_path / "code"
