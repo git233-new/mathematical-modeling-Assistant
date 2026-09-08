@@ -2058,20 +2058,26 @@ _EVAL_NUMBER_RE = re.compile(
     r'|[一二三四五六七八九十]+[.．、]'
     r')'
 )
+# 7.1 / 7.2 等二级子标题行（如"7.1 优点"）
+_EVAL_X_Y_RE = re.compile(r'^\s*\d+[.．]\d+\s+\S')
+_EVAL_PRO_KEYWORDS = ('优点', '优势', '长处')
+_EVAL_CONS_KEYWORDS = ('局限', '不足', '缺点', '劣势', '改进', '推广', '扩展', '延伸', '迁移')
+MIN_EVAL_PROS_ITEMS = 5
+MIN_EVAL_CONS_ITEMS = 4
 
 
 def _model_eval_bullet_format_issues(doc):
-    """模型评价章节分点作答硬闸门：须使用编号列表分点陈述，不得写成连续大段。
+    """模型评价章节逐条编号硬闸门（与模型假设 H8、符号说明 H10/H11 同纪律）。
 
-    格式要求（见 七轮自审框架 §2 / §H）：
-    - 优点 3-5 条、局限与改进 2-4 条
-    - 每点 1-2 句，紧凑编号列表
-    - 避免大段叙述
+    条数要求（见 文档/论文写作.md §七、文档/七轮自审框架.md §H）：
+    - 7.1 优点 5-7 条、7.2 局限与改进 4-6 条
+    - 每条 1-2 句指向具体设计/边界
 
     检测逻辑：
-    - 章节内 ≥3 个段落以编号开头 → 通过
-    - 或同时出现"优点"和"局限"关键词 → 通过（内容分块证据）
-    - 否则 → 拒存
+    - 整节唯一正文形态 = 7.x 子标题 + 编号条目；出现任何非编号正文段即
+      视为禁止的"大段话"，拒存（与模型假设、符号说明"不写解释长段"同纪律）。
+    - 按子标题分区计数：含"优点/优势/长处"的 7.x 下编号条目 ≥5；含
+      "局限/不足/缺点/改进/推广"等的 7.x（及后续分区）下编号条目 ≥4。
     """
     paras = [p.text.strip() for p in doc.paragraphs]
     start = next(
@@ -2089,26 +2095,43 @@ def _model_eval_bullet_format_issues(doc):
     section_paras = paras[start + 1:end]
     if not section_paras:
         return ['「模型评价」章节为空']
-    numbered_count = sum(1 for tx in section_paras if _EVAL_NUMBER_RE.match(tx))
-    if numbered_count >= 3:
-        return []
-    section_text = ''.join(section_paras)
-    has_pros = '优点' in section_text or '优势' in section_text
-    has_cons = '局限' in section_text or '不足' in section_text or '缺点' in section_text
-    if has_pros and has_cons:
-        return []
-    long_paras = [tx for tx in section_paras if len(tx) > 100]
-    if len(long_paras) >= 2 and numbered_count < 3:
-        return [
-            '「模型评价」须分点分段作答（优点 3-5 条、局限与改进 2-4 条，'
-            '每条 1-2 句，用紧凑编号列表），不得写成连续大段叙述'
-        ]
-    if numbered_count < 3 and not (has_pros or has_cons):
-        return [
-            '「模型评价」须分点分段作答（优点 3-5 条、局限与改进 2-4 条，'
-            '每条 1-2 句，用紧凑编号列表），并明确区分优点与局限'
-        ]
-    return []
+    pros_count = cons_count = 0
+    side = None  # 'pros' | 'cons'
+    stray = []
+    for tx in section_paras:
+        if not tx:
+            continue
+        if _EVAL_X_Y_RE.match(tx):
+            # 二级子标题：按关键词切换计数分区（无匹配的 7.x 沿用当前分区）
+            if any(k in tx for k in _EVAL_PRO_KEYWORDS):
+                side = 'pros'
+            elif any(k in tx for k in _EVAL_CONS_KEYWORDS):
+                side = 'cons'
+            continue
+        if _EVAL_NUMBER_RE.match(tx):
+            if side == 'cons':
+                cons_count += 1
+            else:
+                pros_count += 1
+            continue
+        stray.append(tx)
+    issues = []
+    if stray:
+        issues.append(
+            '「模型评价」小节出现非编号正文段：本节只保留 7.1 优点 / 7.2 局限与改进'
+            '两个紧凑编号列表（与模型假设、符号说明同纪律），不要再写介绍/总结等大段话'
+        )
+    if pros_count < MIN_EVAL_PROS_ITEMS:
+        issues.append(
+            f'7.1 优点仅 {pros_count} 条编号条目（最低 {MIN_EVAL_PROS_ITEMS} 条，'
+            f'目标 5-7 条），每条 1-2 句指向具体设计/边界'
+        )
+    if cons_count < MIN_EVAL_CONS_ITEMS:
+        issues.append(
+            f'7.2 局限与改进仅 {cons_count} 条编号条目（最低 {MIN_EVAL_CONS_ITEMS} 条，'
+            '目标 4-6 条），每条 1-2 句落到具体假设/数据/计算边界与改进动作'
+        )
+    return issues
 
 
 _GENERALIZATION_KEYWORDS = re.compile(r'推广|应用(?:场景|前景|范围)?|扩展|迁移|适用|泛化')

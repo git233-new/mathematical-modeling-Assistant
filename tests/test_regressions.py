@@ -1207,3 +1207,36 @@ def test_subquestion_completeness():
     assert '变量设定' in issues[0]
     assert '数学公式' in issues[0]
     assert '求解' in issues[0]
+
+
+def test_model_eval_gate_requires_pros5_cons4_and_no_prose():
+    """模型评价闸门：优点 ≥5、局限与改进 ≥4 逐条编号；非编号大段拒存。"""
+    from tools.docx.core.structure_validation import _model_eval_bullet_format_issues
+
+    doc = Document()
+    paras = [
+        '七、模型评价与改进',
+        '7.1 优点',
+    ] + [f'（{i}）优点条目 {i}：约束完整且与基准对照误差 0.9%，属于本题可验证事实。'
+         for i in range(1, 6)] + [
+        '7.2 局限与改进方向',
+    ] + [f'（{i}）改进条目 {i}：将参数改为随机变量并用鲁棒优化重解。'
+         for i in range(1, 5)]
+    for tx in paras:
+        doc.add_paragraph(tx)
+    assert _model_eval_bullet_format_issues(doc) == []
+
+
+def test_model_eval_gate_rejects_few_items_and_stray_prose():
+    """模型评价闸门：条数不足与非编号大段分别拦截。"""
+    from tools.docx.core.structure_validation import _model_eval_bullet_format_issues
+
+    doc = Document()
+    for tx in ['七、模型评价与改进', '7.1 优点', '（1）参数较少',
+               '7.2 局限与改进方向', '（1）忽略动态波动',
+               '综合来看，本模型整体表现良好，具备较强实用性与推广价值，可满足工程应用要求，应进一步推广应用。']:
+        doc.add_paragraph(tx)
+    issues = _model_eval_bullet_format_issues(doc)
+    assert any('优点仅 1 条' in i for i in issues)
+    assert any('局限与改进仅 1 条' in i for i in issues)
+    assert any('非编号正文段' in i for i in issues)
