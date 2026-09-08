@@ -29,4 +29,4 @@
 
 ## 规范导航
 
-版式、写作、出图、合规等规范与阈值的唯一权威清单见 [SKILL.md](SKILL.md) 的索引表；文献检索见 `tools/paper_search/TOOLGUIDE.md`。提交前逐项核对[七轮自审框架](知识库/写作增强/七轮自审框架.md)，当届官方文件优先。
+版式、写作、出图、合规等规范与阈值的唯一权威清单见 [SKILL.md](SKILL.md) 的索引表；文献检索见 `tools/paper_search/TOOLGUIDE.md`。提交前逐项核对[七轮自审框架](文档/七轮自审框架.md)，当届官方文件优先。

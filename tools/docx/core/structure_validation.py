@@ -334,7 +334,7 @@ def _ai_tone_issues(doc):
                 preview = re.sub(r'\s+', ' ', text)[:42]
                 issues.append(
                     f'第 {index} 段疑似 AI 味（{label}）：{preview}；'
-                    f'请按 知识库/写作增强/去AI味指南.md 清洗，{suggestion}'
+                    f'请按 文档/去AI味指南.md 清洗，{suggestion}'
                 )
                 break
         if len(issues) >= 8:
@@ -1511,9 +1511,9 @@ def _model_assumption_issues(doc):
     paras = _para_bounds(doc, r'^[一二三四五六七八九十]+、\s*模型假设', r'^[一二三四五六七八九十]+、')
     if not paras:
         return []
-    assumes = [p for p in paras if re.match(r'^假设\d+[:：]', p.text.strip())]
+    assumes = [p for p in paras if re.match(r'^假设\s*\d+(?:[（(][^）)]{0,14}[）)])?\s*[:：]', p.text.strip())]
     if len(assumes) < 3:
-        return [f'模型假设须逐条以"假设N："编号，当前仅 {len(assumes)} 条（建议 ≥ 3）']
+        return [f'模型假设须按"假设 N（短标题）：内容"逐条编号，当前仅 {len(assumes)} 条（建议 ≥ 3）']
     issues = []
     for p in assumes:
         text = p.text.strip()
@@ -2030,7 +2030,7 @@ def _uses_ai_tools(doc):
     return any((re.search(pattern, text, re.IGNORECASE) for pattern in patterns))
 
 
-AI_DECLARATION_FIXED_TEXT = '本参赛队在竞赛过程中使用了AI工具，主要用于语言润色、代码调试等，详细使用情况见支撑材料。'
+AI_DECLARATION_FIXED_TEXT = '本参赛队在竞赛过程中使用了AI工具，主要用于【简要用途，如语言润色、代码调试等】，详细使用情况见支撑材料。'
 AI_DECLARATION_SECTION = 'AI工具使用声明'
 
 

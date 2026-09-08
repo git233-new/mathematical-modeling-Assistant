@@ -7,7 +7,8 @@ distill 回答"全库获奖论文共同遵循什么模板、创新点以什么�
 
 用法:
     python tools/paperingest/distill.py --raw <PDF目录> \
-        [--out 知识库/写作增强/获奖论文模板与创新点.md] [--ocr auto|never]
+        [--out <报告.md>] [--ocr auto|never]
+默认把蒸馏报告打印到 stdout；`--out` 可选写出报告。
 """
 import argparse
 import importlib.util
@@ -147,7 +148,7 @@ def render(args, stats: list[dict], skipped: list[str]) -> str:
               for q in sorted(q_dist) if q != "未知"}
 
     lines = [
-        "# 获奖论文模板与创新点（全库蒸馏）", "",
+        "# 全库蒸馏：章节骨架与创新模式统计", "",
         f"> 由 `tools/paperingest/distill.py` 对 {n} 篇可读国奖论文自动统计生成"
         f"（不可读 PDF {len(skipped)} 篇已跳过）；解读部分为规则化原创归纳。"
         "**只迁移结构经验与创新模式，不复制任何原文文字、公式、数字或创新表述。**", "",
@@ -253,9 +254,8 @@ def render(args, stats: list[dict], skipped: list[str]) -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    root = Path(__file__).resolve().parent.parent.parent
     ap.add_argument("--raw", required=True, help="获奖论文 PDF 源目录")
-    ap.add_argument("--out", default=str(root / "知识库" / "写作增强" / "获奖论文模板与创新点.md"))
+    ap.add_argument("--out", default=None, help="可选：写出蒸馏报告 md 文件（默认打印到 stdout，不落盘）")
     ap.add_argument("--ocr", choices=("auto", "never"), default="auto",
                     help="auto 时对文本层不可靠的页启用 OCR（仅建库链路允许）")
     ap.add_argument("--min-text-chars", type=int, default=300)
@@ -264,7 +264,6 @@ def main():
     args = ap.parse_args()
 
     raw = Path(args.raw).resolve()
-    out = Path(args.out)
     if not raw.is_dir():
         raise ValueError(f"论文目录不存在: {raw}")
     all_pdfs = sorted(raw.glob("*.pdf"))
@@ -284,9 +283,15 @@ def main():
         stats.append(s)
         print(f"[distill] {pdf.stem}: {s['pages']}页 {len(s['sections'])}章 "
               f"方法={len(s['methods'])} 创新={len(s['innovations'])}")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(args, stats, skipped), encoding="utf-8")
-    print(f"[distill] 完成：蒸馏 {len(stats)} 篇，跳过 {len(skipped)} 篇 -> {out}")
+    report = render(args, stats, skipped)
+    if args.out:
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(report, encoding="utf-8")
+        print(f"[distill] 完成：蒸馏 {len(stats)} 篇，跳过 {len(skipped)} 篇 -> {out}")
+    else:
+        print(f"[distill] 蒸馏 {len(stats)} 篇，跳过 {len(skipped)} 篇（stdout 输出）")
+        print(report)
 
 
 if __name__ == "__main__":

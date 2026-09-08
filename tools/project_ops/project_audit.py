@@ -101,8 +101,8 @@ EXPECTED_TESTS = {
 }
 
 WRITING_ENHANCER_DOCS = (
-    "知识库/写作增强/去AI味指南.md",
-    "知识库/写作增强/七轮自审框架.md",
+    "文档/去AI味指南.md",
+    "文档/七轮自审框架.md",
     "文档/摘要写作范式.md",
     "文档/问题重述与分析写作.md",
     "文档/假设与符号写作.md",
@@ -202,7 +202,7 @@ def writing_enhancer_link_errors(sources: list[Path] | None = None) -> list[str]
 
     skill_text = read_rel("SKILL.md")
     writing_text = read_rel("文档/论文写作.md")
-    review_text = read_rel("知识库/写作增强/七轮自审框架.md")
+    review_text = read_rel("文档/七轮自审框架.md")
 
     for rel in WRITING_ENHANCER_DOCS:
         if not (ROOT / rel).is_file():
@@ -210,7 +210,7 @@ def writing_enhancer_link_errors(sources: list[Path] | None = None) -> list[str]
         if rel not in skill_text:
             errors.append(f"SKILL.md 未声明写作增强加载链路: {rel}")
 
-    if "知识库/写作增强/去AI味指南.md" not in writing_text and "去AI味指南.md" not in writing_text:
+    if "去AI味指南.md" not in writing_text:
         errors.append("文档/论文写作.md 未要求交付前读取去AI味指南.md")
     if FINAL_DOCX_SELF_CHECK_CMD not in writing_text:
         errors.append("文档/论文写作.md 未声明最终 DOCX 统一自检命令")
@@ -320,7 +320,7 @@ def main() -> int:
     required = (
         "README.md", "SKILL.md", "requirements.txt",
         "文档/代码规范.md", "文档/论文评审.md",
-        "文档/论文写作.md", "知识库/写作增强/七轮自审框架.md",
+        "文档/论文写作.md", "文档/七轮自审框架.md",
     )
     for item in required:
         if not (ROOT / item).exists():

@@ -886,7 +886,7 @@ def test_nine_step_verification_no_report_by_default(tmp_path):
 def test_soft_doc_structure_markers():
     """软文档结构标记：去AI味含 Humanizer 3.0 Core + Math Extension；算法资料 7 卡；建模通用规范=防错速查；模板并入设计原则。"""
     root = pathlib.Path(__file__).resolve().parents[1]
-    deai = (root / "知识库/写作增强/去AI味指南.md").read_text(encoding="utf-8")
+    deai = (root / "文档/去AI味指南.md").read_text(encoding="utf-8")
     assert "## 九、Humanizer 3.0 Core" in deai and "## 十、Modex Math Extension" in deai
     algo_cards = list((root / "知识库/算法资料").glob("*.md"))
     assert len(algo_cards) == 7

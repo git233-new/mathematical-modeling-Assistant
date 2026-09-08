@@ -34,7 +34,7 @@ class TestForbiddenWordsSync:
     def test_forbidden_words_doc_matches_code(self):
         from tools.docx.core.paper_format import FORBIDDEN_WORDS as fw
 
-        guide = _read("知识库/写作增强/去AI味指南.md")
+        guide = _read("文档/去AI味指南.md")
         block = guide[guide.find("**硬闸门禁用词"):]
         block = block[:block.find("\n\n")]
         doc_words = set()
