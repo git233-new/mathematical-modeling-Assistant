@@ -77,7 +77,7 @@ def style_small_axes(ax: plt.Axes, row: int, col: int, n_vars: int) -> None:
     for spine in ax.spines.values():
         spine.set_color("#737373")
         spine.set_linewidth(0.45)
-    ax.tick_params(labelsize=4.0, pad=0.5)
+    ax.tick_params(labelsize=6, pad=0.5)
     if row < n_vars - 1:
         ax.set_xticklabels([])
     if col > 0:
@@ -92,8 +92,8 @@ def draw_scatter_cell(ax: plt.Axes, x: np.ndarray, y: np.ndarray, xlabel: str, y
     ax.plot(x_grid, y_fit, color="#9a4bb3", lw=1.0, zorder=3)
     ax.set_xlim(-3.1, 3.1)
     ax.set_ylim(-3.1, 3.1)
-    ax.set_xlabel(xlabel, fontsize=4.7, labelpad=1)
-    ax.set_ylabel(ylabel, fontsize=4.7, labelpad=1)
+    ax.set_xlabel(xlabel, fontsize=6.7, labelpad=1)
+    ax.set_ylabel(ylabel, fontsize=6.7, labelpad=1)
 
 
 def draw_hist_cell(ax: plt.Axes, values: np.ndarray, xlabel: str) -> None:
@@ -102,8 +102,8 @@ def draw_hist_cell(ax: plt.Axes, values: np.ndarray, xlabel: str) -> None:
     density = _kde_1d(values, grid, bw_floor=0.10)
     scaled = density / density.max() * max(counts) if density.max() > 0 else density
     ax.plot(grid, scaled, color="#225d78", lw=1.0)
-    ax.set_xlabel(xlabel, fontsize=4.7, labelpad=1)
-    ax.set_ylabel("频数", fontsize=4.7, labelpad=1)
+    ax.set_xlabel(xlabel, fontsize=6.7, labelpad=1)
+    ax.set_ylabel("频数", fontsize=6.7, labelpad=1)
 
 
 def draw_corr_cell(
@@ -120,10 +120,10 @@ def draw_corr_cell(
     ax.set_xticks([])
     ax.set_yticks([])
     text_color = "white" if abs(r) >= 0.55 else "#1f1f1f"
-    ax.text(0.5, 0.46, f"{r:.2f}", ha="center", va="center", fontsize=6.7, color=text_color, transform=ax.transAxes)
+    ax.text(0.5, 0.46, f"{r:.2f}", ha="center", va="center", fontsize=8.7, color=text_color, transform=ax.transAxes)
     star_text = stars_for_p(p_value)
     if star_text:
-        ax.text(0.5, 0.68, star_text, ha="center", va="center", fontsize=6.4, fontweight="bold", color=text_color, transform=ax.transAxes)
+        ax.text(0.5, 0.68, star_text, ha="center", va="center", fontsize=8.4, fontweight="bold", color=text_color, transform=ax.transAxes)
 
 
 def make_figure(output_stem: Path) -> None:
@@ -163,7 +163,7 @@ def make_figure(output_stem: Path) -> None:
                 draw_corr_cell(ax, r, p, cmap, norm)
 
     cax = fig.add_axes([0.925, 0.145, 0.028, 0.79])
-    correlation_colorbar(fig, cax, tickfmt="{:.2f}", labelsize=6, tick_width=0.45, linewidth=0.45)
+    correlation_colorbar(fig, cax, tickfmt="{:.2f}", labelsize=8, tick_width=0.45, linewidth=0.45)
 
     save_panel(fig, output_stem)
 

@@ -85,7 +85,7 @@ def draw_taylor_grid(ax: plt.Axes) -> None:
 
 def draw_panel(ax: plt.Axes, points: list[TaylorPoint], letter: str) -> None:
     draw_taylor_grid(ax)
-    ax.text(REF_STD, -0.060, "观测值", fontsize=6.4, ha="center", va="top")
+    ax.text(REF_STD, -0.060, "观测值", fontsize=8.4, ha="center", va="top")
 
 
     handles = []
@@ -104,7 +104,7 @@ def draw_panel(ax: plt.Axes, points: list[TaylorPoint], letter: str) -> None:
         [model for model, _ in MODELS],
         loc="upper right",
         bbox_to_anchor=(1.02, 1.10),
-        fontsize=5.4,
+        fontsize=7.4,
         labelspacing=0.12,
         handlelength=0.9,
         handletextpad=0.25,
@@ -114,16 +114,16 @@ def draw_panel(ax: plt.Axes, points: list[TaylorPoint], letter: str) -> None:
         facecolor="white",
         fancybox=False,
     )
-    ax.text(0.50, -0.22, f"({letter})", transform=ax.transAxes, fontsize=9, ha="center", va="center")
+    ax.text(0.50, -0.22, f"({letter})", transform=ax.transAxes, fontsize=11, ha="center", va="center")
 
 
 def add_header_and_caption(fig: plt.Figure) -> None:
-    fig.text(0.035, 0.925, "D. Lai 等", fontsize=8.5, fontstyle="italic", ha="left")
+    fig.text(0.035, 0.925, "D. Lai 等", fontsize=10.5, fontstyle="italic", ha="left")
     fig.text(
         0.965,
         0.925,
         "人工智能工程应用 135 (2024) 108704",
-        fontsize=8.5,
+        fontsize=10.5,
         fontstyle="italic",
         ha="right",
     )
@@ -131,7 +131,7 @@ def add_header_and_caption(fig: plt.Figure) -> None:
         0.035,
         0.105,
         "图7.",
-        fontsize=9,
+        fontsize=11,
         fontweight="bold",
         ha="left",
         va="baseline",
@@ -143,7 +143,7 @@ def add_header_and_caption(fig: plt.Figure) -> None:
             "机器学习模型在训练集(a)、测试集(b)与全数据集(c)上的泰勒图。"
             "其中“观测值”点代表实验或真实世界中的实际观测数据，"
         ),
-        fontsize=8.4,
+        fontsize=10.4,
         ha="left",
         va="baseline",
     )
@@ -151,7 +151,7 @@ def add_header_and_caption(fig: plt.Figure) -> None:
         0.035,
         0.077,
         "模型(极端梯度提升、人工神经网络、高斯过程回归、自然梯度提升)均与之对比。",
-        fontsize=8.4,
+        fontsize=10.4,
         ha="left",
         va="baseline",
     )

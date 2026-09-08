@@ -49,7 +49,7 @@ def add_caption_and_table(fig: plt.Figure) -> None:
         0.058,
         0.5,
         "五种机器学习模型在五折外部交叉验证下的平均AUC表现",
-        fontsize=8.5,
+        fontsize=10.5,
         color="#4b4b4b",
         ha="left",
         va="center",
@@ -58,12 +58,12 @@ def add_caption_and_table(fig: plt.Figure) -> None:
     # 指标表
     table_ax = fig.add_axes([0.045, 0.035, 0.91, 0.095])
     table_ax.axis("off")
-    table_ax.text(0.00, 0.88, "表3", fontsize=9, fontweight="bold", ha="left", va="center")
+    table_ax.text(0.00, 0.88, "表3", fontsize=11, fontweight="bold", ha="left", va="center")
     table_ax.text(
         0.082,
         0.88,
         "各机器学习模型性能结果的对比分析",
-        fontsize=8.5,
+        fontsize=10.5,
         color="#4b4b4b",
         ha="left",
         va="center",
@@ -85,9 +85,9 @@ def add_caption_and_table(fig: plt.Figure) -> None:
     table_ax.plot([0, 1], [0.67, 0.67], color="#b8b8b8", linewidth=0.8)
     table_ax.plot([0, 1], [0.37, 0.37], color="#b8b8b8", linewidth=0.8)
     for x, label in zip(xs, columns):
-        table_ax.text(x, 0.52, label, fontsize=7.5, fontweight="bold", ha="left", va="center")
+        table_ax.text(x, 0.52, label, fontsize=9.5, fontweight="bold", ha="left", va="center")
     for x, value in zip(xs, row):
-        table_ax.text(x, 0.18, value, fontsize=7.3, color="#555555", ha="left", va="center")
+        table_ax.text(x, 0.18, value, fontsize=9.3, color="#555555", ha="left", va="center")
     table_ax.set_xlim(0, 1)
     table_ax.set_ylim(0, 1)
 
@@ -167,17 +167,17 @@ def make_figure(output_stem: Path) -> None:
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.set_aspect("equal", adjustable="box")
-    ax.set_xlabel("假正率", fontsize=10)
-    ax.set_ylabel("真正率", fontsize=10)
+    ax.set_xlabel("假正率", fontsize=12)
+    ax.set_ylabel("真正率", fontsize=12)
     ax.set_xticks(np.arange(0.0, 1.01, 0.1))
     ax.set_yticks(np.arange(0.0, 1.01, 0.1))
-    ax.tick_params(labelsize=8.5, length=3, width=0.7)
+    ax.tick_params(labelsize=10.5, length=3, width=0.7)
     ax.grid(True, color="#bcbcbc", alpha=0.28, linewidth=0.6)
     ax.legend(
         legend_handles,
         legend_labels,
         loc="lower right",
-        fontsize=9,
+        fontsize=11,
         framealpha=0.72,
         facecolor="white",
         edgecolor="#d9d9d9",

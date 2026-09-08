@@ -45,7 +45,7 @@ def make_figure(output_stem: Path) -> None:
     ax.set_xticks(np.arange(0, 41, 5))
     ax.set_yticks(np.arange(0, 201, 25))
     ax.set_zticks(np.arange(0.40, 0.66, 0.05))
-    ax.tick_params(labelsize=8, pad=2)
+    ax.tick_params(labelsize=10, pad=2)
     ax.view_init(elev=31, azim=42)
     ax.set_box_aspect((1.18, 1.45, 0.72))
 
@@ -57,9 +57,9 @@ def make_figure(output_stem: Path) -> None:
 
     cax = fig.add_axes([0.84, 0.23, 0.028, 0.48])
     cbar = fig.colorbar(surf, cax=cax)
-    cbar.set_label("均方根误差", fontsize=11, labelpad=10)
+    cbar.set_label("均方根误差", fontsize=13, labelpad=10)
     cbar.set_ticks(np.arange(0.40, 0.66, 0.05))
-    cbar.ax.tick_params(labelsize=8)
+    cbar.ax.tick_params(labelsize=10)
     cbar.outline.set_linewidth(0.75)
 
     save_panel(fig, output_stem)

@@ -90,6 +90,10 @@ def configure_chinese_style() -> None:
             "pdf.fonttype": 42,             # PDF 嵌入 TrueType 字体
             "ps.fonttype": 42,
             "font.size": 11,                # 图中文字基线 ≥11pt（样式统一规定）
+            "axes.labelsize": 12,           # 坐标轴名（x/y 轴标题）比正文大一号
+            "xtick.labelsize": 12,          # 刻度文字/符号放大一号
+            "ytick.labelsize": 12,
+            "legend.fontsize": 12,          # 图例文字放大一号
             "axes.linewidth": 0.8,
             "axes.spines.right": False,     # 国赛常用：仅留左、下轴
             "axes.spines.top": False,
@@ -118,6 +122,10 @@ def apply_publication_style(
     mpl.rcParams.update(
         {
             "font.size": font_size,
+            "axes.labelsize": font_size + 1,   # 坐标轴名比正文大一号
+            "xtick.labelsize": font_size + 1,  # 刻度文字/符号放大一号
+            "ytick.labelsize": font_size + 1,
+            "legend.fontsize": font_size + 1,  # 图例文字放大一号
             "axes.linewidth": axes_linewidth,
             "text.usetex": use_tex,
             "legend.handlelength": 1.6,
@@ -508,7 +516,7 @@ def correlation_norm():
 
 
 def correlation_colorbar(fig, cax, *, label=None, tick_count=9, tickfmt=None,
-                         labelsize=7, tick_width=None, linewidth=0.7):
+                         labelsize=9, tick_width=None, linewidth=0.7):
     """相关性色条（``CMAP_CORR`` + (-1,1)），统一两份相关图模板的实现。"""
     import matplotlib as mpl
     import numpy as np
@@ -516,7 +524,7 @@ def correlation_colorbar(fig, cax, *, label=None, tick_count=9, tickfmt=None,
     sm = mpl.cm.ScalarMappable(norm=correlation_norm(), cmap=CMAP_CORR)
     cbar = fig.colorbar(sm, cax=cax)
     if label:
-        cbar.set_label(label, fontsize=9, fontweight="bold", labelpad=6)
+        cbar.set_label(label, fontsize=10, fontweight="bold", labelpad=6)
     ticks = np.linspace(-1, 1, tick_count)
     cbar.set_ticks(ticks)
     if tickfmt:

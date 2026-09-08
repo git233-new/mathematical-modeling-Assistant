@@ -125,9 +125,9 @@ def draw_lower_corr(ax: plt.Axes, corr: np.ndarray) -> None:
     ax.set_aspect("equal")
     ax.set_facecolor("white")
     ax.set_xticks(np.arange(n))
-    ax.set_xticklabels([item.name for item in FEATURES], rotation=90, fontsize=7, fontweight="bold")
+    ax.set_xticklabels([item.name for item in FEATURES], rotation=90, fontsize=9, fontweight="bold")
     ax.set_yticks(np.arange(n))
-    ax.set_yticklabels([item.name for item in FEATURES], fontsize=8, fontweight="bold")
+    ax.set_yticklabels([item.name for item in FEATURES], fontsize=10, fontweight="bold")
     ax.yaxis.tick_right()
     ax.tick_params(axis="both", length=0, pad=1)
     for spine in ax.spines.values():
@@ -162,7 +162,7 @@ def draw_group_bracket(ax: plt.Axes, start: float, end: float, x: float, color: 
     ax.plot([x, x], [start, end], color=color, lw=1.3, clip_on=False)
     ax.plot([x - 0.95, x], [start, start], color=color, lw=1.3, clip_on=False)
     ax.plot([x - 0.95, x], [end, end], color=color, lw=1.3, clip_on=False)
-    ax.text(x + 0.20, (start + end) / 2, label, color=color, fontsize=8, fontweight="bold", fontstyle="italic", va="center")
+    ax.text(x + 0.20, (start + end) / 2, label, color=color, fontsize=10, fontweight="bold", fontstyle="italic", va="center")
 
 
 def draw_split_violin(
@@ -196,8 +196,8 @@ def draw_split_violin(
     if spec.log_scale:
         ax.set_yscale("log")
     ax.set_xticks([])
-    ax.set_ylabel(spec.label, fontsize=7, fontweight="bold", labelpad=1)
-    ax.tick_params(axis="y", labelsize=6, length=2, width=0.6, pad=1)
+    ax.set_ylabel(spec.label, fontsize=9, fontweight="bold", labelpad=1)
+    ax.tick_params(axis="y", labelsize=8, length=2, width=0.6, pad=1)
     for spine in ax.spines.values():
         spine.set_linewidth(0.8)
         spine.set_color("#333333")
@@ -240,7 +240,7 @@ def make_figure(output_stem: Path) -> None:
         Line2D([0], [0], color="#2f7fa7", lw=1.5, label="训练集"),
         Line2D([0], [0], color="#b4162d", lw=1.5, label="测试集"),
     ]
-    fig.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.725, 0.022), ncol=2, fontsize=8, frameon=False)
+    fig.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.725, 0.022), ncol=2, fontsize=10, frameon=False)
 
     save_panel(fig, output_stem)
 

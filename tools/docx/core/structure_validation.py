@@ -1512,8 +1512,8 @@ def _model_assumption_issues(doc):
     if not paras:
         return []
     assumes = [p for p in paras if re.match(r'^假设\s*\d+(?:[（(][^）)]{0,14}[）)])?\s*[:：]', p.text.strip())]
-    if len(assumes) < 3:
-        return [f'模型假设须按"假设 N（短标题）：内容"逐条编号，当前仅 {len(assumes)} 条（建议 ≥ 3）']
+    if len(assumes) < 6:
+        return [f'模型假设须按"假设 N（短标题）：内容"逐条编号，当前仅 {len(assumes)} 条（最低 6 条）']
     issues = []
     for p in assumes:
         text = p.text.strip()

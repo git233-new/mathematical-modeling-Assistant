@@ -105,7 +105,7 @@ def draw_model_panel(fig: plt.Figure, slot, panel: ModelPanel, seed: int) -> Non
     draw_marginal_hist(ax_top, actual_train, actual_test, panel.train_color, panel.test_color)
     draw_scatter_panel(ax_main, actual_train, pred_train, actual_test, pred_test, panel)
     draw_marginal_hist(ax_right, pred_train, pred_test, panel.train_color, panel.test_color, orientation="horizontal")
-    ax_top.set_title(f"{panel.name}：预测值 vs 真实值（直方图+核密度）", fontsize=10.5, fontweight="bold", pad=5)
+    ax_top.set_title(f"{panel.name}：预测值 vs 真实值（直方图+核密度）", fontsize=12.5, fontweight="bold", pad=5)
 
 
 def make_actual_values(rng: np.random.Generator, n: int) -> np.ndarray:
@@ -152,7 +152,7 @@ def draw_marginal_hist(
         hidden = ("top", "right", "left")
     for spine in hidden:
         ax.spines[spine].set_visible(False)
-    ax.tick_params(labelsize=8)
+    ax.tick_params(labelsize=10)
 
 
 def draw_scatter_panel(
@@ -189,14 +189,14 @@ def draw_scatter_panel(
     ax.set_ylim(-5, 112)
     ax.set_xlabel("实际值", fontsize=12, fontweight="bold", labelpad=2)
     ax.set_ylabel("预测值", fontsize=12, fontweight="bold", labelpad=2)
-    ax.tick_params(labelsize=8)
-    ax.legend(loc="upper left", fontsize=8, handletextpad=0.5, borderaxespad=0.45)
+    ax.tick_params(labelsize=10)
+    ax.legend(loc="upper left", fontsize=10, handletextpad=0.5, borderaxespad=0.45)
     ax.text(
         0.28,
         0.035,
         panel.metric_text,
         transform=ax.transAxes,
-        fontsize=7.8,
+        fontsize=9.8,
         ha="left",
         va="bottom",
         bbox=dict(boxstyle="square,pad=0.22", facecolor="white", edgecolor="#777777", alpha=0.92),
