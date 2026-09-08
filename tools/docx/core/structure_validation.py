@@ -2147,11 +2147,15 @@ def _resolved_limits(doc, contest, profile, *, min_content_units, min_equations,
         'official_max_pages': profile.max_body_pages if official_max_pages is None else official_max_pages,
     }
     body_figures, body_tables = _body_figure_table_counts(doc)
+    symbol_tbl = _find_symbol_table(doc)
+    if symbol_tbl is not None:
+        body_tables = max(0, body_tables - 1)
     counts = {
         'units': count_body_units(doc),
         # 仅统计正文段落中的公式；表格单元格（如符号说明表的公式符号）不计入建模方程数上限。
         'equations': sum(len(p._element.findall(f".//{qn('m:oMath')}")) for p in doc.paragraphs),
         # 图/表只统计正文（参考文献/附录之前），附录图表不纳入结构计数与题注/引用校验。
+        # 表计数排除符号说明表（参考表，不计入建模数据表下限）。
         'figures': body_figures,
         'tables': body_tables,
         'references': _count_references(doc.paragraphs),
@@ -2179,7 +2183,7 @@ def _enforce_min_issues(doc, counts, limits, body_pages, rendered_pages, require
     if CUMCM_MIN_FLOWCHARTS <= flow_count and not has_overall:
         errors.append('缺少总体研究思路/技术路线流程图（须至少 1 张标注"总体"或"研究思路/技术路线"的流程图）')
     if tables < limits['min_tables']:
-        errors.append(f'仅 {tables} 个表，低于项目交付下限 {limits["min_tables"]}（符号说明表必需，其他表按证据需要保留）')
+        errors.append(f'仅 {tables} 个表（不含符号说明表），低于项目交付下限 {limits["min_tables"]}')
     references = counts['references']
     if references and references < CUMCM_MIN_REFERENCES:
         errors.append(f'仅 {references} 篇参考文献，低于项目交付下限 {CUMCM_MIN_REFERENCES}（须真实且正文对应，近 5 年 ≥60%，中英文混合）')
