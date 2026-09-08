@@ -40,7 +40,7 @@ def _strip_chinese_numbering(text):
     return re.sub(r'^[一二三四五六七八九十]+、\s*', '', text).strip() or text.strip()
 
 
-def latex_to_docx(tex_path, docx_path, reference_doc=None):
+def latex_to_docx(tex_path, docx_path, reference_doc=None, graphics_dir='results/图片'):
     """LaTeX → DOCX via pandoc。返回输出路径。"""
     if not shutil.which('pandoc'):
         raise RuntimeError('pandoc 未安装或不在 PATH 中，请安装 pandoc 后重试')
@@ -58,8 +58,12 @@ def latex_to_docx(tex_path, docx_path, reference_doc=None):
         tmp.write(cleaned)
         tmp_tex = Path(tmp.name)
 
+    images_root = (tex_path.parent / graphics_dir).resolve()
     try:
         cmd = ['pandoc', '-f', 'latex', '-t', 'docx', '-o', str(docx_path)]
+        if images_root.is_dir():
+            # 图以文件名引用（\graphicspath 只对 XeLaTeX 生效）；pandoc 需显式资源路径
+            cmd += ['--resource-path', str(images_root)]
         if reference_doc and Path(reference_doc).exists():
             cmd += ['--reference-doc', str(reference_doc)]
         cmd.append(str(tmp_tex))

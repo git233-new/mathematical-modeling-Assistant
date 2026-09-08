@@ -77,10 +77,13 @@ def test_table_with_caption(tmp_path):
 def test_figure(tmp_path):
     b = PaperLatexBuilder()
     b.add_figure('fig1.png', '图1 流程图', width_cm=14)
+    b.add_figure('results/图片/3_收敛曲线.png', '图3 收敛曲线')
     text = b.save_latex(tmp_path / 'out.tex').read_text(encoding='utf-8')
     assert r'\begin{figure}' in text
     assert r'\includegraphics' in text
     assert r'\detokenize{fig1.png}' in text
+    assert r'\detokenize{3_收敛曲线.png}' in text
+    assert 'results/图片/3_收敛曲线.png' not in text
     assert '流程图' in text
 
 

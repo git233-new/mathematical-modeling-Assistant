@@ -114,10 +114,12 @@ class PaperLatexBuilder:
 
     def add_figure(self, image_path, caption, width_cm=12):
         width = rf'{width_cm / 15:.2f}\textwidth'
+        # 只用文件名：目录由 preamble 的 \graphicspath 提供，编译不依赖相对路径
+        image_name = Path(str(image_path)).name
         self._body.append(r'\begin{figure}[htbp]')
         self._body.append(r'\centering')
         self._body.append(
-            rf'\includegraphics[width={width}]{{\detokenize{{{image_path}}}}}')
+            rf'\includegraphics[width={width}]{{\detokenize{{{image_name}}}}}')
         self._body.append(rf'\caption*{{{_escape(caption)}}}')
         self._body.append(r'\end{figure}')
 
