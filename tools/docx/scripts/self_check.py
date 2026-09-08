@@ -85,7 +85,7 @@ def _build_sample_doc(fmt, path):
     fmt.body(doc, "这是正文。")
     assert fmt.count_chinese_chars(doc) >= 6
     formula = fmt.equation(doc, r"x_i^2")
-    assert formula.paragraph_format.line_spacing == 1.5
+    assert formula.paragraph_format.line_spacing == 1.25
     assert formula.paragraph_format.space_before.pt == fmt.FORMULA_CONTEXT_GAP_PT
     assert formula.paragraph_format.space_after.pt == fmt.FORMULA_CONTEXT_GAP_PT
     placeholder, latex = fmt.equation_placeholder(doc, r"x_i^2")

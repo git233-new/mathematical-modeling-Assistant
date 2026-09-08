@@ -53,8 +53,8 @@ from .rendering import (
     check_black_fonts,
     force_black_fonts,
 )
-BODY_LINE_SPACING_PT = 18
-FORMULA_CONTEXT_GAP_PT = int(BODY_LINE_SPACING_PT * 1.5)
+BODY_LINE_SPACING = 1.25  # 全文统一行距：多倍 1.25（float 赋值即 MULTIPLE）
+FORMULA_CONTEXT_GAP_PT = 27  # 公式与上下文段间距留白（磅），与行距解耦
 _REQUIRED_HEADING1_CANONICAL = {'问题重述': '一、问题重述', '问题分析': '二、问题分析', '模型假设': '三、模型假设', '符号说明': '四、符号说明', '模型建立': '五、模型建立与求解', '模型检验': '六、模型检验与分析', '模型优缺点': '七、模型评价与改进', 'AI工具使用声明': 'AI工具使用声明', '参考文献': '参考文献', '附录': '附录'}
 # endregion ── 常量与导入 ──
 
@@ -186,8 +186,8 @@ def _ensure_paper_styles(doc):
         heading = name in {HEADING1_STYLE, HEADING2_STYLE, HEADING3_STYLE}
         style.paragraph_format.space_before = Pt(7.8) if heading else Pt(0)
         style.paragraph_format.space_after = Pt(7.8) if heading else Pt(0)
-        # 正文固定行距 18 磅（Length 赋值即 EXACTLY）；标题单倍，避免固定值裁剪大字号
-        style.paragraph_format.line_spacing = Pt(BODY_LINE_SPACING_PT) if name == BODY_STYLE else 1.0
+        # 全文行距统一多倍 1.25（正文/标题/题注一致；多倍按行高自适应，不裁剪大字号）
+        style.paragraph_format.line_spacing = BODY_LINE_SPACING
         style.paragraph_format.first_line_indent = Pt(24) if first_line else Pt(0)
         style.paragraph_format.keep_with_next = keep_with_next
     _ensure_outline_levels(doc, {HEADING1_STYLE, HEADING2_STYLE, HEADING3_STYLE})
@@ -459,7 +459,7 @@ def _latex2omml(latex):
     from .equations import latex2omml
     return latex2omml(latex)
 def _set_equation_layout(doc, paragraph, number):
-    paragraph.paragraph_format.line_spacing = 1.5
+    paragraph.paragraph_format.line_spacing = BODY_LINE_SPACING
     paragraph.paragraph_format.space_before = Pt(FORMULA_CONTEXT_GAP_PT)
     paragraph.paragraph_format.space_after = Pt(FORMULA_CONTEXT_GAP_PT)
     paragraph.paragraph_format.keep_together = True
@@ -538,7 +538,6 @@ def keywords(doc, text):
     p = _claim_template_slot(doc, 'keywords', text) or paragraph(doc, style_name=BODY_STYLE)
     p.style = BODY_STYLE
     p.paragraph_format.first_line_indent = Pt(0)
-    p.paragraph_format.line_spacing = Pt(BODY_LINE_SPACING_PT)
     set_run_font(p.add_run('关键词：'), bold=True)
     set_run_font(p.add_run(sanitize_text(text)))
     page_break(doc)
@@ -554,7 +553,7 @@ def _set_heading_paragraph_layout(paragraph, alignment):
     paragraph.paragraph_format.first_line_indent = Pt(0)
     paragraph.paragraph_format.space_before = Pt(7.8)
     paragraph.paragraph_format.space_after = Pt(7.8)
-    paragraph.paragraph_format.line_spacing = 1.0
+    paragraph.paragraph_format.line_spacing = BODY_LINE_SPACING
     paragraph.paragraph_format.keep_with_next = True
 def heading1(doc, text, *, page_break=False):
     _validate_heading_text(text)
@@ -943,8 +942,6 @@ def three_line_table(doc, rows):
             cell = table.cell(row_i, col_i)
             cell.text = ''
             _set_cell_vcenter(cell)
-            if col_i == 0:
-                _set_cell_no_wrap(cell)
             p = cell.paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             if isinstance(text, dict) and text.get('latex') is not None:
@@ -964,11 +961,48 @@ def three_line_table(doc, rows):
     return table
 
 
+def _support_filename(entry):
+    """取纯文件名（去掉目录），支撑材料表按"文件名"列登记。"""
+    return entry.replace('\\', '/').rsplit('/', 1)[-1]
+
+
+def _support_role(entry, kind):
+    """按文件名推断"功能与作用"。
+
+    文件在证据链里本就是按规范命名的（Q<问号>_ 前缀、solve_common / figure 等约定，
+    见 文档/样式统一规定.md §六 文件命名），因此功能可由文件名稳定得出。
+    """
+    name = _support_filename(entry).lower()
+    q = re.match(r'^q(\d+)(?=[_.-]|$)', name)
+    qlabel = f'第{q.group(1)}问' if q else ''
+    if kind == 'script':
+        if qlabel:
+            return f'{qlabel}求解脚本'
+        if 'solve_common' in name or 'common' in name:
+            return '公共求解工具'
+        if any(token in name for token in ('figure', 'plot', 'chart', 'draw', '出图')):
+            return '出图脚本'
+        if any(token in name for token in ('preprocess', 'clean', 'read', 'load')):
+            return '数据预处理脚本'
+        return '可运行脚本'
+    if entry.endswith('.json'):
+        if 'run_manifest' in name:
+            return '运行登记清单'
+        if '文献' in name:
+            return '文献检索登记'
+        if 'spss' in name:
+            return '统计输出登记'
+        return '工具链登记文件'
+    if qlabel:
+        return f'{qlabel}结果数据'
+    return '支撑数据'
+
+
 def _appendix_support_materials(doc, project_root):
     """附录A 支撑材料：自动列出 run_manifest 登记的可运行源码与数据文件清单。
 
     清单由证据链真实产物驱动（source_scripts + 数据目录），不编造；manifest 缺失时
-    给出空段提示作者手填。返回 True 表示已写入非空支撑材料段。
+    给出空段提示作者手填。表格两列：文件名 | 功能与作用。返回 True 表示已写入非空段。
     """
     root = Path(project_root)
     manifest = root / 'results' / 'run_manifest.json'
@@ -989,12 +1023,11 @@ def _appendix_support_materials(doc, project_root):
                          [p.relative_to(root).as_posix() for p in sorted((root / 'results' / '数据').glob('*')) if p.is_file()]
     heading2(doc, '附录A 支撑材料')
     if scripts or data_files:
-        rows = [['文件/路径', '类型']]
+        rows = [['文件名', '功能与作用']]
         for entry in sorted(set(scripts)):
-            rows.append([entry, '源码'])
+            rows.append([_support_filename(entry), _support_role(entry, 'script')])
         for entry in sorted(set(data_files)):
-            kind = '工具链' if entry.endswith('.json') else '数据'
-            rows.append([entry, kind])
+            rows.append([_support_filename(entry), _support_role(entry, 'data')])
         three_line_table(doc, rows)
         paragraph(doc, '注：完整哈希与来源脚本见 results/run_manifest.json；核心代码以文件形式保留于 code/ 目录，不随论文排版。',
                   style_name=BODY_STYLE)
@@ -1028,8 +1061,9 @@ def _assign_three_line_widths(table, doc):
         return
     section = doc.sections[0]
     available_twips = int((section.page_width - section.left_margin - section.right_margin) / 914400 * 1440)
-    symbol_twips = min(1417, int(available_twips * 0.4))
-    widths = [symbol_twips] + [(available_twips - symbol_twips) // (n - 1) for _ in range(1, n)] if n >= 2 else [available_twips]
+    # 三线表各列平均分布：等宽铺满正文宽（余数平分到前列）
+    base, extra = divmod(available_twips, n)
+    widths = [base + (1 if i < extra else 0) for i in range(n)]
     tbl = table._tbl
     tbl_grid = tbl.find(qn('w:tblGrid'))
     if tbl_grid is None:

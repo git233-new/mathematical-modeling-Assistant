@@ -147,7 +147,7 @@ class TestAppendCodeFilesAppendixAOnly:
         append_code_files(doc, str(tmp_path))
         texts = [p.text for p in doc.paragraphs] + [
             c.text for t in doc.tables for r in t.rows for c in r.cells]
-        assert any('code/Q1.py' in t for t in texts)
+        assert any('Q1.py' in t for t in texts)
         assert any('solve_common.py' in t for t in texts)
         assert any('q1_结果.csv' in t for t in texts)
 
@@ -207,13 +207,13 @@ class TestAppendixSupportMaterialsGate:
 
     def test_support_materials_table_passes(self, tmp_path):
         doc = self._mkdoc_with_appendix(table_rows=[
-            ["文件/路径", "类型"],
-            ["code/Q1_求解.py", "源码"],
-            ["results/数据/q1_结果.csv", "数据"],
+            ["文件名", "功能与作用"],
+            ["Q1_求解.py", "第1问求解脚本"],
+            ["q1_结果.csv", "第1问结果数据"],
         ])
         assert _appendix_size_issues(doc, str(tmp_path)) == []
 
     def test_support_materials_dot_items_pass(self, tmp_path):
         doc = self._mkdoc_with_appendix(paras=[
-            "· code/Q1_求解.py（源码）", "· results/数据/q1_结果.csv（数据）"])
+            "· Q1_求解.py（第1问求解脚本）", "· q1_结果.csv（第1问结果数据）"])
         assert _appendix_size_issues(doc, str(tmp_path)) == []

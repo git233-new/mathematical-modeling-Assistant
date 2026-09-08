@@ -610,14 +610,14 @@ def test_reference_year_gate_rejects_pre_2016():
     assert not any("无年份著作" in issue for issue in issues)
 
 
-def test_body_style_fixed_18pt_and_word_rerender_guards():
+def test_body_style_multiple_125_spacing_and_word_rerender_guards():
     from docx.enum.text import WD_LINE_SPACING
     from docx.oxml.ns import qn
 
     doc = paper_format.new_document()
     normal = doc.styles[paper_format.BODY_STYLE]
-    assert normal.paragraph_format.line_spacing_rule == WD_LINE_SPACING.EXACTLY
-    assert abs(normal.paragraph_format.line_spacing.pt - 18.0) < 0.01
+    assert normal.paragraph_format.line_spacing_rule == WD_LINE_SPACING.MULTIPLE
+    assert abs(normal.paragraph_format.line_spacing - 1.25) < 1e-6
     assert normal.paragraph_format.first_line_indent == paper_format.Pt(24)
 
     doc_defaults = doc.styles.element.find(qn("w:docDefaults"))
@@ -737,13 +737,13 @@ def test_reference_year_gate_ignores_doi_and_page_digits():
 
 
 def test_clipped_object_gate_resolves_style_chain_spacing():
-    """正文段（无直接行距，样式级 EXACTLY 18 磅）内含图片 → 沿样式链判出并拒存。"""
+    """样式级为多倍 1.25 时，段级被手工改回固定 18 磅且含图片 → 直接格式即判出并拒存。"""
     import base64 as _b64
 
     from docx.shared import Pt
 
     doc = paper_format.new_document()
-    p = doc.add_paragraph()  # Normal 样式：样式级 EXACTLY 18 磅，直接 rule 为 None
+    p = doc.add_paragraph()  # Normal 样式：样式级多倍 1.25；随后段级改回固定值模拟手工重排
     png_1px = _b64.b64decode(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
         "AAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
@@ -755,8 +755,8 @@ def test_clipped_object_gate_resolves_style_chain_spacing():
     assert len(issues) == 1 and "图片" in issues[0]
 
 
-def test_clipped_object_gate_clear_body_text_in_exact_style():
-    """正文纯文本段落（样式级固定 18 磅）不触发裁剪门禁。"""
+def test_clipped_object_gate_clear_body_text_ok():
+    """正文纯文本段落（多倍 1.25 行距）不触发裁剪门禁。"""
     doc = paper_format.new_document()
     paper_format.body(doc, "普通正文段落，不含对象。")
     assert paper_format._clipped_object_issues(doc) == []
@@ -846,7 +846,7 @@ def test_plot_pitfall_warnings_flags_pie_twinx_jet(tmp_path):
 # ===== 新版契约补充覆盖 =====
 
 def test_appendix_support_materials_renders_three_line_table(tmp_path):
-    """附录A 支撑材料清单渲染为三线表（表头 文件/路径|类型），过 H10 与三线闸门。"""
+    """附录A 支撑材料清单渲染为三线表（表头 文件名|功能与作用，各列等宽），过 H10 与三线闸门。"""
     from tools.docx.core.structure_validation import (
         _appendix_boxed_table_issues,
         _three_line_table_issues,
@@ -860,11 +860,13 @@ def test_appendix_support_materials_renders_three_line_table(tmp_path):
     doc = paper_format.new_document()
     assert paper_format._appendix_support_materials(doc, str(tmp_path)) is True
     table = doc.tables[-1]
-    assert [c.text for c in table.rows[0].cells] == ["文件/路径", "类型"]
+    assert [c.text for c in table.rows[0].cells] == ["文件名", "功能与作用"]
     rows = [[c.text for c in r.cells] for r in table.rows[1:]]
-    assert ["code/Q1.py", "源码"] in rows
-    csv_row = next(r for r in rows if r[0] == "results/数据/result.csv")
-    assert csv_row[1] == "数据"
+    assert ["Q1.py", "第1问求解脚本"] in rows
+    csv_row = next(r for r in rows if r[0] == "result.csv")
+    assert csv_row[1] == "支撑数据"
+    col_widths = [c.width for c in table.columns]
+    assert max(col_widths) - min(col_widths) <= 1  # 三线表各列平均分布（余数只差 1twip）
     borders = table._tbl.tblPr.find(qn("w:tblBorders"))
     vals = {n.tag.rsplit("}", 1)[-1]: n.get(qn("w:val")) for n in borders}
     assert vals.get("top") == "single" and vals.get("bottom") == "single"

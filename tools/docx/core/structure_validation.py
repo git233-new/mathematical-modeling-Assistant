@@ -467,8 +467,8 @@ def _formula_layout_issues(doc):
         prose = re.sub('[\\s\\t().、，,：:；;0-9\\-]+', '', paragraph.text or '')
         if prose:
             issues.append('公式段混入正文文字；请将解释移到公式前后')
-        if paragraph.paragraph_format.line_spacing not in (None, 1.5):
-            issues.append('公式行距不是 1.5 倍')
+        if paragraph.paragraph_format.line_spacing not in (None, 1.25):
+            issues.append('公式行距不是多倍 1.25 倍')
     return issues
 
 
@@ -758,8 +758,8 @@ def _figure_filename_issues(doc, project_root):
 def _effective_line_spacing_rule(paragraph):
     """沿"段落直接格式 → 段落样式 → 基础样式链"解析有效行距规则。
 
-    BODY_STYLE 在样式级设为固定 18 磅后，正文段落的直接 rule 为 None；
-    只查直接格式会漏判正文段落内的图片/公式裁剪风险。
+    新规范全文为多倍 1.25（文档/样式统一规定.md §三），直接 rule 通常为 None；
+    仍需沿样式链解析，防止手工排版把段/样式改回固定值（EXACTLY）时漏判裁剪风险。
     """
     rule = paragraph.paragraph_format.line_spacing_rule
     if rule is not None:
@@ -885,8 +885,9 @@ def _section_figure_issues(doc):
 def _clipped_object_issues(doc):
     """防遮挡硬闸门：固定值（EXACTLY）行距会按行高裁剪内嵌对象。
 
-    公式（OMML）与图片必须位于多倍/最小值行距的段落；正文固定 18 磅行距
-    只允许纯文本段落（见 文档/样式统一规定.md §六/§七）。
+    全文字号行距统一为多倍 1.25（自动按行高自适应，不裁剪对象）；
+    任何段落被手工改成固定值（EXACTLY）且内含公式/图片即拒存
+    （见 文档/样式统一规定.md §五/§六）。
     """
     issues = []
     for index, paragraph in enumerate(doc.paragraphs, start=1):
@@ -897,9 +898,9 @@ def _clipped_object_issues(doc):
         has_picture = bool(p_xml.findall('.//' + qn('w:drawing')) or p_xml.findall('.//' + qn('w:pict')))
         has_math = bool(p_xml.findall('.//' + qn('m:oMath')) or p_xml.findall('.//' + qn('m:oMathPara')))
         if has_picture:
-            issues.append(f'第 {index} 段为固定值行距却包含图片，Word 会按行高裁剪图片；请将该段行距改为多倍（如 1.25/1.5）')
+            issues.append(f'第 {index} 段为固定值行距却包含图片，Word 会按行高裁剪图片；请将该段行距改为多倍（如 1.25）')
         if has_math:
-            issues.append(f'第 {index} 段为固定值行距却包含公式，Word 会裁剪公式上下标；请将该段行距改为多倍（如 1.5）')
+            issues.append(f'第 {index} 段为固定值行距却包含公式，Word 会裁剪公式上下标；请将该段行距改为多倍（如 1.25）')
     return issues
 
 
@@ -1377,10 +1378,11 @@ def _appendix_size_issues(doc, project_root=None, *args, **kwargs):
         return ['附录为空；须含附录A 支撑材料清单（由 pf.append_code_files 自动生成）']
     has_support = any(p.text.strip().startswith('· ') for p in paragraphs[start + 1:])
     if not has_support:
-        # 附录A 清单两种合法形态：'· '条目段落，或 _appendix_support_materials 生成的三线表（表头'文件/路径'）
+        # 附录A 清单合法形态：'· '条目段落，或 _appendix_support_materials 生成的三线表
+        # （两列表头：文件名 | 功能与作用；兼容旧版表头'文件/路径'）
         for table in doc.tables:
             cells = table.rows[0].cells if table.rows and table.rows[0].cells else []
-            if cells and cells[0].text.strip() == '文件/路径':
+            if cells and cells[0].text.strip() in {'文件/路径', '文件名'}:
                 has_support = True
                 break
     if not has_support:

@@ -32,7 +32,7 @@ PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
 % 字体集 fandol（TeX Live 自带，Overleaf 开箱可用）。推荐 XeLaTeX 编译。
 % 若系统有 SimSun/SimHei（Windows），可改 fontset=windows 获得规范字体。
 % 与 DOCX 样式对应（唯一权威：文档/样式统一规定.md）。正文小四、首行缩进 2 字符、
-% 行距 ≈1.43 倍基线；竞赛排版以 DOCX 交付版为准，本文件是源码版。
+% 行距多倍 1.25（\linespread{1.25} 近似）；竞赛排版以 DOCX 交付版为准，本文件是源码版。
 \IfFontExistsTF{SimSun}{\setmainfont{Times New Roman}}{}
 \IfFontExistsTF{Consolas}{\setmonofont{Consolas}}{}
 \usepackage[top=2.54cm,bottom=2.54cm,left=3.18cm,right=3.18cm]{geometry}
@@ -82,7 +82,7 @@ PREAMBLE = r'''\documentclass[zihao=-4,a4paper,fontset=fandol]{ctexart}
 \captionsetup[table]{position=above}
 \captionsetup[figure]{position=below}
 \setlength{\parindent}{2em}
-\linespread{1.43}
+\linespread{1.25}
 \newcommand{\res}[1]{\textbf{#1}}
 \newcommand{\papertitle}[1]{{\centering\heiti\bfseries\zihao{3} #1\par}\vspace{1em}}
 \graphicspath{{{graphics_dir}/}}
