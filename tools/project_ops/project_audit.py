@@ -103,9 +103,9 @@ EXPECTED_TESTS = {
 WRITING_ENHANCER_DOCS = (
     "知识库/写作增强/去AI味指南.md",
     "知识库/写作增强/七轮自审框架.md",
-    "知识库/写作增强/摘要写作范式.md",
-    "知识库/写作增强/问题重述与分析写作.md",
-    "知识库/写作增强/假设与符号写作.md",
+    "文档/摘要写作范式.md",
+    "文档/问题重述与分析写作.md",
+    "文档/假设与符号写作.md",
 )
 FINAL_DOCX_SELF_CHECK_CMD = "python tools/docx/scripts/self_check.py --docx 完整论文.docx"
 RETIRED_AI_TONE_SCRIPT = "audit_ai_tone.py"
