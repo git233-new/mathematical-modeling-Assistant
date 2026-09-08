@@ -22,7 +22,7 @@ OpenAlex 负责发现候选文献，Crossref 负责 DOI 元数据核验。只有
 python scripts/hybrid_scholar.py --query "robust optimization vehicle routing" --limit 10 --json
 ```
 
-**登记落盘**：检索完成后把 `--json` 输出保存为 `<PROJECT_ROOT>/results/数据/文献检索.json`（作为参考文献来源的证据链，清理器保留该文件；其标题与摘要同时进入 W7 查重语料——网查文献只可少量引用并标注出处，禁止整段照搬）。
+**登记落盘**：检索完成后把 `--json` 输出保存为 `<PROJECT_ROOT>/results/数据/文献检索.json`（作为参考文献来源的证据链，清理器保留该文件；其标题与摘要同时进入 W7 查重语料——网查文献只可少量引用并标注出处，禁止整段照搬）。该文件统一保存为**列表**：每次检索把该次 `--json` 输出整体追加为一条记录（含 query/verified/papers），多查询词逐次追加，禁止覆盖保存——覆盖会丢失先前查询的核验条目；查重语料与引用对照均遍历全部记录。
 
 每次检索自动调用 Crossref 核验，未通过核验的结果不会进入 `verified` 和 `citation_ready`。
 
