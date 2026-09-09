@@ -20,7 +20,7 @@
 | 1 读题与附件 | 读取赛题 PDF/DOCX 与附件，判定用户意图（完整解题 / 单步） |
 | 2 赛题分析 | 产出 Problem Card：题型判定、数据盘点、逐问拆解 |
 | 3 文献检索 | 按需触发（写作需要参考文献/需理论支撑时），逐条真实核验，登记 `results/数据/文献检索.csv`（参考文献唯一来源，杜绝虚假引用） |
-| 4 模型选型 | Champion/Challenger 对比定模，产出 Model Contract（模型/假设/验收标准） |
+| 4 模型选型 | 按问题结构选择模型；必要时执行 Champion/Challenger，产出 Model Contract |
 | 5 写代码 | 逐问实现 `code/Q<序号>.py`，短反馈循环 |
 | 6 真实运行与落盘 | 跑通全部代码，结果落 `results/`，`run_manifest.json` 绑定证据链 |
 | 7 写论文 | 按章节路由逐章写作，DOCX+TEX 双格式，过格式硬闸门 |
