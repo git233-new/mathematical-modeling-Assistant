@@ -17,26 +17,25 @@
 
 检查项:
   1. ``run_manifest.json`` 存在且为合法 JSON；
-  2. 登记图片存在、非空，sha256 与登记一致（phash 缺失仅告警）；
-  3. 登记参数/结论/表格的来源数据文件存在、非空、sha256 与登记一致；
+  2. 登记图片存在、非空（phash 缺失仅告警）；
+  3. 登记参数/结论/表格的来源数据文件存在、非空；
   4. ``parameters``/``claims`` 的 ``paper_value`` 与 ``value`` 不一致则告警
      （论文数字与运行结果不符，须人工确认是否属有意取舍）；
-  5. 生成脚本 ``source_script`` 存在、sha256 与登记一致（重跑/改动则告警）；
-  6. 提供论文时：论文内嵌图片哈希必须属于 manifest 登记图哈希，论文不得引用
+  5. 生成脚本 ``source_script`` 存在且已登记；
+  6. 提供论文时：论文内嵌图片字节必须与 manifest 登记图一致，论文不得引用
      未登记图（错误）；manifest 登记图未进论文则告警（论文可不使用全部图）。
+
+全程不做哈希计算：证据链以路径 + 存在性 + 运行时间窗 + 内容字节比对为准。
 
 退出码: 0 全部通过；1 存在错误；``--strict`` 时告警也计入失败。
 """
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 import zipfile
 from pathlib import Path
-
-from tools.common.io_utils import sha256_file
 
 
 def _resolve(project: Path, relative: str) -> Path:
@@ -52,7 +51,7 @@ def _resolve(project: Path, relative: str) -> Path:
 
 
 def _check_artifact(project: Path, row: dict, label: str, errors: list, warnings: list) -> None:
-    """校验单个登记产物：文件存在 + 非空 + sha256 一致。"""
+    """校验单个登记产物：文件存在 + 非空 + 生成脚本存在。"""
     try:
         path = _resolve(project, row.get("path", ""))
     except ValueError as exc:
@@ -63,14 +62,6 @@ def _check_artifact(project: Path, row: dict, label: str, errors: list, warnings
         return
     if path.stat().st_size == 0:
         errors.append(f"{label} 文件为空: {row.get('path')}")
-    expected = row.get("sha256")
-    if expected and not isinstance(expected, str):
-        errors.append(f"{label} sha256 必须是字符串: {row.get('path')}")
-        expected = None
-    if expected:
-        actual = sha256_file(path)
-        if actual != expected:
-            warnings.append(f"{label} sha256 漂移: {row.get('path')}（登记 {expected[:12]}..., 实际 {actual[:12]}...）")
 
     script = row.get("source_script")
     if script:
@@ -81,14 +72,10 @@ def _check_artifact(project: Path, row: dict, label: str, errors: list, warnings
             return
         if not script_path.is_file():
             errors.append(f"{label} 生成脚本缺失: {script}")
-        else:
-            script_expected = row.get("source_script_sha256")
-            if script_expected and sha256_file(script_path) != script_expected:
-                warnings.append(f"{label} 生成脚本已改动: {script}（重跑后证据链失效）")
 
 
 def _check_figures(project, payload, errors, warnings):
-    """登记图片：存在/非空/sha256/phash。"""
+    """登记图片：存在/非空/phash。"""
     for index, row in enumerate(payload.get("figures", [])):
         if not isinstance(row, dict):
             errors.append(f"figures[{index}] 不是对象")
@@ -115,10 +102,6 @@ def _check_numeric_sources(project, payload, errors, warnings):
                     continue
                 if not source_path.is_file():
                     errors.append(f"{label} 来源数据缺失: {source}")
-                else:
-                    expected = row.get("source_sha256")
-                    if expected and sha256_file(source_path) != expected:
-                        warnings.append(f"{label} 来源数据已漂移: {source}（重跑后证据链失效）")
                 script = row.get("source_script")
                 if script:
                     try:
@@ -128,8 +111,6 @@ def _check_numeric_sources(project, payload, errors, warnings):
                         continue
                     if not script_path.is_file():
                         errors.append(f"{label} 生成脚本缺失: {script}")
-                    elif row.get("source_script_sha256") and sha256_file(script_path) != row["source_script_sha256"]:
-                        warnings.append(f"{label} 生成脚本已改动: {script}")
 
 
 def _check_paper_value_consistency(payload, warnings):
@@ -143,13 +124,14 @@ def _check_paper_value_consistency(payload, warnings):
 
 
 def _check_source_scripts(project, payload, errors, warnings):
-    """生成脚本总表：存在 + 哈希一致。"""
+    """生成脚本总表：存在即可（source_scripts 为路径清单）。"""
     for index, row in enumerate(payload.get("source_scripts", [])):
-        if not isinstance(row, dict):
-            errors.append(f"source_scripts[{index}] 不是对象")
-            continue
-        script = row.get("path")
+        # 兼容旧版 [{'path': ...}]；现行为纯路径字符串
+        script = row if isinstance(row, str) else (row.get("path") if isinstance(row, dict) else None)
         if not script:
+            if isinstance(row, dict):
+                continue
+            errors.append(f"source_scripts[{index}] 不是路径字符串")
             continue
         try:
             script_path = _resolve(project, script)
@@ -158,31 +140,39 @@ def _check_source_scripts(project, payload, errors, warnings):
             continue
         if not script_path.is_file():
             errors.append(f"生成脚本缺失: {script}")
-        elif row.get("sha256") and sha256_file(script_path) != row["sha256"]:
-            warnings.append(f"生成脚本已改动: {script}")
 
 
 def _check_paper_media(project, payload, docx_path, errors, warnings):
-    """论文内嵌图哈希必须属于 manifest 登记图哈希（铁律 #7：论文不得引用未登记图）。"""
+    """论文内嵌图字节必须属于 manifest 登记图（铁律 #7：论文不得引用未登记图）。
+
+    按字节内容比对，不计算哈希。
+    """
     docx = Path(docx_path).resolve()
     if not docx.is_file():
         errors.append(f"论文文件不存在: {docx}")
         return
-    registered = {row.get("sha256") for row in payload.get("figures", []) if isinstance(row, dict) and row.get("sha256")}
+    registered = set()
+    for row in payload.get("figures", []):
+        if not isinstance(row, dict) or not row.get("path"):
+            continue
+        try:
+            registered.add(_resolve(project, row["path"]).read_bytes())
+        except (ValueError, OSError):
+            continue
     try:
         with zipfile.ZipFile(docx) as zf:
-            media_hashes = {
-                _sha256_zipinfo(zf, info) for info in zf.infolist()
+            media_blobs = {
+                zf.read(info) for info in zf.infolist()
                 if info.filename.startswith("word/media/") and not info.is_dir()
             }
     except (OSError, zipfile.BadZipFile) as exc:
         errors.append(f"论文无法解包: {exc}")
-        media_hashes = set()
-    if registered and media_hashes:
-        unregistered = media_hashes - registered
+        media_blobs = set()
+    if registered and media_blobs:
+        unregistered = media_blobs - registered
         if unregistered:
             errors.append(f"论文引用了 {len(unregistered)} 张 manifest 未登记图片（铁律 #7 违反）")
-        unused = registered - media_hashes
+        unused = registered - media_blobs
         if unused:
             warnings.append(f"{len(unused)} 张 manifest 登记图未出现在论文中（允许未全部使用）")
 
@@ -257,14 +247,6 @@ def _paper_structure_gate_errors(docx_path: Path, project: Path) -> list[str]:
     hard = [i for i in issues if not i.startswith("预警：")]
     return [f"[结构闸门] {issue}" for issue in hard]
 
-
-
-def _sha256_zipinfo(zf, info) -> str:
-    digest = hashlib.sha256()
-    with zf.open(info) as fp:
-        for block in iter(lambda: fp.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def main() -> int:

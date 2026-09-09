@@ -457,20 +457,16 @@ def test_manifest_does_not_require_source_script_mtime_during_run(tmp_path: Path
     source_script.write_text("print('ok')\n", encoding="utf-8")
     result_file.write_text("42\n", encoding="utf-8")
     now = datetime.now(timezone.utc)
-    script_hash = paper_format._file_sha256(source_script)
-    result_hash = paper_format._file_sha256(result_file)
     manifest = {
         "schema_version": 1,
         "status": "success",
         "started_at": (now + timedelta(seconds=1)).isoformat(),
         "completed_at": (now + timedelta(seconds=3)).isoformat(),
         "execution": {"exit_code": 0},
-        "source_scripts": [{"path": "code/build.py", "sha256": script_hash}],
+        "source_scripts": ["code/build.py"],
         "figures": [{
             "path": "results/value.txt",
-            "sha256": result_hash,
             "source_script": "code/build.py",
-            "source_script_sha256": script_hash,
         }],
         "parameters": [],
         "claims": [],
@@ -781,7 +777,7 @@ def test_cleanup_whitelist_removes_unregistered_data_and_extra_code(tmp_path):
         '{"figures": [], "input_files": ["results/数据/登记.csv"]}', encoding="utf-8")
     (data / "登记.csv").write_text("a\n", encoding="utf-8")
     (data / "未登记.csv").write_text("b\n", encoding="utf-8")
-    (data / "spss_outputs.json").write_text("{}", encoding="utf-8")
+    (data / "spss_outputs.csv").write_text("name,unit,value,required\n", encoding="utf-8-sig")
     (code / "Q1.py").write_text("pass\n", encoding="utf-8")
     (code / "Q1_子模块.py").write_text("pass\n", encoding="utf-8")
     (code / "README.md").write_text("x\n", encoding="utf-8")
@@ -793,7 +789,7 @@ def test_cleanup_whitelist_removes_unregistered_data_and_extra_code(tmp_path):
     assert "README.md" in names
     assert "scratch.py" in names
     assert "登记.csv" not in names
-    assert "spss_outputs.json" not in names
+    assert "spss_outputs.csv" not in names
     assert "Q1.py" not in names
     assert "Q1_子模块.py" not in names
 
@@ -855,7 +851,7 @@ def test_appendix_support_materials_renders_three_line_table(tmp_path):
     manifest_dir.mkdir(parents=True)
     (tmp_path / "results" / "run_manifest.json").write_text(
         json.dumps({"schema_version": 1,
-                    "source_scripts": [{"path": "code/Q1.py", "sha256": "x"}]}), encoding="utf-8")
+                    "source_scripts": ["code/Q1.py"]}), encoding="utf-8")
     (manifest_dir / "result.csv").write_text("a,b\n1,2\n", encoding="utf-8")
     doc = paper_format.new_document()
     assert paper_format._appendix_support_materials(doc, str(tmp_path)) is True
@@ -904,7 +900,7 @@ def test_tournament_operational_section():
     root = pathlib.Path(__file__).resolve().parents[1]
     cc = (root / "知识库/建模增强/冠军挑战者建模流程.md").read_text(encoding="utf-8")
     assert "## 11. Tournament 操作细则" in cc
-    assert "tournament_log.json" in cc
+    assert "tournament_log.md" in cc
     assert "S(M) = w_1" in cc or "S(M)=w1" in cc
     assert "预算约束" in cc
 
@@ -930,13 +926,16 @@ def test_plagiarism_warnings_detects_corpus_overlap(tmp_path):
 
 
 def test_plagiarism_warnings_include_literature_log(tmp_path):
-    """W7 语料含 results/数据/文献检索.json：网查文献摘要被整段照搬 → 预警。"""
+    """W7 语料含 results/数据/文献检索.csv：网查文献摘要被整段照搬 → 预警。"""
     from tools.docx.core.structure_validation import _plagiarism_warnings
     lit = tmp_path / "results" / "数据"
     lit.mkdir(parents=True)
     quote = "网络检索所得文献的独特摘要句子，用于验证查重语料扩展逻辑是否覆盖登记文件。"
-    (lit / "文献检索.json").write_text(
-        json.dumps({"verified": [{"title": "某文献", "abstract": quote}]}), encoding="utf-8")
+    import csv as _csv
+    with (lit / "文献检索.csv").open("w", encoding="utf-8-sig", newline="") as stream:
+        writer = _csv.DictWriter(stream, fieldnames=["title", "abstract"])
+        writer.writeheader()
+        writer.writerow({"title": "某文献", "abstract": quote})
     doc = Document()
     doc.add_paragraph("本文直接照搬：" + quote)
     doc.add_paragraph("参考文献")
@@ -951,12 +950,12 @@ def test_data_file_warnings_flag_bom_and_extra_json(tmp_path):
     data.mkdir(parents=True)
     (data / "no_bom.csv").write_text("a,b\n1,2\n", encoding="utf-8")  # 无 BOM
     (data / "good.csv").write_text("a,b\n1,2\n", encoding="utf-8-sig")  # 带 BOM
-    (data / "spss_outputs.json").write_text("{}", encoding="utf-8")  # 工具链白名单
-    (data / "result.json").write_text("{}", encoding="utf-8")  # 多余 json
+    (data / "spss_outputs.csv").write_text("name,unit\n", encoding="utf-8-sig")  # 工具链登记 csv
+    (data / "result.json").write_text("{}", encoding="utf-8")  # 解题数据 json → 预警
     ws = _data_file_warnings(str(tmp_path))
     assert len(ws) == 2
     assert any(w.startswith("结果 CSV") and "no_bom.csv" in w for w in ws)
-    assert any(w.startswith("数据佐证") and w.endswith("result.json") for w in ws)
+    assert any("不得使用 JSON" in w and "result.json" in w for w in ws)
 
 
 def test_plot_pitfall_warnings_flag_bare_legend_and_best(tmp_path):

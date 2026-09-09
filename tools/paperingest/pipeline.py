@@ -25,8 +25,6 @@ pdf_utils = load_module("pdf_utils", common_dir / "pdf_utils.py")
 extract_pages = pdf_utils.extract_pages
 
 method_patterns_mod = load_module("method_patterns", common_dir / "method_patterns.py")
-io_utils_mod = load_module("io_utils", common_dir / "io_utils.py")
-sha256_file = io_utils_mod.sha256_file
 METHOD_PATTERNS = method_patterns_mod.METHOD_PATTERNS
 
 pdf_readable_mod = load_module("pdf_readable", common_dir / "pdf_readable.py")
@@ -63,14 +61,7 @@ def _quality(pages: list[str], text: str) -> tuple[str, str]:
     return "低", f"文本字符数 {chars}，有文本页 {nonempty}/{len(pages)}，实质文本页 {substantive}/{len(pages)}；需要 OCR 或人工复核。"
 
 
-def card_sha256_file(card: Path) -> str | None:
-    if not card.exists():
-        return None
-    match = re.search(r"SHA-256:\s*`?([0-9a-f]{64})`?", card.read_text(encoding="utf-8", errors="replace"), re.I)
-    return match.group(1).lower() if match else None
-
-
-def build_method_card(pdf_path: Path, pages: list[str], pdf_sha256: str) -> str:
+def build_method_card(pdf_path: Path, pages: list[str]) -> str:
     text = clean_text("\n".join(pages))
     tags = _method_tags(text)
     quality, quality_note = _quality(pages, text)
@@ -106,7 +97,7 @@ def build_method_card(pdf_path: Path, pages: list[str], pdf_sha256: str) -> str:
               "迁移时应让图表分别承担结构展示、过程展示、方案比较和检验支撑，关键数值另以结果表呈现，避免只堆图片。")
     return "\n".join([
         f"# 案例五维方法卡：{pdf_path.stem}", "",
-        f"> 来源：2010–2024 国奖论文《{pdf_path.stem}》（原始 PDF 已移出仓库，仅存方法卡）；SHA-256: `{pdf_sha256}`；以下为原创方法归纳，不复制原文文字、公式、数字或创新表述。", "",
+        f"> 来源：2010–2024 国奖论文《{pdf_path.stem}》（原始 PDF 已移出仓库，仅存方法卡）；以下为原创方法归纳，不复制原文文字、公式、数字或创新表述。", "",
         "## 解析质量", f"- 等级：**{quality}**", f"- 说明：{quality_note}", "",
         "## 原文证据位置", *evidence_lines, "",
         "## 方法标签", f"- {tag_text}", *method_evidence, "",
@@ -127,13 +118,13 @@ def clean_text(text: str) -> str:
 
 def _extract_job(job):
     """Worker entry point kept at module scope for Windows multiprocessing."""
-    pdf, ocr, min_text_chars, ocr_dpi, ocr_max_side, pdf_sha256 = job
+    pdf, ocr, min_text_chars, ocr_dpi, ocr_max_side = job
     # paperingest 是优秀论文建库链路，显式允许 OCR。
     # 其他模块（赛题读取）默认 allow_ocr=False，OCR 模式非 never 即报错。
     pages = extract_pages(pdf, ocr=ocr, min_text_chars=min_text_chars,
                           ocr_dpi=ocr_dpi, ocr_max_side=ocr_max_side,
                           allow_ocr=True)
-    return str(pdf), [clean_text(page) for page in pages], pdf_sha256
+    return str(pdf), [clean_text(page) for page in pages]
 
 
 REQUIRED_CARD_SECTIONS = (
@@ -153,7 +144,7 @@ def validate_method_cards(out: Path, pdfs: list[Path]) -> None:
         text = card.read_text(encoding="utf-8")
         missing = [section for section in REQUIRED_CARD_SECTIONS
                    if f"## {section}" not in text]
-        if "人工阅读后填写" in text or card_sha256_file(card) is None:
+        if "人工阅读后填写" in text:
             missing.append("旧占位符")
         if missing:
             failures.append(f"{card.name}: {', '.join(missing)}")
@@ -172,11 +163,11 @@ def ensure_pypdf_readable(pdfs: list[Path]) -> None:
         )
 
 
-def _persist_method_card(pdf_name, pages, pdf_sha256, out: Path) -> None:
+def _persist_method_card(pdf_name, pages, out: Path) -> None:
     """把单个 PDF 的方法卡写入 ``out/<stem>.md``（并行/串行两分支共用）。"""
     pdf = Path(pdf_name)
     dest = out / f"{pdf.stem}.md"
-    dest.write_text(build_method_card(pdf, pages, pdf_sha256), encoding="utf-8")
+    dest.write_text(build_method_card(pdf, pages), encoding="utf-8")
     print(f"[paperingest] 已生成 {dest.name}（页数={len(pages)}，字符={len(''.join(pages))}）")
 
 
@@ -218,29 +209,28 @@ def main():
         return
     ensure_pypdf_readable(pdfs)
     print(f"[paperingest] PDF={len(pdfs)}，OCR 模式={args.ocr}，开始检查缺失案例")
-    pdf_hashes = {pdf: sha256_file(pdf) for pdf in pdfs}
     count = 0
     skipped = 0
     jobs = []
     for pdf in pdfs:
         dest = out / f"{pdf.stem}.md"
-        if dest.exists() and not args.force and card_sha256_file(dest) == pdf_hashes[pdf]:
+        if dest.exists() and not args.force:
             skipped += 1
             continue
         jobs.append((pdf, args.ocr, args.min_text_chars, args.ocr_dpi,
-                     args.ocr_max_side, pdf_hashes[pdf]))
+                     args.ocr_max_side))
     if args.workers < 1:
         raise ValueError("--workers 必须大于 0")
     if args.workers > 1 and jobs:
         with ProcessPoolExecutor(max_workers=args.workers) as executor:
             page_batches = executor.map(_extract_job, jobs)
-            for pdf_name, pages, pdf_sha256 in page_batches:
-                _persist_method_card(pdf_name, pages, pdf_sha256, out)
+            for pdf_name, pages in page_batches:
+                _persist_method_card(pdf_name, pages, out)
                 count += 1
     else:
         for job in jobs:
-            pdf_name, pages, pdf_sha256 = _extract_job(job)
-            _persist_method_card(pdf_name, pages, pdf_sha256, out)
+            pdf_name, pages = _extract_job(job)
+            _persist_method_card(pdf_name, pages, out)
             count += 1
     validate_method_cards(out, pdfs)
     print(f"[paperingest] 完成：新增/更新={count}，已存在跳过={skipped}")

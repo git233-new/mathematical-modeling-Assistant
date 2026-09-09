@@ -3,7 +3,6 @@ import json
 
 import pytest
 
-from tools.common.io_utils import sha256_file
 from tools.project_ops.verify_paper_evidence import _resolve, verify_evidence
 
 
@@ -36,14 +35,24 @@ def test_manifest_schema_errors_are_reported_not_raised(tmp_path, payload, expec
     assert warnings == []
 
 
-def test_manifest_source_script_entry_must_be_object(tmp_path):
+def test_manifest_source_script_entry_must_be_path(tmp_path):
+    results = tmp_path / "results"
+    results.mkdir()
+    (results / "run_manifest.json").write_text(
+        json.dumps({"source_scripts": [123]}), encoding="utf-8"
+    )
+    errors, _ = verify_evidence(tmp_path)
+    assert "source_scripts[0] 不是路径字符串" in errors
+
+
+def test_missing_source_script_is_reported(tmp_path):
     results = tmp_path / "results"
     results.mkdir()
     (results / "run_manifest.json").write_text(
         json.dumps({"source_scripts": ["code/build.py"]}), encoding="utf-8"
     )
     errors, _ = verify_evidence(tmp_path)
-    assert "source_scripts[0] 不是对象" in errors
+    assert any("生成脚本缺失: code/build.py" in error for error in errors)
 
 
 def test_resolve_rejects_path_escape(tmp_path):
@@ -59,7 +68,7 @@ def test_valid_manifest_clean(tmp_path):
     fig = img_dir / "f1.png"
     fig.write_bytes(b"\x89PNG\r\n\x1a\n fake")
     manifest = {
-        "figures": [{"path": "results/图片/f1.png", "sha256": sha256_file(fig)}],
+        "figures": [{"path": "results/图片/f1.png"}],
         "parameters": [],
         "claims": [],
         "tables": [],

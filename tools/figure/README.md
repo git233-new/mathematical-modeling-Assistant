@@ -4,8 +4,7 @@
 
 ```text
 figure/
-├── TOOLGUIDE.md             # 工具手册（不注册为独立 skill）
-├── README.md                # 目录约定
+├── README.md                # 目录约定与运行入口
 ├── registry.py              # 模板发现与批量预览入口
 ├── runtime/                 # 唯一公共运行时、渲染器和审计器
 │   ├── mm_style.py          # 中文字体、出版级样式、导出 helper

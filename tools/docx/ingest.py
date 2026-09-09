@@ -9,7 +9,6 @@ so a solver can inspect every visual object deliberately.
 
 from __future__ import annotations
 
-import hashlib
 import mimetypes
 import posixpath
 import zipfile
@@ -38,7 +37,7 @@ class DocxAsset:
     package_path: str
     filename: str
     content_type: str
-    sha256: str
+    size: int
     extracted_path: str | None = None
 
 
@@ -244,7 +243,7 @@ def extract_docx_content(docx_path: str | Path, asset_dir: str | Path | None = N
                 package_path=package_path,
                 filename=filename,
                 content_type=_content_type(package_path, content_types),
-                sha256=hashlib.sha256(data).hexdigest(),
+                size=len(data),
                 extracted_path=extracted_path,
             ))
             asset_by_rel[rel_id] = asset_id

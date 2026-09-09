@@ -5,7 +5,7 @@
 ``paper_format``，本模块只依赖它们、不再被 paper_format 反向依赖，
 """
 
-import hashlib
+import csv
 import json
 import math
 import re
@@ -15,7 +15,6 @@ from pathlib import Path
 
 from docx.enum.text import WD_LINE_SPACING
 
-from tools.common.io_utils import sha256_file
 from docx.oxml.ns import qn
 
 from .contest_profile import (
@@ -256,9 +255,10 @@ def _reference_issues(paragraphs):
 
 
 def _reference_registry_issues(paragraphs, project_root):
-    """硬闸门：每条参考文献须在 results/数据/文献检索.json 命中书目来源（md §2.10），无源即拒存。
+    """硬闸门：每条参考文献须在 results/数据/文献检索.csv 命中书目来源（md §2.10），无源即拒存。
 
-    真实性只允许两条路径：tools/paper_search 实际检索落盘，或人工向登记文件补真实书目。
+    真实性只允许两条路径：tools/paper_search 按需检索落盘，或人工向登记文件补真实书目。
+    每条还须可查（DOI 或题名在登记文件中命中）、不得凭记忆或生成编造。
     离线/无 project_root 的调用（纯结构单测）跳过本闸门。
     """
     split_at = next((index for index, p in enumerate(paragraphs)
@@ -268,59 +268,54 @@ def _reference_registry_issues(paragraphs, project_root):
     bibliography = [p.text.strip() for p in paragraphs[split_at + 1:] if p.text.strip()]
     if not bibliography or not project_root:
         return []
-    registry = Path(project_root).resolve() / 'results' / '数据' / '文献检索.json'
+    registry = Path(project_root).resolve() / 'results' / '数据' / '文献检索.csv'
     norm = lambda s: re.sub(r'\s+', '', s or '')
     exact = set()
     titles = []
     if not registry.is_file():
-        return [f'参考文献 {len(bibliography)} 条但未找到登记文件 results/数据/文献检索.json——拒存：'
-                f'只收录 tools/paper_search 检索（citation_ready=true）或人工登记（标题/作者/年份/DOI/GB/T 著录）的真实文献']
+        return [f'参考文献 {len(bibliography)} 条但未找到登记文件 results/数据/文献检索.csv——拒存：'
+                f'只收录 tools/paper_search 按需检索（citation_ready=true）或人工登记（标题/作者/年份/DOI/GB/T 著录）的真实文献']
     try:
-        payload = json.loads(registry.read_text(encoding='utf-8', errors='replace'))
-    except (OSError, ValueError):
-        return [f'参考文献 {len(bibliography)} 条但 results/数据/文献检索.json 无法解析——拒存：修复登记文件后重试']
-
-    def _walk(node):
-        if isinstance(node, str):
-            s = norm(node)
-            if s:
-                exact.add(s)
-        elif isinstance(node, dict):
-            for v in node.values():
-                _walk(v)
-        elif isinstance(node, list):
-            for v in node:
-                _walk(v)
-    _walk(payload)
-
-    def _collect_titles(node):
-        if isinstance(node, dict):
-            for k, v in node.items():
-                key = str(k).lower()
-                if isinstance(v, str) and ('title' in key or '标题' in key):
-                    t = norm(v)
-                    if len(t) >= 6:
-                        titles.append(t)
-                _collect_titles(v)
-        elif isinstance(node, list):
-            for v in node:
-                _collect_titles(v)
-    _collect_titles(payload)
+        with registry.open('r', encoding='utf-8-sig', newline='') as stream:
+            rows = list(csv.DictReader(stream))
+    except (OSError, ValueError, csv.Error):
+        return [f'参考文献 {len(bibliography)} 条但 results/数据/文献检索.csv 无法解析——拒存：修复登记文件后重试']
+    verified = set()
+    for row in rows:
+        for value in row.values():
+            text = norm(value)
+            if text:
+                exact.add(text)
+        for key, value in row.items():
+            key_text = str(key).lower()
+            if ('title' in key_text or '标题' in key_text) and len(norm(value)) >= 6:
+                titles.append(norm(value))
+        # 可查性：citation_ready 为真的行才算通过核验的可用来源
+        ready = str(row.get('citation_ready', '')).strip().lower()
+        if ready in {'1', 'true', 'yes', 'y', '是'}:
+            verified.add(norm(row.get('title', '') or row.get('标题', '')))
+            verified.add(norm(row.get('doi', '')))
 
     unmatched = []
     for item in bibliography:
         item_norm = norm(item)
-        if not item_norm or item_norm in exact:
+        if not item_norm:
             continue
-        if any((t and t in item_norm for t in titles)):
+        hit = (
+            item_norm in exact
+            or any((t and t in item_norm for t in titles))
+            or any((e and len(e) >= 15 and e in item_norm for e in exact))
+        )
+        if not hit:
+            unmatched.append(item)
             continue
-        if any((e and len(e) >= 15 and e in item_norm for e in exact)):
-            continue
-        unmatched.append(item)
+        # 命中登记文件还不够：必须落到已核验（citation_ready=true）的 DOI/题名上，杜绝虚假引用
+        if verified and not any((v and len(v) >= 6 and v in item_norm for v in verified)):
+            unmatched.append(item)
     if unmatched:
         samples = '\n'.join((u[:120] for u in unmatched[:3]))
-        return [f'{len(unmatched)} 条参考文献未在 results/数据/文献检索.json 命中书目，无源即拒存'
-                f'（真实来源：tools/paper_search 检索或人工补登记到该文件）:\n{samples}']
+        return [f'{len(unmatched)} 条参考文献未在 results/数据/文献检索.csv 命中可查书目（须 citation_ready=true 且 DOI/题名可查），无源即拒存'
+                f'（真实来源：tools/paper_search 按需检索或人工补登记到该文件，禁凭记忆编造）:\n{samples}']
     return []
 
 
@@ -659,14 +654,15 @@ def _three_line_table_issues(doc):
     return issues
 
 
-def _embedded_image_hashes(doc):
-    hashes = Counter()
+def _embedded_image_blobs(doc):
+    """DOCX 内嵌图字节计数（按字节内容比对，不做哈希计算）。"""
+    blobs = Counter()
     for blip in doc._element.iter(qn('a:blip')):
         relation_id = blip.get(qn('r:embed'))
         part = doc.part.related_parts.get(relation_id)
         if part is not None:
-            hashes[hashlib.sha256(part.blob).hexdigest()] += 1
-    return hashes
+            blobs[part.blob] += 1
+    return blobs
 
 
 def _result_figure_issues(doc, project_root):
@@ -676,13 +672,13 @@ def _result_figure_issues(doc, project_root):
     image_root = project / 'results' / '图片'
     if not image_root.exists():
         return []
-    embedded = _embedded_image_hashes(doc)
+    embedded = _embedded_image_blobs(doc)
     images = [path for path in image_root.rglob('*') if path.is_file() and path.suffix.lower() in {'.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp'}]
     missing = []
     for path in images:
-        digest = sha256_file(path)
-        if embedded[digest]:
-            embedded[digest] -= 1
+        blob = path.read_bytes()
+        if embedded[blob]:
+            embedded[blob] -= 1
         else:
             missing.append(path.relative_to(project).as_posix())
     if not missing:
@@ -904,17 +900,14 @@ def _clipped_object_issues(doc):
     return issues
 
 
-def _manifest_checked_file(project, issues, relative, expected_hash, label, started, completed, *, require_run_path=True, check_time=True):
-    """校验单个登记产物：存在/越界/属于 results/ + 哈希一致 + 修改时间在运行区间。"""
+def _manifest_checked_file(project, issues, relative, label, started, completed, *, require_run_path=True, check_time=True):
+    """校验单个登记产物：存在/越界/属于 results/ + 修改时间在运行区间（不做哈希计算）。"""
     run_prefix = 'results/'
     relative = str(relative or '').replace('\\', '/')
     path = (project / relative).resolve() if relative else None
     if path is None or not is_within(path, project) or (not path.is_file()) or (require_run_path and (not relative.startswith(run_prefix))):
         issues.append(f"{label}不存在、越界或不属于 results/: {relative or '<空>'}")
         return None
-    actual = sha256_file(path)
-    if str(expected_hash or '').lower() != actual:
-        issues.append(f'{label}哈希与本次运行清单不一致: {relative}')
     if check_time and started is not None and completed is not None:
         modified = datetime.fromtimestamp(path.stat().st_mtime, tz=started.tzinfo)
         if modified < started or modified > completed:
@@ -923,14 +916,12 @@ def _manifest_checked_file(project, issues, relative, expected_hash, label, star
 
 
 def _manifest_check_script(project, issues, scripts, item, label, started, completed):
-    """校验生成脚本：存在 + 哈希 + 已登记到 source_scripts。"""
+    """校验生成脚本：存在 + 已登记到 source_scripts。"""
     source = str(item.get('source_script', '')).replace('\\', '/')
-    expected = str(item.get('source_script_sha256', item.get('source_sha256', scripts.get(source, '')))).lower()
     checked = _manifest_checked_file(
         project,
         issues,
         source,
-        expected,
         f'{label}生成脚本',
         started,
         completed,
@@ -939,8 +930,6 @@ def _manifest_check_script(project, issues, scripts, item, label, started, compl
     )
     if not source.startswith('code/') or source not in scripts:
         issues.append(f"{label}生成脚本未登记到 source_scripts: {source or '<空>'}")
-    elif scripts[source] != expected:
-        issues.append(f'{label}生成脚本哈希与 source_scripts 不一致: {source}')
     return checked
 
 
@@ -959,34 +948,37 @@ def _manifest_header_issues(manifest, issues):
     execution = manifest.get('execution', {})
     if not isinstance(execution, dict) or execution.get('exit_code', 1) != 0:
         issues.append('本次运行执行记录 exit_code 不为 0')
-    scripts = {str(item.get('path', '')).replace('\\', '/'): str(item.get('sha256', '')).lower() for item in manifest.get('source_scripts', []) if isinstance(item, dict)}
+    def _script_path(item):
+        # source_scripts 现为路径字符串清单；兼容旧版 [{'path': ...}]
+        return str(item if isinstance(item, str) else item.get('path', '')).replace('\\', '/')
+    scripts = {p for p in (_script_path(item) for item in manifest.get('source_scripts', [])) if p}
     if not scripts:
-        issues.append('run_manifest.json 缺少 source_scripts 脚本哈希清单')
+        issues.append('run_manifest.json 缺少 source_scripts 生成脚本清单')
     return started, completed, scripts
 
 
 def _manifest_figure_issues(doc, project, manifest, issues, started, completed, scripts):
-    """登记图片 ↔ DOCX 内嵌图：路径/哈希/感知哈希/重复登记交叉核对。"""
+    """登记图片 ↔ DOCX 内嵌图：路径/字节内容/感知哈希/重复登记交叉核对。"""
     figures = manifest.get('figures')
     if not isinstance(figures, list):
         figures = []
         issues.append('run_manifest.json 缺少 figures 列表')
-    allowed_hashes = Counter()
+    allowed_blobs = Counter()
     seen_paths = set()
-    seen_hashes = set()
+    seen_blobs = set()
     seen_phashes = []
     for index, item in enumerate(figures, start=1):
         if not isinstance(item, dict):
             issues.append(f'figures[{index}] 格式错误')
             continue
-        path = _manifest_checked_file(project, issues, item.get('path'), item.get('sha256'), f'图片[{index}]', started, completed)
+        path = _manifest_checked_file(project, issues, item.get('path'), f'图片[{index}]', started, completed)
         _manifest_check_script(project, issues, scripts, item, f'图片[{index}]', started, completed)
         if path is not None:
             relative = str(item.get('path', '')).replace('\\', '/')
-            digest = sha256_file(path)
+            blob = path.read_bytes()
             if relative in seen_paths:
                 issues.append(f'同一图片路径在运行清单中重复登记: {relative}')
-            if digest in seen_hashes:
+            if blob in seen_blobs:
                 issues.append(f'内容相同的图片在运行清单中重复登记: {relative}')
             try:
                 from .result_contract import perceptual_hash
@@ -1004,14 +996,14 @@ def _manifest_figure_issues(doc, project, manifest, issues, started, completed, 
             except Exception as exc:
                 issues.append(f'无法计算图片感知哈希: {exc}')
             seen_paths.add(relative)
-            seen_hashes.add(digest)
-            allowed_hashes[digest] += 1
-    embedded = _embedded_image_hashes(doc)
-    duplicate_embeds = {digest: count for digest, count in embedded.items() if count > 1}
+            seen_blobs.add(blob)
+            allowed_blobs[blob] += 1
+    embedded = _embedded_image_blobs(doc)
+    duplicate_embeds = {blob: count for blob, count in embedded.items() if count > 1}
     if duplicate_embeds:
         issues.append(f'DOCX 中有 {len(duplicate_embeds)} 张图片被重复插入，共多出 {sum((count - 1 for count in duplicate_embeds.values()))} 次')
-    missing = allowed_hashes - embedded
-    untracked = embedded - allowed_hashes
+    missing = allowed_blobs - embedded
+    untracked = embedded - allowed_blobs
     if missing:
         issues.append(f'本次运行清单中有 {sum(missing.values())} 幅图片未插入 DOCX')
     if untracked:
@@ -1025,15 +1017,6 @@ def _manifest_numeric_group_issues(doc, project, manifest, issues, group, label,
         issues.append(f'run_manifest.json 缺少 {group} 列表')
         return
     paper_text = '\n'.join(_document_texts(doc))
-    def source_values(node, key, found):
-        if isinstance(node, dict):
-            for current, nested in node.items():
-                if str(current) == key:
-                    found.append(str(nested))
-                source_values(nested, key, found)
-        elif isinstance(node, list):
-            for nested in node:
-                source_values(nested, key, found)
     for index, item in enumerate(items, start=1):
         if not isinstance(item, dict):
             issues.append(f'{group}[{index}] 格式错误')
@@ -1063,16 +1046,11 @@ def _manifest_numeric_group_issues(doc, project, manifest, issues, group, label,
         except (TypeError, ValueError):
             if isinstance(value, float):
                 issues.append(f'{label} {name} 不是有限数')
-        source = _manifest_checked_file(project, issues, item.get('source'), item.get('source_sha256'), f'{label} {name} 来源', started, completed)
+        source = _manifest_checked_file(project, issues, item.get('source'), f'{label} {name} 来源', started, completed)
         _manifest_check_script(project, issues, scripts, item, f'{label} {name}', started, completed)
         if source is not None:
             try:
-                if source.suffix.lower() == '.json':
-                    found = []
-                    source_values(json.loads(source.read_text(encoding='utf-8')), str(item.get('source_key', name)), found)
-                    if str(value) not in found:
-                        issues.append(f'{label} {name} 的值未在来源 JSON 同名字段中找到')
-                elif str(value) not in source.read_text(encoding='utf-8-sig', errors='replace'):
+                if str(value) not in source.read_text(encoding='utf-8-sig', errors='replace'):
                     issues.append(f'{label} {name} 的值未在来源文件中找到')
             except Exception as exc:
                 issues.append(f'{label} {name} 的来源文件无法读取: {exc}')
@@ -1117,18 +1095,13 @@ def _manifest_manual_stats_issues(doc, project, manifest, issues, started, compl
         if not tool:
             issues.append(f'人工核验结论 {name} 未标注生成工具（如 SPSS 27 手动）')
         source = _manifest_checked_file(
-            project, issues, item.get('source'), item.get('source_sha256'),
+            project, issues, item.get('source'),
             f'人工核验结论 {name} 来源', started, completed,
             require_run_path=False, check_time=False,
         )
         if source is not None:
             try:
-                if source.suffix.lower() == '.json':
-                    found = []
-                    source_values(json.loads(source.read_text(encoding='utf-8')), str(item.get('source_key', name)), found)
-                    if str(value) not in found:
-                        issues.append(f'人工核验结论 {name} 的值未在来源 JSON 同名字段中找到')
-                elif str(value) not in source.read_text(encoding='utf-8-sig', errors='replace'):
+                if str(value) not in source.read_text(encoding='utf-8-sig', errors='replace'):
                     issues.append(f'人工核验结论 {name} 的值未在来源文件中找到')
             except Exception as exc:
                 issues.append(f'人工核验结论 {name} 的来源文件无法读取: {exc}')
@@ -1140,51 +1113,41 @@ def _manifest_numeric_issues(doc, project, manifest, issues, started, completed,
 
 
 def _manifest_table_issues(doc, project, manifest, issues, started, completed, scripts):
-    """表格对账：数量、题注、行内容一致。"""
+    """表格对账：只核对论文正文实际引用的表（与图片"只认插入正文的图"同口径）。
+
+    清单不再承载表格单元格内容（表格数据以 csv/md 落在 results/数据/），
+    故此处只做三项：正文题注匹配、正文引用、来源数据文件与生成脚本存在。
+    """
     tables = manifest.get('tables')
     if not isinstance(tables, list):
         issues.append('run_manifest.json 缺少 tables 列表')
         return
-    captions = [p.text.strip() for p in doc.paragraphs if re.match('^表\\s*\\d+', p.text.strip())]
-    formal_captions = captions
-    if len(tables) != len(formal_captions):
-        issues.append(f'DOCX中有 {len(formal_captions)} 个正式表，但运行清单只登记 {len(tables)} 个')
+    caption_number = re.compile(r'^表\s*(\d+)')
+    captions = [p.text.strip() for p in doc.paragraphs if caption_number.match(p.text.strip())]
+    cited = set()
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if caption_number.match(text):
+            continue
+        cited.update((int(number) for number in re.findall(r'表\s*(\d+)', text)))
+    for item in tables:
+        caption = str(item.get('caption', '')).strip()
+        match = caption_number.match(caption)
+        if match and int(match.group(1)) not in cited:
+            issues.append(f'清单登记的表未被正文引用，不得输出: {caption}')
+    if len(tables) != len(captions):
+        issues.append(f'DOCX中有 {len(captions)} 个正式表，但运行清单只登记 {len(tables)} 个（只登记正文实际引用的表）')
     for index, item in enumerate(tables, start=1):
         if not isinstance(item, dict):
             issues.append(f'tables[{index}] 格式错误')
             continue
         caption = str(item.get('caption', '')).strip()
-        if caption not in captions:
-            issues.append(f"清单表格题注未出现在 DOCX: {caption or '<空>'}")
-        _manifest_checked_file(project, issues, item.get('source'), item.get('source_sha256'), f'表格[{index}]来源', started, completed)
+        if not caption_number.match(caption):
+            issues.append(f'tables[{index}] 的 caption 必须是正文题注口径（表N …）: {caption or "<空>"}')
+        elif caption not in captions:
+            issues.append(f"清单表格题注未出现在 DOCX: {caption}")
+        _manifest_checked_file(project, issues, item.get('source'), f'表格[{index}]来源', started, completed)
         _manifest_check_script(project, issues, scripts, item, f'表格[{index}]', started, completed)
-        if item.get('rows'):
-            MATH = '__MATH_CELL__'
-            expected_rows = []
-            for row in item['rows']:
-                cells = []
-                for cell in row:
-                    if isinstance(cell, dict) and cell.get('latex') is not None:
-                        cells.append(MATH)
-                    else:
-                        cells.append(str(cell).strip())
-                expected_rows.append(cells)
-            caption_index = captions.index(caption)
-            doc_tables = doc.tables
-            if caption_index >= len(doc_tables):
-                issues.append(f'清单表格没有对应的DOCX表格: {caption}')
-            else:
-                actual_rows = []
-                for row in doc_tables[caption_index].rows:
-                    cells = []
-                    for cell in row.cells:
-                        if cell._tc.find('.//' + qn('m:oMath')) is not None:
-                            cells.append(MATH)
-                        else:
-                            cells.append(cell.text.strip())
-                    actual_rows.append(cells)
-                if actual_rows != expected_rows:
-                    issues.append(f'表格内容与运行结果不一致: {caption}')
 
 
 def _run_manifest_issues(doc, project_root):
@@ -1854,23 +1817,13 @@ def _plagiarism_warnings(doc, project_root, corpus_dir=None):
         f.read_text(encoding='utf-8', errors='replace')
         for f in sorted(corpus.glob('*.md')))
     # 网络检索所得文献的登记文件（标题+摘要）一并纳入查重语料：网查内容只可少量引用，禁止整段照搬
-    lit_log = Path(project_root).resolve() / 'results' / '数据' / '文献检索.json'
+    lit_log = Path(project_root).resolve() / 'results' / '数据' / '文献检索.csv'
     if lit_log.is_file():
         try:
-            payload = json.loads(lit_log.read_text(encoding='utf-8', errors='replace'))
-        except (OSError, ValueError):
-            payload = {}
-        strings = []
-        def _collect(node):
-            if isinstance(node, str):
-                strings.append(node)
-            elif isinstance(node, dict):
-                for v in node.values():
-                    _collect(v)
-            elif isinstance(node, list):
-                for v in node:
-                    _collect(v)
-        _collect(payload)
+            with lit_log.open('r', encoding='utf-8-sig', newline='') as stream:
+                strings = [cell for row in csv.DictReader(stream) for cell in row.values() if cell]
+        except (OSError, ValueError, csv.Error):
+            strings = []
         corpus_text += chr(10) + chr(10).join(strings)
     norm = lambda s: re.sub(r'[\s，。；：、（）()\[\]""'']', '', s)
     corpus_norm = norm(corpus_text)
@@ -1893,10 +1846,7 @@ def _plagiarism_warnings(doc, project_root, corpus_dir=None):
     return issues
 
 
-# W8 数据文件格式：csv 必须 UTF-8-SIG（Excel 直开乱码）；数据佐证优先 xlsx/csv，json 仅工具链登记
-_TOOLCHAIN_JSON = {"spss_outputs.json", "文献检索.json"}
-
-
+# W8 数据文件格式：csv 必须 UTF-8-SIG（Excel 直开乱码）；解题过程产生的数据文件一律不用 JSON
 def _data_file_warnings(project_root):
     if not project_root:
         return []
@@ -1909,8 +1859,7 @@ def _data_file_warnings(project_root):
             if fh.read(3) != b'\xef\xbb\xbf':
                 issues.append(f'结果 CSV 应使用 UTF-8-SIG 编码保存（否则 Excel 直接打开乱码）：{f.name}；pandas 写法 to_csv(..., encoding="utf-8-sig")')
     for f in sorted(data_dir.glob('*.json')):
-        if f.name not in _TOOLCHAIN_JSON:
-            issues.append(f'数据佐证优先 xlsx 或 UTF-8-SIG CSV；json 仅限工具链登记（{sorted(_TOOLCHAIN_JSON)}），若必须使用请在评审 md 说明原因：{f.name}')
+        issues.append(f'解题过程产生的数据文件不得使用 JSON：{f.name} 请改用 UTF-8-SIG CSV 或 xlsx（数值/表格数据），文本类用 md')
     return issues
 
 
@@ -2330,7 +2279,7 @@ def _enforce_min_issues(doc, counts, limits, body_pages, rendered_pages, require
         errors.append(f'仅 {tables} 个表（不含符号说明表），低于项目交付下限 {limits["min_tables"]}')
     references = counts['references']
     if references and references < CUMCM_MIN_REFERENCES:
-        errors.append(f'仅 {references} 篇参考文献，低于项目交付下限 {CUMCM_MIN_REFERENCES}（须真实、正文一一对应且在 results/数据/文献检索.json 有源登记；以近 10 年、中文文献为主）')
+        errors.append(f'仅 {references} 篇参考文献，低于项目交付下限 {CUMCM_MIN_REFERENCES}（须真实、正文一一对应且在 results/数据/文献检索.csv 有源登记且可查；以近 10 年、中文文献为主）')
     if references and references > CUMCM_MAX_REFERENCES:
         errors.append(f'参考文献 {references} 篇，超过项目建议上限 {CUMCM_MAX_REFERENCES}')
     if rendered_pages is None:

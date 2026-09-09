@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""io_utils: 文件与哈希工具。"""
-import hashlib
+"""io_utils: 文件与 IO 安全工具（不含哈希；全仓库已移除 SHA-256 计算）。"""
 import sys
 from pathlib import Path
 
@@ -18,15 +17,6 @@ def configure_stdio() -> None:
                 stream.reconfigure(encoding="utf-8")
             except (ValueError, OSError):
                 pass
-
-
-def sha256_file(path) -> str:
-    """分块计算文件 SHA-256（统一 result_contract/verify/paper_format/pipeline 四处重复实现）。"""
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 # safe_extract_zip 上限依据：最大合法 DOCX/XLSX 解压后也就数十 MB、数百成员；

@@ -962,8 +962,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="领域过滤")
     parser.add_argument("--json", "-j", action="store_true",
                         help="以 JSON 格式输出")
-    parser.add_argument("--append-to", type=Path, metavar="FILE",
-                        help="将本次 JSON 结果追加到列表文件（隐含 --json）")
+    parser.add_argument("--append-to", type=Path, metavar="CSV",
+                        help="把本次检索结果追加到 CSV 登记文件（默认 results/数据/文献检索.csv）")
     return parser
 
 
@@ -983,6 +983,62 @@ def append_json_result(path: Path, payload: str) -> None:
         temporary.replace(path)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+# 解题过程产生的数据文件一律不用 JSON：检索登记落 CSV（UTF-8-SIG）。
+REGISTRY_COLUMNS = (
+    "query", "title", "authors", "year", "venue", "doi", "url",
+    "citation_ready", "verification_status", "verification_issues",
+    "citation_format", "abstract",
+)
+
+
+def append_csv_result(path: Path, result: Dict[str, Any]) -> int:
+    """把本次检索结果追加到 CSV 登记文件；返回新增行数。
+
+    只登记真实可查的条目：未通过 Crossref 核验的候选（citation_ready=false）
+    也落盘留痕，但引用门禁只放行 citation_ready=true。
+    """
+    import csv
+    import tempfile
+
+    query = str(result.get("query", "") or "")
+    papers = list(result.get("papers", []))
+    rows = []
+    for paper in papers:
+        rows.append({
+            "query": query,
+            "title": getattr(paper, "title", "") or "",
+            "authors": "; ".join(getattr(paper, "authors", []) or []),
+            "year": getattr(paper, "year", "") or "",
+            "venue": getattr(paper, "venue", "") or "",
+            "doi": getattr(paper, "doi", "") or "",
+            "url": getattr(paper, "url", "") or "",
+            "citation_ready": bool(getattr(paper, "citation_ready", False)),
+            "verification_status": getattr(paper, "verification_status", "") or "",
+            "verification_issues": "；".join(getattr(paper, "verification_issues", []) or []),
+            "citation_format": getattr(paper, "citation_format", "") or "",
+            "abstract": getattr(paper, "abstract", "") or "",
+        })
+    path.parent.mkdir(parents=True, exist_ok=True)
+    exists = path.exists() and path.stat().st_size > 0
+    handle = tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8-sig", newline="", dir=path.parent, suffix=".tmp", delete=False)
+    try:
+        writer = csv.DictWriter(handle, fieldnames=REGISTRY_COLUMNS)
+        writer.writeheader()
+        if exists:
+            with path.open("r", encoding="utf-8-sig", newline="") as source:
+                for old in csv.DictReader(source):
+                    writer.writerow({key: old.get(key, "") for key in REGISTRY_COLUMNS})
+        for row in rows:
+            writer.writerow(row)
+        handle.close()
+        os.replace(handle.name, path)
+    finally:
+        if os.path.exists(handle.name):
+            os.remove(handle.name)
+    return len(rows)
 
 
 def main():
@@ -1006,7 +1062,11 @@ def main():
     )
 
     if args.append_to:
-        append_json_result(args.append_to, scholar.results_to_json(result))
+        if args.append_to.suffix.lower() == ".json":
+            append_json_result(args.append_to, scholar.results_to_json(result))
+        else:
+            count = append_csv_result(args.append_to, result)
+            print(f"已追加 {count} 条到登记文件: {args.append_to}")
     elif args.json:
         print(scholar.results_to_json(result))
     else:

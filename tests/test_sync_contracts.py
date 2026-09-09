@@ -69,11 +69,12 @@ class TestCleanupWhitelistSync:
         for sample in ("Q1.py", "Q1_求解.py", "solve_common.py", "viz.py", "requirements.txt"):
             assert CODE_KEEP_RE.match(sample), f"CODE_KEEP_RE 未覆盖文档承诺项: {sample}"
 
-    def test_toolchain_json_whitelist_doc_matches_code(self):
+    def test_data_always_keep_whitelist_doc_matches_code(self):
         code_spec = _read("文档/代码规范.md")
         for name in sorted(DATA_ALWAYS_KEEP):
-            assert name in code_spec, f"代码规范.md 未登记工具链 json: {name}"
+            assert name in code_spec, f"代码规范.md 未登记结果数据白名单: {name}"
         assert "run_manifest.json" in code_spec
+        assert "不得使用 JSON" in code_spec or "不用 JSON" in code_spec
 
 
 class TestIronRules:
@@ -102,12 +103,17 @@ def _mk_doc():
     return doc
 
 
-def _spss_json(tmp_path, stats, tool="SPSS 27 手动"):
+def _spss_csv(tmp_path, stats, tool="SPSS 27 手动"):
+    import csv
     datadir = tmp_path / "results" / "数据"
     datadir.mkdir(parents=True, exist_ok=True)
-    (datadir / "spss_outputs.json").write_text(
-        json.dumps({"tool": tool, "stats": stats}), encoding="utf-8"
-    )
+    with (datadir / "spss_outputs.csv").open("w", encoding="utf-8-sig", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=["name", "unit", "value", "required", "tool"])
+        writer.writeheader()
+        for stat in stats:
+            row = dict(stat)
+            row.setdefault("tool", tool)
+            writer.writerow(row)
 
 
 class TestAppendCodeFilesAppendixAOnly:
@@ -137,8 +143,8 @@ class TestAppendCodeFilesAppendixAOnly:
             json.dumps({
                 "schema_version": 1,
                 "source_scripts": [
-                    {"path": "code/Q1.py", "sha256": "x"},
-                    {"path": "code/solve_common.py", "sha256": "x"},
+                    "code/Q1.py",
+                    "code/solve_common.py",
                 ],
             }),
             encoding="utf-8",
@@ -154,7 +160,7 @@ class TestAppendCodeFilesAppendixAOnly:
 
 class TestSpssRequired:
     def test_required_missing_raises(self, tmp_path):
-        _spss_json(tmp_path, [
+        _spss_csv(tmp_path, [
             {"name": "配对t", "unit": "无量纲", "required": True},
             {"name": "d", "unit": "无量纲", "value": 0.42},
         ])
@@ -162,19 +168,19 @@ class TestSpssRequired:
             load_spss_outputs(str(tmp_path))
 
     def test_optional_missing_skipped(self, tmp_path):
-        _spss_json(tmp_path, [
+        _spss_csv(tmp_path, [
             {"name": "可选项", "unit": "无量纲"},
             {"name": "F值", "unit": "无量纲", "value": 12.34},
         ])
         out = load_spss_outputs(str(tmp_path))
         assert [(e["name"], e["value"]) for e in out] == [("F值", 12.34)]
-        assert out[0]["source"] == "results/数据/spss_outputs.json"
+        assert out[0]["source"] == "results/数据/spss_outputs.csv"
 
     def test_no_file_returns_empty(self, tmp_path):
         assert load_spss_outputs(str(tmp_path)) == []
 
     def test_zero_value_kept(self, tmp_path):
-        _spss_json(tmp_path, [{"name": "p值", "unit": "无量纲", "value": 0.0}])
+        _spss_csv(tmp_path, [{"name": "p值", "unit": "无量纲", "value": 0.0}])
         out = load_spss_outputs(str(tmp_path))
         assert out[0]["value"] == 0.0
 

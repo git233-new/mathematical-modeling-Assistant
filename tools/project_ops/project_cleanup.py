@@ -44,7 +44,7 @@ SKILL_TRACE_DIR_NAMES = {"tools", "common", "figure", "paper_search", "paperinge
 SKILL_TRACE_MARKER_RELS = (
     ("SKILL.md",),
     ("docx", "core", "paper_format.py"),
-    ("pdf", "TOOLGUIDE.md"),
+    ("paper_search", "scripts", "hybrid_scholar.py"),
 )
 PROCESS_NAME_MARKERS = (
     "generate_paper", "write_paper", "render_paper", "paper_generation",
@@ -53,7 +53,7 @@ PROCESS_NAME_MARKERS = (
 # 瘦身白名单（只对 code/ 与 results/数据/ 生效）：非白名单项即过程物，交付时清理。
 # files/ 与项目根层永不适用白名单。与 SKILL.md 交付契约保持一致。
 CODE_KEEP_RE = re.compile(r"^(Q\d+(?:_.+)?\.py|solve_common\.py|viz\.py|requirements\.txt)$")
-DATA_ALWAYS_KEEP = {"spss_outputs.json", "文献检索.json"}
+DATA_ALWAYS_KEEP = {"spss_outputs.csv", "文献检索.csv"}
 # 解题公共模块名：仅被 Q<序号>.py 复用，非解答脚本不得依赖
 SOLUTION_COMMON_NAME = "solve_common.py"
 # 统一生图配置模块：绘图参数（配色/字号/尺寸/导出）唯一入口，各问只调不各写

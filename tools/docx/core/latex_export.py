@@ -116,30 +116,25 @@ def _omml_fallback_text(p_element):
     return ''.join(node.text or '' for node in p_element.findall('.//' + qn('m:t'))).strip()
 
 
-def _source_name_by_hash(project_root):
-    """results/图片/ 下 sha256 → 生成文件名映射（嵌入图回查原始命名用）。"""
-    import hashlib
-
-    from tools.common.io_utils import sha256_file
-    name_by_hash = {}
+def _source_name_by_bytes(project_root):
+    """results/图片/ 下 文件字节 → 生成文件名映射（嵌入图回查原始命名用）。"""
+    name_by_bytes = {}
     if not project_root:
-        return name_by_hash
+        return name_by_bytes
     image_root = Path(project_root).resolve() / 'results' / '图片'
     if image_root.exists():
         for path in image_root.rglob('*'):
             if path.suffix.lower() in {'.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp'}:
-                name_by_hash[sha256_file(path)] = path.name
-    return name_by_hash
+                name_by_bytes[path.read_bytes()] = path.name
+    return name_by_bytes
 
 
-def _image_filenames(doc, p_element, name_by_hash):
+def _image_filenames(doc, p_element, name_by_bytes):
     """段落内嵌图片的原始生成文件名（导出 includegraphics 用）。
 
-    按部件内容 sha256 回查 results/图片/ 的生成文件名——DOCX 内部部件名
+    按部件字节内容回查 results/图片/ 的生成文件名——DOCX 内部部件名
     （image1.png 之类）与统一命名规范无关；回查不中才退回部件名。
     """
-    import hashlib
-
     names = []
     for blip in p_element.findall('.//' + qn('a:blip')):
         rid = blip.get(qn('r:embed'))
@@ -148,8 +143,7 @@ def _image_filenames(doc, p_element, name_by_hash):
         part = doc.part.related_parts.get(rid)
         if part is None:
             continue
-        digest = hashlib.sha256(part.blob).hexdigest()
-        names.append(name_by_hash.get(digest) or str(part.partname).rsplit('/', 1)[-1])
+        names.append(name_by_bytes.get(part.blob) or str(part.partname).rsplit('/', 1)[-1])
     return names
 
 
@@ -192,7 +186,7 @@ def export_latex_source(doc, out_path, *, graphics_dir='results/图片', project
         elif child.tag == qn('w:tbl'):
             items.append(Table(child, doc._body))
     lines = [PREAMBLE.replace('{graphics_dir}', graphics_dir)]
-    name_by_hash = _source_name_by_hash(project_root)
+    name_by_bytes = _source_name_by_bytes(project_root)
     in_references = False
     bib_count = 0
     pending_figure = None
@@ -259,7 +253,7 @@ def export_latex_source(doc, out_path, *, graphics_dir='results/图片', project
             else:
                 lines.append(r'\[ ' + _omml_fallback_text(item._p) + r' \]')
             continue
-        images = _image_filenames(doc, item._p, name_by_hash)
+        images = _image_filenames(doc, item._p, name_by_bytes)
         if images:
             _flush_figure(lines)
             pending_figure = images

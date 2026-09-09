@@ -16,7 +16,6 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 from docx.text.paragraph import Paragraph
 from lxml import etree
-from tools.common.io_utils import sha256_file as _file_sha256
 import logging
 logger = logging.getLogger(__name__)
 SKILL_ROOT = Path(__file__).resolve().parents[3]
@@ -1029,7 +1028,7 @@ def _appendix_support_materials(doc, project_root):
         for entry in sorted(set(data_files)):
             rows.append([_support_filename(entry), _support_role(entry, 'data')])
         three_line_table(doc, rows)
-        paragraph(doc, '注：完整哈希与来源脚本见 results/run_manifest.json；核心代码以文件形式保留于 code/ 目录，不随论文排版。',
+        paragraph(doc, '注：来源脚本与数据文件清单见 results/run_manifest.json；核心代码以文件形式保留于 code/ 目录，不随论文排版。',
                   style_name=BODY_STYLE)
         return True
     paragraph(doc, '（支撑材料清单由 run_manifest.json 自动生成；此处暂无登记，请作者补充可运行源码与数据文件清单）',
@@ -1043,7 +1042,7 @@ def append_code_files(doc, project_root):
     附录A 由 `results/run_manifest.json` 的 source_scripts + 数据文件自动生成清单
     （调用 `_appendix_support_materials`），非空赛题必有实质内容。
     各小问核心代码**不再进入论文**，全部保留在 PROJECT_ROOT/code/ 目录
-    （Q<序号>_*.py + solve_common.py 等），支撑材料清单会登记其文件名与哈希。
+    （Q<序号>_*.py + solve_common.py 等），支撑材料清单登记其文件名与用途。
     """
     _appendix_support_materials(doc, project_root)
 
