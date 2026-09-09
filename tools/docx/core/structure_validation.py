@@ -758,7 +758,7 @@ def _figure_filename_issues(doc, project_root):
 def _effective_line_spacing_rule(paragraph):
     """沿"段落直接格式 → 段落样式 → 基础样式链"解析有效行距规则。
 
-    新规范全文为多倍 1.25（文档/样式统一规定.md §三），直接 rule 通常为 None；
+    新规范全文为多倍 1.25（文档/样式统一规定.md §四），直接 rule 通常为 None；
     仍需沿样式链解析，防止手工排版把段/样式改回固定值（EXACTLY）时漏判裁剪风险。
     """
     rule = paragraph.paragraph_format.line_spacing_rule

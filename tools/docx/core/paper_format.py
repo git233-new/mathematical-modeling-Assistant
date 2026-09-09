@@ -1340,7 +1340,7 @@ def save_document(
         _check_docx_not_locked(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     # LaTeX 源码版与 DOCX 同一内容快照；暂存后先 tex 落位、DOCX 随后原子发布（先锁预检），只交付源码、不编译不产出 PDF，
-    # 规范见 文档/样式统一规定.md §十二
+    # 规范见 文档/样式统一规定.md §十
     from .latex_export import export_latex_source
     latex_path = output.with_suffix('.tex')
     if latex_path.exists():
