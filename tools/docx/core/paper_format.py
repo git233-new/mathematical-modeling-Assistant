@@ -219,6 +219,37 @@ def _heading_key(text):
     value = re.sub('\\s+', '', text or '')
     value = re.sub('^(?:[一二三四五六七八九十]+[、.．]|\\d+(?:[.．]\\d+){1,2})', '', value)
     return value.strip('、.．：:')
+def _protected_slot_matches(item, role, text):
+    """判断受保护模板槽位是否与当前正文标题/段落匹配。"""
+    if not item or item.get('role') != role or not item.get('protected'):
+        return False
+    if text is None:
+        return False
+    slot_text = ''.join(node.text or '' for node in item['element'].iter(qn('w:t'))).strip()
+    if role in {'title', 'abstract', 'keywords'}:
+        if not slot_text:
+            return False
+        normalized_text = re.sub(r'\s+', '', str(text))
+        normalized_slot = re.sub(r'\s+', '', slot_text)
+        if normalized_text == normalized_slot:
+            return True
+        text_key = _heading_key(text)
+        slot_key = _heading_key(slot_text)
+        return bool(text_key and slot_key and text_key == slot_key)
+    number = _heading_number(text)
+    key = _heading_key(text)
+    if number and item.get('number') == number:
+        return True
+    if key and item.get('key') == key:
+        return True
+    if slot_text:
+        slot_number = _heading_number(slot_text)
+        slot_key = _heading_key(slot_text)
+        if number and slot_number and number == slot_number:
+            return True
+        if key and slot_key and key == slot_key:
+            return True
+    return False
 def _is_required_heading1_slot(item):
     return item['role'] == 'heading1' and any((marker in item['key'] for marker in _REQUIRED_HEADING1_CANONICAL))
 def _discard_skipped_template_slots(doc, chosen):
@@ -1228,8 +1259,10 @@ def _stage_and_publish(doc, contest, project, output, manifest_image_paths, stag
     final_errors = [i for i in final_issues if not i.startswith('预警：')]
     final_warnings = [w for w in final_issues if w.startswith('预警：')]
     if final_warnings:
-        print(json.dumps({'stage': 'validate_warning', 'count': len(final_warnings), 'messages': final_warnings}),
-              file=sys.stderr, flush=True)
+        raise ValueError(
+            "终态 DOCX 软预警未清零，禁止发布：" + "；".join(final_warnings[:10])
+            + "\n  修复指引：对照 文档/论文写作.md 逐项清除软预警后重试"
+        )
     if final_errors:
         fix_hint = (
             "\n"
@@ -1291,8 +1324,10 @@ def save_document(
     hard_errors = [i for i in issues if not i.startswith('预警：')]
     warnings = [w for w in issues if w.startswith('预警：')]
     if warnings:
-        print(json.dumps({'stage': 'preflight_warning', 'count': len(warnings), 'messages': warnings}),
-              file=sys.stderr, flush=True)
+        raise ValueError(
+            "论文软预警未清零，禁止保存：" + "；".join(warnings[:10])
+            + "\n  修复指引：对照 文档/论文写作.md 逐项清除软预警后重试"
+        )
     if hard_errors:
         fix_hint = (
             "\n"

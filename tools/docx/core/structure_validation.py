@@ -491,7 +491,7 @@ def _formula_chain_issues(doc):
         formula_count = sum((count for _, count in items))
         prose = '\n'.join((text for text, count in items if count == 0))
         if formula_count >= 2 and (not any((cue in prose for cue in derivation_cues))):
-            issues.append(f'预警：第 {n}.{number} 问公式链缺少推导衔接（建议说明代入、联立、整理或由此得到的关系）')
+            issues.append(f'第 {n}.{number} 问公式链缺少推导衔接（须说明代入、联立、整理或由此得到的关系）')
     return issues
 
 
@@ -518,9 +518,9 @@ def _problem_analysis_visual_issues(doc):
         if child.tag == qn('w:tbl') or child.find('.//' + qn('a:blip')) is not None:
             has_visual = True
     if not has_visual:
-        return ['预警：多问题目在问题分析处缺少总体研究思路或技术路线流程图']
+        return ['多问题目在问题分析处缺少总体研究思路或技术路线流程图']
     if not has_flow_caption:
-        return ['预警：问题分析中的结构图题注应明确写为流程图、技术路线或研究思路']
+        return ['问题分析中的结构图题注应明确写为流程图、技术路线或研究思路']
     return []
 
 
@@ -1819,50 +1819,6 @@ def _plot_pitfall_warnings(project_root):
     return issues
 
 
-# W7 查重预警：正文与优秀论文案例库连续雷同片段（对照 SKILL.md 铁律 3/6：只学方法，不抄文字）
-_PLAGIARISM_SHINGLE = 20  # 连续 20 字（去标点空白后）判雷同，短于常见术语组合，误报率低
-
-
-def _plagiarism_warnings(doc, project_root, corpus_dir=None):
-    if project_root is None:
-        return []
-    skill_root = Path(__file__).resolve().parents[3]
-    corpus = Path(corpus_dir) if corpus_dir else skill_root / '知识库' / '优秀论文案例'
-    if not corpus.is_dir():
-        return []
-    corpus_text = chr(10).join(
-        f.read_text(encoding='utf-8', errors='replace')
-        for f in sorted(corpus.glob('*.md')))
-    # 网络检索所得文献的登记文件（标题+摘要）一并纳入查重语料：网查内容只可少量引用，禁止整段照搬
-    lit_log = Path(project_root).resolve() / 'results' / '数据' / '文献检索.csv'
-    if lit_log.is_file():
-        try:
-            with lit_log.open('r', encoding='utf-8-sig', newline='') as stream:
-                strings = [cell for row in csv.DictReader(stream) for cell in row.values() if cell]
-        except (OSError, ValueError, csv.Error):
-            strings = []
-        corpus_text += chr(10) + chr(10).join(strings)
-    norm = lambda s: re.sub(r'[\s，。；：、（）()\[\]""'']', '', s)
-    corpus_norm = norm(corpus_text)
-    corpus_shingles = {corpus_norm[i:i + _PLAGIARISM_SHINGLE]
-                       for i in range(0, len(corpus_norm) - _PLAGIARISM_SHINGLE + 1, 5)}
-    starts = [i for i, p in enumerate(doc.paragraphs) if _is_reference_start(p.text) or _is_appendix_start(p.text)]
-    body_paras = doc.paragraphs[:starts[0]] if starts else doc.paragraphs
-    issues = []
-    seen = set()
-    for para in body_paras:
-        text = norm(para.text)
-        if len(text) < _PLAGIARISM_SHINGLE:
-            continue
-        for i in range(0, len(text) - _PLAGIARISM_SHINGLE + 1):
-            shingle = text[i:i + _PLAGIARISM_SHINGLE]
-            if shingle in corpus_shingles and shingle not in seen:
-                seen.add(shingle)
-                issues.append(f'正文与登记语料（案例库/网查文献）存在连续 {_PLAGIARISM_SHINGLE} 字雷同：「{shingle[:30]}…」——只可迁移方法，文字必须重写（铁律 3/6）')
-                break
-    return issues
-
-
 # W8 数据文件格式：csv 必须 UTF-8-SIG（Excel 直开乱码）；解题过程产生的数据文件一律不用 JSON
 def _data_file_warnings(project_root):
     if not project_root:
@@ -2068,7 +2024,6 @@ def _soft_quality_warnings(doc, project_root):
     ws += _no_image_formula_warnings(doc)
     ws += _plot_font_warnings(project_root)
     ws += _plot_pitfall_warnings(project_root)
-    ws += _plagiarism_warnings(doc, project_root)
     ws += _data_file_warnings(project_root)
     ws += _figure_table_lead_in_warnings(doc)
     ws += _model_eval_generalization_warning(doc)

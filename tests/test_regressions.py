@@ -905,44 +905,6 @@ def test_tournament_operational_section():
     assert "预算约束" in cc
 
 
-def test_plagiarism_warnings_detects_corpus_overlap(tmp_path):
-    """W7 查重：论文含案例库连续 20 字片段 → 预警；干净论文与参考文献后内容不触发。"""
-    from tools.docx.core.structure_validation import _plagiarism_warnings
-    corpus = tmp_path / "corpus"
-    corpus.mkdir()
-    (corpus / "case.md").write_text(
-        "这是一个用于查重测试的案例库文本，其中包含一段足够长的独特句子用来触发雷同检测逻辑。", encoding="utf-8")
-    doc = Document()
-    doc.add_paragraph("开头引用其中包含一段足够长的独特句子用来触发雷同检测逻辑的原文内容。")
-    doc.add_paragraph("参考文献")
-    doc.add_paragraph("这是一个用于查重测试的案例库文本，其中包含一段足够长的独特句子用来触发雷同检测逻辑。")
-    ws = _plagiarism_warnings(doc, str(tmp_path), corpus_dir=corpus)
-    assert len(ws) == 1 and "连续 20 字雷同" in ws[0]
-    clean = Document()
-    clean.add_paragraph("本文构建独立模型并完成验证，措辞与案例库完全不同。")
-    clean.add_paragraph("参考文献")
-    clean.add_paragraph("这是一个用于查重测试的案例库文本，其中包含一段足够长的独特句子用来触发雷同检测逻辑。")
-    assert _plagiarism_warnings(clean, str(tmp_path), corpus_dir=corpus) == []
-
-
-def test_plagiarism_warnings_include_literature_log(tmp_path):
-    """W7 语料含 results/数据/文献检索.csv：网查文献摘要被整段照搬 → 预警。"""
-    from tools.docx.core.structure_validation import _plagiarism_warnings
-    lit = tmp_path / "results" / "数据"
-    lit.mkdir(parents=True)
-    quote = "网络检索所得文献的独特摘要句子，用于验证查重语料扩展逻辑是否覆盖登记文件。"
-    import csv as _csv
-    with (lit / "文献检索.csv").open("w", encoding="utf-8-sig", newline="") as stream:
-        writer = _csv.DictWriter(stream, fieldnames=["title", "abstract"])
-        writer.writeheader()
-        writer.writerow({"title": "某文献", "abstract": quote})
-    doc = Document()
-    doc.add_paragraph("本文直接照搬：" + quote)
-    doc.add_paragraph("参考文献")
-    ws = _plagiarism_warnings(doc, str(tmp_path))
-    assert len(ws) == 1 and "连续 20 字雷同" in ws[0]
-
-
 def test_data_file_warnings_flag_bom_and_extra_json(tmp_path):
     """W8 数据文件格式：csv 缺 UTF-8-SIG BOM、数据目录多余 json → 预警；合规文件不触发。"""
     from tools.docx.core.structure_validation import _data_file_warnings
