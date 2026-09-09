@@ -1,14 +1,3 @@
-"""Pack a directory into a DOCX, PPTX, or XLSX file.
-
-Validates with auto-repair, condenses XML formatting, and creates the Office file.
-
-Usage:
-    python pack.py <input_directory> <output_file> [--original <file>] [--validate true|false]
-
-Examples:
-    python pack.py unpacked/ output.docx --original input.docx
-    python pack.py unpacked/ output.pptx --validate false
-"""
 
 import argparse
 import sys

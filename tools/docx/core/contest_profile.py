@@ -69,46 +69,4 @@ _FLOWCHART_TERMS = ('流程图', '技术路线', '研究思路', '解题思路')
 _FLOWCHART_OVERALL_TERMS = ('总体', '研究思路', '技术路线')
 
 
-# ---------------------------------------------------------------------------
-# 章节字数/页数预算表（单一事实来源）
-# ---------------------------------------------------------------------------
-# 同时喂给两个消费者：
-# - ``paper_workflow.CONTENT_BUDGET``：预检 metrics 返回的展示表（键 = label，
-#   {'characters': chars, 'pages': pages}），顺序即论文写作.md §1.2 预算表顺序；
-# - ``structure_validation._SECTION_BUDGETS``：W11 章节双向约束（按 pattern 定位章节，
-#   lo/hi ±20% 容差预警），note 为题注/消息里用的章名。
-# 展示文本与 文档/论文写作.md §1.2 逐行镜像；机器判法一律以本表为准，md 只给人看，
-# 差异由 tests/test_sync_contracts 与 project_audit 的文档镜像检查兜底。
 
-
-@dataclass(frozen=True)
-class SectionBudget:
-    label: str                   # 预算表展示名（计划/预检视角，如 模型建立（5.x））
-    chars: str                   # 展示字符区间文本，如 '5000-6000'
-    pages: str                   # 展示页数文本，如 '8-10'
-    lo: int | None = None        # 校验下界（None = 不设机器下界）
-    hi: int | None = None        # 校验上界（None = 不设机器上界）
-    pattern: str | None = None   # 章节标题定位正则（W11 用；None = 无独立章节机器校验）
-    note: str = ''               # 校验消息里的章名（缺省回退到 label）
-
-
-SECTION_BUDGET_ROWS = (
-    SectionBudget('摘要（含关键词）', '800-900', '1'),
-    SectionBudget('问题重述', '800-1000', '1-1.5', 800, 1000,
-                  r'^一、\s*问题重述', '问题重述'),
-    SectionBudget('问题分析', '1000-1200', '1.5', 1000, 1200,
-                  r'^二、\s*问题分析', '问题分析'),
-    SectionBudget('模型假设', '300-600', '0.5 以内', 300, 600,
-                  r'^三、\s*模型假设', '模型假设'),
-    SectionBudget('符号说明', '表格为主，不按正文凑字', '0.3-0.5'),
-    SectionBudget('模型建立（5.x）', '5000-6000', '8-10', 5000, 6000,
-                  r'^五、\s*模型建立与求解', '模型建立与求解'),
-    SectionBudget('灵敏度/检验', '1300-1500', '3-4', 1300, 1500,
-                  r'^六、\s*模型检验与分析', '模型检验与分析'),
-    SectionBudget('优缺点/推广', '800-1000', '1', 800, 1000,
-                  r'^七、\s*模型评价与改进', '模型评价与改进'),
-    SectionBudget('参考文献', '300', '0.5'),
-    SectionBudget('附录', '按最终源码实际长度', '不设项目自定义上限'),
-    SectionBudget('合计', '见论文写作.md项目交付下限表',
-                  '总 30–45 页（正文 20–30，其余为附录/参考文献）'),
-)

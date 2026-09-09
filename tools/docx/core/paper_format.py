@@ -1375,9 +1375,6 @@ def progress_snapshot(doc, stage='writing', rendered_pages=None):
 def emit_progress(doc, stage='writing', rendered_pages=None, stream=None):
     from .paper_workflow import emit_progress as _emit_progress
     return _emit_progress(doc, stage, rendered_pages, stream)
-def emit_chapter_gate(doc, stream=None):
-    from .paper_workflow import emit_chapter_gate as _emit_chapter_gate
-    return _emit_chapter_gate(doc, stream)
 if __name__ == '__main__':
     doc = new_document()
     title(doc, '论文题目')
@@ -1387,7 +1384,6 @@ if __name__ == '__main__':
     heading1(doc, '一、问题重述')
     heading2(doc, '1.1 问题背景')
     heading3(doc, '问题一的建立')
-    three_line_table(doc, [['符号', '说明', '单位'], ['x', '变量', '-']])
     doc.save('paper_format_demo.docx')
 
 # 验证子系统（拆分至 structure_validation）。为保持公共 API 兼容，

@@ -1,19 +1,3 @@
-"""
-Helper for running LibreOffice (soffice) in environments where AF_UNIX
-sockets may be blocked (e.g., sandboxed VMs).  Detects the restriction
-at runtime and applies an LD_PRELOAD shim if needed.
-
-Usage:
-    from soffice import run_soffice, get_soffice_env
-
-    # Option 1 – run soffice directly
-    result = run_soffice(["--headless", "--convert-to", "pdf", "input.docx"])
-
-    # Option 2 – get env dict for your own subprocess calls
-    env = get_soffice_env()
-    subprocess.run(["soffice", ...], env=env)
-"""
-
 import os
 import socket
 import subprocess

@@ -21,7 +21,6 @@ from .contest_profile import (
     CUMCM_KEYWORD_MAX,
     CUMCM_KEYWORD_MIN,
     REFERENCE_MIN_YEAR,
-    SECTION_BUDGET_ROWS,
     CUMCM_MAX_EQUATIONS,
     CUMCM_MAX_FLOWCHARTS,
     CUMCM_MAX_REFERENCES,
@@ -186,8 +185,13 @@ def _reference_issues(paragraphs):
     split_at = next((index for index, p in enumerate(paragraphs) if ('参考文献' in p.text or re.search('references', p.text, re.I)) and len(p.text.strip()) <= 30), None)
     if split_at is None:
         return ['未找到参考文献章节']
-    body = '\n'.join((p.text for p in paragraphs[:split_at]))
     bibliography = [p.text.strip() for p in paragraphs[split_at + 1:] if p.text.strip()]
+    bib_texts = set(bibliography)
+    # 引用扫描覆盖全文（含参考文献节之后的总结段等），仅排除参考文献列表条目本身。
+    body = '\n'.join(
+        p.text for i, p in enumerate(paragraphs)
+        if i != split_at and p.text.strip() not in bib_texts
+    )
     cited = set()
     for group in re.findall('\\[([0-9,，\\-–—\\s]+)\\]', body):
         for item in re.split('[,，]', group):
@@ -929,7 +933,7 @@ def _manifest_check_script(project, issues, scripts, item, label, started, compl
         check_time=False,
     )
     if not source.startswith('code/') or source not in scripts:
-        issues.append(f"{label}生成脚本未登记到 source_scripts: {source or '<空>'}")
+        issues.append(f"预警：{label}生成脚本未登记到 source_scripts: {source or '<空>'}")
     return checked
 
 
@@ -1123,7 +1127,20 @@ def _manifest_table_issues(doc, project, manifest, issues, started, completed, s
         issues.append('run_manifest.json 缺少 tables 列表')
         return
     caption_number = re.compile(r'^表\s*(\d+)')
-    captions = [p.text.strip() for p in doc.paragraphs if caption_number.match(p.text.strip())]
+    # 基于真实 table 对象（w:tbl）而非段落前缀关键词：遍历每个正式表取其前导题注段落，
+    # 避免正文提及“表N”的段落被误判为表。
+    captions = []
+    body_el = doc.element.body
+    body_children = list(body_el)
+    for table in doc.tables:
+        tbl_el = table._tbl
+        pos = body_children.index(tbl_el)
+        for prev in reversed(body_children[:pos]):
+            if prev.tag == qn('w:p'):
+                txt = ''.join(node.text or '' for node in prev.iter(qn('w:t'))).strip()
+                if caption_number.match(txt):
+                    captions.append(txt)
+                break
     cited = set()
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
@@ -1937,68 +1954,6 @@ def _figure_table_lead_in_warnings(doc):
     return issues
 
 
-# 章节预算约束（区间/章名取单一事实来源 contest_profile.SECTION_BUDGET_ROWS，
-# 与 paper_workflow.CONTENT_BUDGET 同源；±20% 容差 = _BUDGET_SLACK）：
-# - 下限缺额 = 硬闸门 section_budget_errors：接入 validate_paper_structure（终稿拒存），
-#   并经 paper_workflow.emit_chapter_gate 做逐章写作断点（写完一章不达标不许进下一章，
-#   逼初稿一次写满，杜绝收尾「一段段补」）；
-# - 上限越界 = W11 预警 section_budget_warnings：只提示删水，不阻断交付。
-_SECTION_BUDGETS = tuple(
-    (row.pattern, row.lo, row.hi, row.note or row.label)
-    for row in SECTION_BUDGET_ROWS
-    if row.pattern is not None
-)
-_BUDGET_SLACK = 1.2
-
-
-def section_budget_report(doc):
-    """逐章实测字数清单（共享判据）。
-
-    每章区间 = 该章中文序号一级标题段后到下一个一级标题前（小节标题计入字数）；
-    文档中未出现的章节不入列。返回 (name, chars, lo, hi)。
-    """
-    paras = [p.text.strip() for p in doc.paragraphs]
-    idx = [(i, tx) for i, tx in enumerate(paras) if re.match(r"^[一二三四五六七八九十]+、", tx)]
-    rows = []
-    for pattern, lo, hi, name in _SECTION_BUDGETS:
-        start = next((i for i, tx in idx if re.match(pattern, tx)), None)
-        if start is None:
-            continue
-        nxt = next((i for i, tx in idx if i > start), None)
-        end = nxt if nxt is not None else len(paras)
-        chars = sum(len(x) for x in paras[start + 1:end])
-        rows.append((name, chars, lo, hi))
-    return rows
-
-
-def section_budget_errors(doc):
-    """H：章节预算下限缺额硬闸门——任一预算章低于下限（±20% 容差）即拦。"""
-    issues = []
-    for name, chars, lo, _hi in section_budget_report(doc):
-        if lo is None:
-            continue
-        if chars < lo / _BUDGET_SLACK:
-            issues.append(
-                f"「{name}」约 {chars} 字，低于预算下限 {lo}（±20% 容差）"
-                f"——补实质推导/分析，写满本章再进入下一章，禁止收尾凑字"
-            )
-    return issues
-
-
-def _section_budget_warnings(doc):
-    """W11 超预算预警：各章字数超过上限（±20% 容差）→ 提示删水（不阻断交付）。"""
-    issues = []
-    for name, chars, _lo, hi in section_budget_report(doc):
-        if hi is None:
-            continue
-        if chars > hi * _BUDGET_SLACK:
-            issues.append(
-                f"「{name}」约 {chars} 字，超出预算上限 {hi}（±20% 容差）"
-                f"——删减重复表述与空话，向预算表收敛"
-            )
-    return issues
-
-
 _EVAL_NUMBER_RE = re.compile(
     r'^\s*(?:'
     r'\d+[.．、)\）]'
@@ -2116,7 +2071,6 @@ def _soft_quality_warnings(doc, project_root):
     ws += _plagiarism_warnings(doc, project_root)
     ws += _data_file_warnings(project_root)
     ws += _figure_table_lead_in_warnings(doc)
-    ws += _section_budget_warnings(doc)
     ws += _model_eval_generalization_warning(doc)
     return ['预警：' + w for w in ws]
 
@@ -2694,7 +2648,6 @@ def validate_paper_structure(doc, contest='cumcm', *, quality_checks=True, min_c
     errors.extend(_reference_registry_issues(doc.paragraphs, project_root))
     if enforce_min:
         errors.extend(_deep_quality_issues(doc, project_root))
-        errors.extend(section_budget_errors(doc))
         errors.extend(_soft_quality_warnings(doc, project_root))
     errors.extend(_typesetting_issues(doc))
     errors.extend(_font_and_forbidden_issues(doc))

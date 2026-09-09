@@ -26,7 +26,7 @@ import defusedxml.minidom
 _OFFICE_DIR = Path(__file__).resolve().parent / "office"
 if str(_OFFICE_DIR) not in sys.path:
     sys.path.insert(0, str(_OFFICE_DIR))
-from helpers.dom_utils import SMART_QUOTE_ENTITIES
+from office.helpers.dom_utils import SMART_QUOTE_ENTITIES
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 NS = {

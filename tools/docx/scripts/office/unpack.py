@@ -1,17 +1,3 @@
-"""Unpack Office files (DOCX, PPTX, XLSX) for editing.
-
-Extracts the ZIP archive, pretty-prints XML files, and optionally:
-- Merges adjacent runs with identical formatting (DOCX only)
-- Simplifies adjacent tracked changes from same author (DOCX only)
-
-Usage:
-    python unpack.py <office_file> <output_dir> [options]
-
-Examples:
-    python unpack.py document.docx unpacked/
-    python unpack.py presentation.pptx unpacked/
-    python unpack.py document.docx unpacked/ --merge-runs false
-"""
 
 import argparse
 import logging
