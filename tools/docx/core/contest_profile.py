@@ -5,8 +5,10 @@
 循环导入（只有 paper_format 先被导入时才能加载）。拆出本模块后，两个核心模块
 都只依赖本模块，任一顺序均可直接导入，消除了环形依赖。
 
-阈值口径与 ``文档/论文写作.md`` 及 ``tools/project_ops/project_audit.py`` 的
-``GATE_EXPECTED`` 保持一致（提交前门禁会交叉校验）。
+本模块是**当前目标赛事的唯一门禁参数源**：所有阈值只在此定义、只改这一处，
+``文档/论文写作.md`` 项目交付下限表为其文档镜像（同步校验见
+``tests/test_sync_contracts.py``）。暂不按赛事名分支；真正需要支持第二个赛事时，
+再把 ``CONTEST_PROFILES`` 扩展为多 profile，不提前抽象。
 """
 
 from dataclasses import dataclass

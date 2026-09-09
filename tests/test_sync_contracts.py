@@ -77,6 +77,46 @@ class TestCleanupWhitelistSync:
         assert "不得使用 JSON" in code_spec or "不用 JSON" in code_spec
 
 
+class TestGateThresholdSync:
+    """交付门禁常量 ↔ `文档/论文写作.md` 镜像同步（原 project_audit 门禁检查）。"""
+
+    STALE_PAGE = re.compile(r"总页数最低\s*25|最低\s*25\s*页|≥\s*25\s*页")
+    GATE_CONSTANTS = (
+        "CUMCM_MIN_BODY_UNITS", "CUMCM_MIN_TOTAL_PAGES", "CUMCM_MAX_TOTAL_PAGES",
+        "CUMCM_MIN_ESTIMATED_PAGES", "CUMCM_UNITS_PER_PAGE",
+    )
+
+    def test_writing_doc_mirrors_gate_constants(self):
+        from tools.docx.core import contest_profile as cp
+
+        writing = _read("文档/论文写作.md")
+        for name in self.GATE_CONSTANTS:
+            value = getattr(cp, name)
+            assert name in writing, f"论文写作.md 未登记门禁常量名: {name}"
+            assert str(value) in writing, f"论文写作.md 未同步门禁常量: {name}={value}"
+        assert "20–30" in writing and "30–45" in writing
+        assert not self.STALE_PAGE.search(writing), "论文写作.md 残留旧页数标准"
+
+    def test_paper_format_reexports_contest_profile(self):
+        from tools.docx.core import contest_profile as cp
+        from tools.docx.core.paper_format import get_profile
+
+        src = cp.get_profile("cumcm")
+        out = get_profile("cumcm")
+        assert (out.min_body_pages, out.max_body_pages) == (
+            src.min_body_pages, src.max_body_pages)
+
+    def test_no_stale_page_standard(self):
+        for path in ROOT.rglob("*"):
+            rel = path.relative_to(ROOT)
+            if not path.is_file() or ".git" in rel.parts or "知识库" in rel.parts:
+                continue
+            if any(p.startswith(".") for p in rel.parts) or rel.suffix.lower() not in {".py", ".md", ".txt"}:
+                continue
+            if self.STALE_PAGE.search(path.read_text(encoding="utf-8", errors="replace")):
+                pytest.fail(f"{rel} 残留旧页数标准")
+
+
 class TestIronRules:
     def test_single_skill_entry_point(self):
         assert sorted(p.name for p in ROOT.glob("SKILL.md")) == ["SKILL.md"]

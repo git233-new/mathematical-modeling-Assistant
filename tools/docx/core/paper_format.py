@@ -1000,7 +1000,7 @@ def _support_role(entry, kind):
     """按文件名推断"功能与作用"。
 
     文件在证据链里本就是按规范命名的（Q<问号>_ 前缀、solve_common / figure 等约定，
-    见 文档/样式统一规定.md §六 文件命名），因此功能可由文件名稳定得出。
+    见 文档/图片闸门配置与绘图规范.md §2 文件命名），因此功能可由文件名稳定得出。
     """
     name = _support_filename(entry).lower()
     q = re.match(r'^q(\d+)(?=[_.-]|$)', name)

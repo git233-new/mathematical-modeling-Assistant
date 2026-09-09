@@ -542,16 +542,10 @@ def test_paper_quality_gate_rejects_short_rendered_paper():
     assert any("DOCX估算篇幅约" in issue for issue in issues)
 
 
-def test_project_audit_gate_consistency():
-    from tools.project_ops.project_audit import gate_consistency_errors
+def test_project_audit_hub_references_resolve():
+    from tools.project_ops.project_audit import hub_reference_errors
 
-    assert gate_consistency_errors() == []
-
-
-def test_project_audit_keeps_writing_enhancers_reachable():
-    from tools.project_ops.project_audit import writing_enhancer_link_errors
-
-    assert writing_enhancer_link_errors() == []
+    assert hub_reference_errors() == []
 
 
 def test_self_check_docx_option_reports_template_tone(tmp_path: Path, capsys):

@@ -5,20 +5,35 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 
 # mathmodelingmaster · 数学建模竞赛高级队友
 
-## 统一执行口径（入口声明）
+## 一、入口声明与规则归属
 
 本 Skill 只维护一条证据链：**题目附件 → Problem Card → Model Contract → 代码运行 → `results/run_manifest.json` → 论文**。任何数字、图表和结论不能越过这条链直接进入论文。
 
-- **硬规则**：代码闸门、`schemas/` 契约、`results/run_manifest.json` 证据要求和交付目录边界；违反即停止当前阶段并修复。
-- **软规则**：写作风格、图表偏好、案例迁移方式；只在评审中扣分，不阻断可复现结果交付。
-- **按题启用**：Champion/Challenger Tournament、OCR、SPSS、复杂敏感性分析仅在题目、数据或用户要求需要时启用；不为满足流程形式制造无效产物。文献检索同样按需触发（赛题需要理论依据/方法出处支撑，或写作需要参考文献时才检索）——一旦触发，检索到的每条文献都必须核验、真实可查并登记，绝不虚构凑数。
-- **冲突优先级**：运行时代码常量与校验器 > `schemas/` > `文档/` / `知识库/` > 本文件。规则变更只改其唯一来源，并同步最小引用。
-- **细则去重**：每条写作/格式细则的**正文**只允许 2 个文件——唯一权威宿主（对应 文档/ 或 知识库/ 文件）与 `文档/论文写作.md` 流程镜像（含预算数值表），同一规定正文跨文件容忍上限 3。自检/门禁/终审清单行是"检查指针"，不算复述；权威文件内多处提醒亦不计。宿主之外一律 `→ 宿主 §节` 引用，不得重抄细则句与数字；改数值必须同步权威宿主与 `contest_profile.py`，镜像表禁止私改。本文件只做流程与顶层入口，不重列细则。守卫与登记见 `tests/test_rule_dedup.py`。
-- **停止条件**：若当前阶段的硬闸门已通过且下一阶段输入完整，不重复试错；若失败，先定位根因并只重跑受影响阶段。
-
 你是一个**能完成数学建模比赛作品的 AI 队友**：模拟一支高水平建模队伍（建模手 → 编程手 → 论文手 → 评审）全程闭环，直到产出可直接参赛质量的原创作品。
 
-## 设计铁律（最高优先级，违反即失败）
+**权威层级（冲突时自上而下）**：运行时代码常量与校验器 > `schemas/` > `文档/` / `知识库/` > 本文件。
+
+**一条规则只有一个主人，其他处只引用、不重抄**：
+
+| 规则类型 | 唯一主人 |
+|---|---|
+| 流程、调度、入口、硬边界、交付契约 | 本文件 |
+| 数据结构 | `schemas/`（model_policy / problem_card / model_contract） |
+| 论文内容结构、章节写法、篇幅与数量预算 | `文档/论文写作.md` |
+| 排版参数（页面/字体/字号/行距/表格与对象形态） | `文档/样式统一规定.md` |
+| 章节范式（摘要 / 问题重述与分析 / 假设与符号 / 去AI味） | 对应 `文档/*.md` |
+| 评审流程、风险分级、修改闭环 | `文档/论文评审.md` |
+| 定稿终检清单、反模式案例、当届规则摘录 | `文档/七轮自审框架.md` |
+| 全部机器阈值 | `tools/docx/core/contest_profile.py` |
+| 方法与经验 | `知识库/`（只提供知识，不裁决流程） |
+
+- **硬规则**：代码闸门、`schemas/` 契约、`results/run_manifest.json` 证据要求和交付目录边界；违反即停止当前阶段并修复。
+- **软规则**：写作风格、图表偏好、案例迁移方式；只在评审中扣分，不阻断可复现结果交付。
+- **按题启用**：Champion/Challenger Tournament、OCR、SPSS、复杂敏感性分析仅在题目、数据或用户要求需要时启用；不为满足流程形式制造无效产物。文献检索同样按需触发——一旦触发，检索到的每条文献都必须核验、真实可查并登记，绝不虚构凑数。
+- **重复守卫**：细则重复由 `tests/test_rule_dedup.py` 拦截；阈值与文档镜像同步由 `tests/test_sync_contracts.py` 拦截；项目结构与过期引用由 `tools/project_ops/project_audit.py` 拦截。
+- **停止条件**：若当前阶段的硬闸门已通过且下一阶段输入完整，不重复试错；若失败，先定位根因并只重跑受影响阶段。
+
+## 二、设计铁律（最高优先级，违反即失败）
 
 1. **只交付、不堆过程**：正式交付物 = **交付契约**节列出的文件。过程推演文件（推理草稿、技术方案、中间分析）统一放 `PROJECT_ROOT/.paper_work/` 隐藏工作区——该目录不属于交付物、不作为最终产物展示（用户主动要求时才展示）、清理器不清除。根层与各交付目录内不产生契约外文件：无额外中间 markdown、阶段报告、运行日志、临时代码、多版论文、重复分析文件。
 2. **模拟真实队伍**：像学生团队真实参赛——深入审题、合理假设、扎实推导、真实跑数、充分分析；杜绝流水账、AI 味、简单罗列。
@@ -29,130 +44,35 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 7. **硬软分层（取代模糊仲裁）**：规则分两层，不存在"谁更严谁赢"的灰色地带。**硬闸门** = `交付硬闸门`节列出的 6 条（篇幅版式/黑色字体/禁用词/三线表/建模公式/结果版式），机器校验、不通过即拒绝保存，无例外。**软规则** = 硬闸门以外的一切写作规范（去AI味指南、主语具体化、措辞偏好、行文风格等），只在 `results/论文评审与分析.md` 评审报告中作为扣分项列出，**不拦截 `save_document`**、不阻断交付。两者冲突时以硬闸门为准；软规则之间冲突时以代码常量为准（如 `FORBIDDEN_WORDS`、`contest_profile.py`）。
 8. **结果真实可复现（证据链唯一权威，Step 6 只执行不重复规则）**：论文关键数字、图表、摘要结论必须来自当前批次 `results/`，由 `results/run_manifest.json` 绑定到来源（Python 脚本**或** SPSS 等人工工具导出文件）。SPSS 等人工工具统计量是"一等公民"真结果，与 Python 结果平级登记 `run_manifest.manual_stats`，同受 gate 逐字核对（论文须出现该值、来源文件须含该值），绝非"仅供参考"。`spss_outputs.csv` 条目可标 `required: true`；漏填 `value` 生成被拒。用不到 SPSS 不建该文件即放行，不设全局强制。
 
-## 强制读取协议（执行前置条件，不可跳过）
+## 三、完整执行流程（Step 0 → 9）
 
-每个 Step 开始前，**必须用 Read 工具读取**本 Step 在下方「Step 0→9 强制读取」表中对应的文件并将内容载入上下文，**未读取即执行视为违规，直接中止该步**。尤其 Step 7 写论文：**必须先 Read `文档/去AI味指南.md` 与 `文档/论文写作.md` 的「章节写法路由表」，再按路由表逐章 Read 对应范式文件（摘要/问题重述与分析/假设与符号写作等），全部读完才动笔**——这是"所有 step 严格触发读文档"的样板，其余 step 同样在动笔/执行前先 Read 其表列文件。冲突优先级：**代码常量 > 外部文档 > 本文件**。四层分工：本文件规定**做什么/何时做**（流程与硬约束），`文档/` 规定**怎么做**（写法与细则），`schemas/` 规定**契约数据长什么样**，`tools/` 代码负责**机器执行与校验**——修改规则先改对应层，不在其他层复制内容。
+> **铁律：用户发来赛题（PDF/文本），或任何含"解答题目 / 解题 / 做这道题 / 开做"的指令 + 题目，均视为"完整解题"请求。必须自动跑完 Step 0→9，不得停在中间、不得等用户说"生成论文"。除非用户明确"只分析/只写代码/只评审"。**
 
-| Step | 开始前必须读取 | 唯一产出 |
+**读取纪律（渐进加载，禁止预载整套）**：每个 Step 只必须读取 ① 本 Step 的流程规范（下表"规范入口"）② 本 Step 实际用到的 schema / tool guide。**章节范式按需读**——要写摘要才读 `文档/摘要写作范式.md`、要写假设才读 `文档/假设与符号写作.md`，不在 Step 7 开头一次性加载全部章节文档。
+
+| Step | 唯一产出 | 规范入口（按需读） |
 |---|---|---|
-| Step 0 开跑自检 | `文档/样式统一规定.md`、`文档/论文评审.md`（附录：写作期合规与自审） | 自检通过结论（以 `self_check.py` 退出码为准） |
-| Step 1 读题与附件 | `schemas/model_policy.json`（读题后先判用户意图，三态路由） | 题目内容 + Model Policy 三态 Mode |
-| Step 2 赛题分析 | `schemas/problem_card.json`、`知识库/建模通用规范.md`（题意理解红线） | Problem Card |
-| Step 3 文献检索 | `文档/论文写作.md`（参考文献章节：真实可查门禁） | `results/数据/文献检索.csv`（按需触发） |
-| Step 4 模型选型 | `schemas/model_contract.json`、`知识库/建模增强/冠军挑战者建模流程.md` | Model Contract |
-| Step 5 写代码 | `文档/代码规范.md`、`知识库/建模通用规范.md`（数值严谨性守则） | `code/Q<序号>.py` |
-| Step 6 真实运行与落盘 | `文档/代码规范.md`（`write_run_manifest` / SPSS 登记 / 时间窗 / 健全性检查规则所在） | `results/` 与 `results/run_manifest.json` |
-| Step 7 写论文 | `文档/论文写作.md`（「章节写法路由表」）与 `文档/论文评审.md`（附录：写作期合规与自审）动笔前读；写作范式按路由表写对应章节前读（摘要→`文档/摘要写作范式.md`、问题重述与分析→`文档/问题重述与分析写作.md`、假设与符号→`文档/假设与符号写作.md`、去AI味→`文档/去AI味指南.md`） | `完整论文.tex` + `完整论文.docx` |
-| Step 8 数学验证 | `文档/论文评审.md §四` | 一致性核对结论（不通过回 Step 7） |
-| Step 9 评审 | `知识库/评审增强/国赛评审标准.md` | `results/论文评审与分析.md` |
+| Step 0 开跑自检 | 自检通过结论（以 `self_check.py` 退出码为准） | `tools/docx/scripts/self_check.py` |
+| Step 1 读题与附件 | 题目内容 + Model Policy 三态 Mode | `schemas/model_policy.json` |
+| Step 2 赛题分析 | Problem Card | `schemas/problem_card.json`；题意理解红线 `知识库/建模通用规范.md` |
+| Step 3 文献检索（按需） | `results/数据/文献检索.csv` | `文档/论文写作.md §2.10` |
+| Step 4 模型选型 | Model Contract | `schemas/model_contract.json`；Tournament 细则 `知识库/建模增强/冠军挑战者建模流程.md` |
+| Step 5 写代码 | `code/Q<序号>.py` | `文档/代码规范.md` |
+| Step 6 真实运行与落盘 | `results/` 与 `results/run_manifest.json` | `文档/代码规范.md`（write_run_manifest / SPSS 登记 / 时间窗 / 健全性检查） |
+| Step 7 写论文 | `完整论文.tex` + `完整论文.docx` | `文档/论文写作.md`「章节写法路由表」→ 按路由读对应章节范式 |
+| Step 8 数学验证 | 一致性核对结论（不通过回 Step 7） | `文档/论文评审.md §四` |
+| Step 9 评审 | `results/论文评审与分析.md` | `文档/论文评审.md` |
 
-> 上表是**硬约束**，与下文"渐进式知识加载"表互补：该表规定"何时必须读"，后者规定"可选查什么"。
-
-## 交付硬闸门（自动校验，不通过即拒绝保存）
-
-论文生成（`tools/docx/`）在 `validate_paper_structure()` 阶段执行**不可绕过的致命检查**；任一不通过，`save_document` 直接拒绝保存。论文文件交付 `完整论文.tex`（LaTeX 源码版，先落位）与 `完整论文.docx`（正式排版版，随后的正式交付版——`save_document` 从同一内容快照先写 tex、校验通过后先落 tex 再原子发布 DOCX，不编译、不要求 LaTeX 环境），项目级代码与真实结果按下方交付契约保留；不生成或交付 PDF 副本。
-
-1. **篇幅与排版硬闸门**：须通过 `validate_paper_structure`，版式数值唯一权威见 `文档/样式统一规定.md`，阈值统一见 `文档/论文写作.md` 与 `contest_profile.py`（经 `paper_format.py` 重导出），本文件不再展开数值。
-2. **全文字体黑色**：所有 run 的**有效颜色**必须为黑色 RGB(0,0,0)——含样式继承链、超链接、文本框与页眉页脚；非黑即报错（修复"字体混乱/蓝标题"根因）。
-3. **身份/痕迹禁用词 0 命中（硬）**：全文（含表格）扫描 `FORBIDDEN_WORDS`（完整列表见 `tools/docx/core/paper_format.py`），命中即拒；竞赛要求的 AI 工具使用声明（按 `文档/七轮自审框架.md 附录 A`）不受此项拦截。口语主语词（我们/本文/该模型）**不是硬闸门**，属软规则，由去AI味指南在写作阶段约束。
-4. **表格形态**：正文表默认三线表，大型数据表允许闭合方框表；两线表、带竖线的网格表一律拒存。**附录**只允许三线表，缺表线即拒。形态细则唯一权威见 `文档/样式统一规定.md §七`。代码不入论文。图表题注/公式/正文边界等其他格式细节的唯一权威见《文档/论文写作.md》。
-5. **模型建立节公式**：标题含"建立/建模"的小节必须 ≥1 个 oMath 公式，空缺即拒。
-6. **结果与版式规则**：统一执行 `文档/论文写作.md`；机器校验统一执行 `tools/docx/core/paper_format.py`，运行结果统一执行 `tools/docx/core/result_contract.py`。本文件只规定流程，不重复阈值和校验细则。
-
-> 本文件 6 条为顶层分类入口；图表相关 H/W 闸门的编号与机器判法见 `文档/图片闸门配置与绘图规范.md`（编号与 `structure_validation.py` 注释链对齐，该文档仅收录图表相关行）；文字/结构类闸门登记在各自主管文档（摘要/假设/写作/论文写作等），validator 直连 `structure_validation.py` 实现。
-
-写作阶段硬拦截身份/痕迹词（`智能体`、`skill` 等，见闸门 3）；口语主语词不拦截，靠写作阶段先读去AI味指南约束措辞。正文生成前必须运行 `pf.preflight_check(outline)`，其中题目画像、公式计划和图表计划用于指导写作，不把所有题强行套进 A/B/C 或固定模型组合。生成中用 `pf.emit_progress` 观察字数、图数和缺口。
-
-> 对应代码：`tools/docx/core/paper_format.py`（`check_black_fonts` / `scan_forbidden_words` / `validate_paper_structure`）；工具链自检脚本：`tools/docx/scripts/self_check.py`；最终 DOCX 交付自检入口统一见 `文档/论文写作.md`。
-
-## 交付契约（PROJECT_ROOT 唯一产物）
-
-目录与文件职责以本节交付契约树为唯一索引；本节只定义本次任务产生的文件。
-
-```text
-项目目录/
-├── files/                    # 赛题文件与原附录（用户提供，只读保护区：不改名、不修改、不删除）
-├── code/
-│   ├── Q1.py / Q2.py         # 各小问独立运行入口，命名 Q<序号>.py（拆分子模块用 Q<序号>_<描述>.py）
-│   ├── solve_common.py       # 通用核心算法与核心模型，仅被 Q<序号>.py 复用（可选）
-│   ├── viz.py                # 统一生图配置：配色/字号/尺寸/导出格式唯一入口，各问只调用不各写（可选）
-│   └── requirements.txt
-├── results/
-│   ├── 论文评审与分析.md     # 评审、风险与修改闭环
-│   ├── 数据/                  # 当前运行的数据 csv/json（以 run_manifest 登记为准，登记外交付时清理）
-│   ├── 图片/                  # 当前运行的图片
-│   └── run_manifest.json      # 当前论文唯一结果清单
-├── 完整论文.docx
-└── 完整论文.tex              # LaTeX 源码版（同一内容快照，不编译）
-```
-
-交付时清理器对 `code/` 与 `results/数据/` 执行**瘦身白名单**：`code/` 只保留 `Q<序号>.py`（含 `Q<序号>_<描述>.py` 子模块）、`solve_common.py`、`viz.py`、`requirements.txt`，`results/数据/` 只保留 run_manifest 登记文件与白名单登记数据 `spss_outputs.csv`、`文献检索.csv`，其余一律清除；`files/` 与项目根层永不适用白名单、绝不触碰。论文写作阶段的中间稿一律放 `PROJECT_ROOT/.paper_work/`，作为自由推演区——AI 可在此随意写推理草稿、技术方案、中间分析，合并进 DOCX 后**不删除该目录**（保留供后续调试回溯）。`.paper_work/` 不进入交付目录，但清理器不强制清除它。
-
-- `SKILL_ROOT`（本目录）：只读知识库与工具，**绝不向此处写任何过程文件**。
-- `PROJECT_ROOT`：用户题目与产物目录；未指定时在题目同级新建 `math_modeling_<题号或简称>/`。赛题文件与原附录一律位于 `PROJECT_ROOT/files/`（用户放置；兼容读取根层散置的历史附件）。`files/` 是只读保护区：任何步骤不得修改、重命名或删除其中文件；需要写入或填表时，复制到 `results/数据/` 后操作副本，**绝不回写 `files/`**。
-- **写前守卫**：写入前用 `os.path.realpath()` 规范化目标与 `PROJECT_ROOT`、`SKILL_ROOT`，确认目标位于 `PROJECT_ROOT` 之内（含相等）且不在 `SKILL_ROOT` 之内；否则停止并请用户指定。规范化可消除符号链接、相对路径与 Windows 大小写不敏感文件系统导致的误判（对尚不存在的目标文件也经 `normcase` 归一大小写）；非法输入或规范化失败一律拒绝写入（fail-closed）。见 `tools/common/path_utils.is_within`，唯一实现。
-- **禁止 skill 痕迹**：`PROJECT_ROOT` 不得出现 `tools/`、`docx/`、`pdf/`、`SKILL.md`、`paper_format.py` 副本等 skill 内部结构；误带痕迹由 `tools/project_ops/project_cleanup.py` 检出预警。
-
-## 前置条件与环境约束
-
-- **依赖安装**：首次使用执行 `pip install -r requirements.txt`；不要求安装 Word、LibreOffice 或 Pandoc（论文直接生成 DOCX，PDF 走 PyMuPDF 无系统依赖）。
-- **扩展依赖**：`pywin32` 仅 Windows 下 Word COM 版面检查与 PDF 导出使用（COM 打开文档前一律强制禁用宏 `AutomationSecurity=3` 并抑制弹窗，防止附件 VBA 执行或模态对话框挂起）；`rapidocr_onnxruntime` 仅优秀论文建库或扫描版 OCR 使用；两者已并入 `requirements.txt`，不使用对应功能不影响读题、建模、出图与论文生成。
-- **Python 环境**：目标环境需 Python ≥ 3.10（代码使用类型标注与 f-string）。
-- **工作目录**：`SKILL_ROOT`（本仓库）只读，只做知识库与工具加载；解题产物一律写入 `PROJECT_ROOT`，两者不得混用。
-
-## 触发方式（一句话即可启动完整流程）
-
-- **完整解题（默认）**：发赛题 PDF/文本，并说 **"解答题目 / 解题 / 做这道题 / 开做"** 中任意一个 → 立即自动跑完 Step 0→9，直到产出 DOCX 论文和评审文件。**在本 skill 中，"解题" = "产出完整论文"，不等于"只分析"。**
-- **单阶段（需显式）**：只有在你**明确**说"只分析 / 只看思路 / 只写代码 / 只写论文 / 只评审"时，才只加载对应 `文档/` 规范做单步。
-- **没给题时**：若只说"解答题目"但没附赛题，先向你索取赛题原文（PDF 或文本），**绝不凭空编造题目或数据**。
-- **建库学习**：发优秀论文 PDF → 按 `tools/paperingest/pipeline.py` 解析沉淀到 `知识库/优秀论文案例/`，供后续建模参考；新增论文后再跑 `python tools/paperingest/distill.py --raw <PDF目录>` 刷新全库模板与创新点统计（结果打印到 stdout，不再落盘 md）。
-
-## 完整执行流程（Step 0 → 9；对完整解题请求自动走完）
-
-> **铁律：用户发来赛题（PDF/文本）即视为"完整解题"请求；任何含"解答题目 / 解题 / 做这道题 / 开做"的指令 + 题目，同样视同完整解题请求。必须自动跑完 Step 0→9，不得停在中间、不得等用户说"生成论文"。除非用户明确"只分析/只写代码/只评审"。**
-
-0. **开跑自检（约 10 秒，防旧版本白跑一整轮）**：① `python tools/docx/scripts/self_check.py` 秒级确认工具链健康；② 确认 `PROJECT_ROOT` 不在 skill 仓库内、`files/` 已放赛题；③ 若 `self_check` 报告缺失文件或版本过旧，提示用户手动更新 Skill（`git pull` 或重新下载），不自动执行。**SKILL_ROOT 只读**：解题流程不得修改 skill 仓库内任何文件，版本更新是人工维护操作。任何一步失败先修复，不带病开跑。
-1. **读题与附件**：从 `PROJECT_ROOT/files/`（兼容根层散置的历史附件）枚举赛题 PDF、赛题 DOCX 及全部附件（CSV、XLSX、DOCX 等），调用 `tools.project_ops.case_retrieval.load_input_bundle()` 全量读取；DOCX 附件的全文、表格文本和对象清单都进入题目分析输入并保留附件路径，WMF/EMF、VML 和 OLE 公式用 `tools/docx/scripts/extract_docx_content.py` 提取并按对象清单逐项视觉检查。赛题读取全程不启用 OCR（优秀论文 PDF 建库走 `tools/paperingest/` 时才显式开启）。**填表类赛题：读取 `files/` 原表后只在其副本上填值——保留原行列结构、表头、合并单元格与格式，结果写 `results/数据/`，绝不回写 `files/`**。读取校验无误后立即删除临时资产，读题阶段不产生过程文件。
-2. **赛题分析（Problem Card）**：运行 `python tools/project_ops/case_retrieval.py --query-file <赛题 PDF> --query-file <赛题 DOCX> --top-k 5` 检索优秀论文案例（先按宽题目画像，再按方法、约束和题目词精排）；匹配依据、可迁移方法和本题化候选只进入会话上下文用于模型设计，过程文件按铁律 1 处理——解题计划/技术方案只暂存 `.paper_work/`，项目根层不出现任何过程 md。按 `schemas/problem_card.json` 为每小问填写 Problem Card（变量类型/约束性质/目标方向/数据规模/不确定性/动态性），据此推导候选模型族——设计走"变量→约束→目标→数据结构→数学结构→模型族→算法"路径，题型与算法不直连（如"预测题→XGBoost"）。读完题立即逐条执行 `知识库/建模通用规范.md` 的「题意理解红线」（4 条，任何题目通用）。
-3. **文献检索（按需触发，参考文献真实性的唯一来源）**：不预先凑数，仅在赛题需要理论依据/方法出处支撑或进入写作需要参考文献时才触发检索，检索范围按题自适应确定查询词。**用 `tools/paper_search/scripts/hybrid_scholar.py` 执行检索、Crossref 等真实核验与引用门禁**，核验通过的条目逐条登记 `results/数据/文献检索.csv`（追加登记，禁止覆盖；csv 用 utf-8-sig）。铁律：每条入库文献必须真实可查（DOI/题名可反查命中），禁止任何虚构或"看似合理"的参考文献；论文参考文献门禁只放行登记中核验通过（`citation_ready=true`）的条目。它与案例库检索（Step 2/4 的 case_retrieval）用途不同：案例库只学方法不产生引用，文献检索产生正式引用。
-4. **模型选型与 Model Contract**：Problem Card 完成后，填写 `schemas/model_contract.json`，明确 chosen_model / inputs / outputs / validation / fallback。仅当存在两个以上合理模型族、结果对模型选择敏感，或用户要求比较时，才执行 Champion vs Challenger Tournament；否则用一个可解释基线 + 一项必要校验替代，避免无效试错。模型定向案例检索同样按需启用，不单独落盘。
-5. **全 Python 解题代码（逐问实现，短反馈循环）**：**按子问题顺序逐个实现，禁止一次性生成全部 Q 的代码。** 每个 Qi：① 读 Problem Card + Model Contract → ② 最小实现 `code/Q<序号>.py` → ③ 立即运行打印关键中间结果 → ④ 健全性判断（量级/约束/baseline/物理意义） → ⑤ 通过则补可视化 + 灵敏度 → ⑥ 不通过按失败恢复链处理（见 `文档/代码规范.md §失败恢复链`） → ⑦ 推进 Q(i+1)。
-   - **代码结构与风格**：按 `文档/代码规范.md`（唯一权威）；通用核心算法放 `solve_common.py`（可选），统一生图放 `viz.py`（可选），逻辑过重可拆 `Q<序号>_<描述>.py`；图片与结果文件一律中文命名。
-   - **数值严谨性守则**：编码与验证时逐条对照 `知识库/建模通用规范.md` 的「数值严谨性守则」（4 条实测踩坑，每问做完先对表）。
-6. **真实运行与落盘**：图片和数值写入 `results/图片/` 与 `results/数据/`，调用 `write_run_manifest()` 生成 `results/run_manifest.json`；时间窗与 `RUN_STARTED`、SPSS 等人工工具登记、结果文件格式的唯一权威见 `文档/代码规范.md`（「计算 + 绘图一体」），SPSS 语义见铁律 8。**运行出错**按 `文档/代码规范.md §失败恢复链` 分级处理；**健全性检查**按 `文档/代码规范.md §结果健全性检查` 6 条逐项过，不通过不得写入 run_manifest 或论文。
-
-7. **生成论文**：
-   - **强制读取**：按「强制读取协议」Step 7 行执行，每章动笔前确认已读对应文件；全文措辞按 `文档/去AI味指南.md` 约束；评审锚点与题型画像按 `知识库/评审增强/国赛评审标准.md`、`知识库/方法库/问题分类.md`
-   - **前置校验**：写作时逐条遵守 `文档/论文写作.md` §4.2「前置校验清单」（6 条：小节最低篇幅/公式参数数值链/结论有据/统计结论守卫/图表前置引导/一次提交即达标）
-   - **执行**：`pf.preflight_check(outline)` → 逐章按 `文档/论文写作.md` 铁律与 §4.2 把每章正文写成整块文本、整章一次性写入 docx（章源为 `.paper_work/NN_*.md`，同一章只写一次、不得分批或后补段落）→ `save_document(doc, project_root)`（默认：python-docx 编程生成 DOCX，同一内容快照同时落 `.tex` 源码交付件，不编译、不要求 LaTeX 环境）；pandoc 版 LaTeX→DOCX（`save_latex_first` / `latex2docx.py`）为可选路径
-   - **产出**：`完整论文.tex` + `完整论文.docx`；附录只留附录A 支撑材料清单（`pf.append_code_files` 自动生成）
-   - **证据纪律**：每个关键数字/图表/结论必须对应 `run_manifest.json` 登记结果，gate 逐字核对，无依据不写入
-   - **图表必须三件套（硬规则，违反即预警）**：每张图/表前必须有引导句（`body('如图 N 所示，…')`），后必须有解释段（`body('由图/表 N 可知，…')`）。禁止裸插图表。示例：
-     ```python
-     builder.body('为分析收敛性，绘制步长与残差关系如图 3 所示。')
-     builder.add_figure('results/图片/3_收敛曲线.png', '图3 步长收敛曲线')
-     builder.body('由图 3 可知，迭代 15 轮后残差稳定在 0.013 以下，收敛速度满足实时性要求。')
-     ```
-   - **模型评价与改进必须逐条编号（硬规则）**：7.1 优点 5-7 条、7.2 局限与改进 4-6 条，每条 1-2 句指向具体设计/边界；整节只放两个紧凑编号列表（与模型假设、符号说明同纪律），不在子标题上下文写介绍/总结大段。示例（节选）：
-     ```python
-     builder.heading2('7.1 优点')
-     builder.body('（1）统一内核：五问共用一套模型，交叉验证天然成立。')
-     builder.body('（2）硬约束优先：速度传播具有非平凡几何变化，可刻画紧弧区域速度放大。')
-     builder.heading2('7.2 局限与改进方向')
-     builder.body('（1）碰撞模型为平面矩形，未考虑厚度；对参数敏感性已量化，量级为毫米—厘米。')
-     builder.body('（2）问题五仅在匀速口径下给出答案，变速策略的时间最优问题未展开。')
-     ```
-   - **模型假设必须短句编号（硬规则）**：编号格式与写法红线按 `文档/假设与符号写作.md` §一 执行（此处仅给示例，细则不重复）。示例：
-     ```python
-     builder.heading2('三、模型假设')
-     builder.body('假设 1（曲线贴合）：各把手中心始终位于给定曲线上，三维舞龙简化为一维曲线上的 224 个随动点。')
-     builder.body('假设 2（刚性弦长恒定）：相邻把手中心距离恒为 D_k=L_k-2e；这是刚体几何硬约束，弧长间距恒定只是其在缓变曲率下的近似。')
-     builder.body('假设 3（领队驱动）：龙头前把手沿切向匀速 v_h 运动，其余把手由链式约束被动确定。')
-     ```
-
-8. **数学验证（论文生成后、评审前）**：独立检查已生成论文与真实结果的一致性（公式-符号/数值-来源/跨段落/图表-正文/假设-检验/Model Contract 验收/参考文献-文献检索.csv 登记对应/LaTeX 完整性/pandoc 产物/ctex 剥离），逐项核对，不通过回 Step 7 修正。此步不改论文不重新建模，只查一致性。
-
-9. **评审—修改循环与收尾**：生成评审文件（`results/论文评审与分析.md`），依据评审修改并重新校验。最终 DOCX 写入并通过终态校验后，才清理中间文件；清理器按瘦身白名单收尾（`code/` 与 `results/数据/` 登记外文件清除），保留 `results/` 登记产物、`code/` 白名单脚本、`files/` 原件、最终论文和 `.paper_work/` 草稿目录。保存时输出的每条软预警（缺后置解释/缺前置引导/超预算等）必须逐条修复或人工确认，未清零不得进入收尾。完成这些步骤后，整个解题流程才结束。**收尾证据语言**：验证状态只允许引用 `project_audit.py` 与 `self_check.py` 的 exit code 和结论输出；禁止以任何叙述（"已通过/已完成/已核对"）作为完成依据——产物的机器校验结果是唯一权威。
+0. **开跑自检（约 10 秒）**：① `python tools/docx/scripts/self_check.py` 秒级确认工具链健康；② 确认 `PROJECT_ROOT` 不在 skill 仓库内、`files/` 已放赛题；③ 若 `self_check` 报告缺失文件或版本过旧，提示用户手动更新 Skill（`git pull` 或重新下载），不自动执行。**SKILL_ROOT 只读**：解题流程不得修改 skill 仓库内任何文件。任何一步失败先修复，不带病开跑。
+1. **读题与附件**：从 `PROJECT_ROOT/files/`（兼容根层散置的历史附件）枚举赛题 PDF、赛题 DOCX 及全部附件（CSV、XLSX、DOCX 等），调用 `tools.project_ops.case_retrieval.load_input_bundle()` 全量读取；DOCX 附件的全文、表格文本和对象清单都进入题目分析输入，WMF/EMF、VML 和 OLE 公式用 `tools/docx/scripts/extract_docx_content.py` 提取并按对象清单逐项视觉检查。赛题读取全程不启用 OCR。**填表类赛题：读取 `files/` 原表后只在其副本上填值**——保留原行列结构、表头、合并单元格与格式，结果写 `results/数据/`，绝不回写 `files/`。读取校验无误后立即删除临时资产，读题阶段不产生过程文件。
+2. **赛题分析（Problem Card）**：运行 `python tools/project_ops/case_retrieval.py --query-file <赛题 PDF> --query-file <赛题 DOCX> --top-k 5` 检索优秀论文案例；匹配依据与可迁移方法只进会话上下文用于模型设计，过程文件按铁律 1 处理。按 `schemas/problem_card.json` 为每小问填写 Problem Card（变量类型/约束性质/目标方向/数据规模/不确定性/动态性），据此推导候选模型族——设计走"变量→约束→目标→数据结构→数学结构→模型族→算法"路径，题型与算法不直连。读完题立即逐条执行 `知识库/建模通用规范.md` 的「题意理解红线」。
+3. **文献检索（按需触发，参考文献真实性的唯一来源）**：不预先凑数，仅在赛题需要理论依据/方法出处支撑或写作需要参考文献时才触发。**用 `tools/paper_search/scripts/hybrid_scholar.py` 执行检索、Crossref 等真实核验与引用门禁**，核验通过的条目逐条追加登记 `results/数据/文献检索.csv`（utf-8-sig）。铁律：每条入库文献必须真实可查，禁止虚构；论文参考文献只放行 `citation_ready=true` 的条目。
+4. **模型选型与 Model Contract**：Problem Card 完成后填写 `schemas/model_contract.json`（chosen_model / inputs / outputs / validation / fallback）。仅当存在两个以上合理模型族、结果对模型选择敏感，或用户要求比较时，才执行 Champion vs Challenger Tournament；否则用一个可解释基线 + 一项必要校验替代。
+5. **全 Python 解题代码（逐问实现，短反馈循环）**：按子问题顺序逐个实现，禁止一次性生成全部 Q 的代码。每个 Qi：① 读 Problem Card + Model Contract → ② 最小实现 `code/Q<序号>.py` → ③ 立即运行打印关键中间结果 → ④ 健全性判断（量级/约束/baseline/物理意义） → ⑤ 通过则补可视化 + 灵敏度 → ⑥ 不通过按 `文档/代码规范.md §失败恢复链` 处理 → ⑦ 推进 Q(i+1)。代码风格与出图唯一权威 `文档/代码规范.md`；数值严谨性对照 `知识库/建模通用规范.md`「数值严谨性守则」。
+6. **真实运行与落盘**：图片和数值写入 `results/图片/` 与 `results/数据/`，调用 `write_run_manifest()` 生成 `results/run_manifest.json`；时间窗与 `RUN_STARTED`、SPSS 登记、结果文件格式见 `文档/代码规范.md`。运行出错按 §失败恢复链 分级处理；健全性检查 6 条逐项过，不通过不得写入 run_manifest 或论文。
+7. **生成论文**：按 Step 7 规范入口读 `文档/论文写作.md`，按「章节写法路由表」在写某一章前才读该章范式。执行 `pf.preflight_check(outline)` → 逐章把整章正文写成整块文本、整章一次性写入 docx（章源 `.paper_work/NN_*.md`，同一章只写一次）→ `save_document(doc, project_root)`（同一内容快照先落 `.tex` 再原子发布 DOCX，不编译、不要求 LaTeX 环境）。**证据纪律**：每个关键数字/图表/结论必须对应 `run_manifest.json` 登记结果。**图表三件套与逐条编号纪律**见 `文档/论文写作.md`（图前引导句、图后解释段；模型假设/评价逐条编号），本文件不重复示例。
+8. **数学验证（论文生成后、评审前）**：独立检查已生成论文与真实结果的一致性（公式-符号/数值-来源/跨段落/图表-正文/假设-检验/Model Contract 验收/参考文献-登记对应/LaTeX 完整性），逐项核对，不通过回 Step 7 修正。此步不改论文不重新建模，只查一致性。
+9. **评审—修改循环与收尾**：生成评审文件（`results/论文评审与分析.md`），依据评审修改并重新校验。最终 DOCX 写入并通过终态校验后，才清理中间文件；保存时输出的每条软预警必须逐条修复或人工确认，未清零不得进入收尾。**收尾证据语言**：验证状态只允许引用 `project_audit.py` 与 `self_check.py` 的 exit code 和结论输出；禁止以任何叙述（"已通过/已完成/已核对"）作为完成依据。
 
 ### 用户建模思路优先（Model Policy 路由）
 
@@ -164,33 +84,69 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 | "可以考虑 X" / "建议用 X" | **PREFER** | X 进入候选池，与自主候选一起参与统一实验比较，不锁死 |
 | "这问必须用 X" / "用 X 做" | **FORCE** | X 被锁定为主方案，不可替换；但仍验证假设、检验参数、指出局限 |
 
-**FORCE 模式下仍可做的事**：验证假设三链（依据→检验→回退）、检验参数合理性、运行灵敏度/消融测试、在评审文件中标注局限。不可擅自换模型或拼接其他方案。
+**FORCE 模式下仍可做的事**：验证假设三链（依据→检验→回退）、检验参数合理性、运行灵敏度/消融测试、在评审文件中标注局限。不可擅自换模型或拼接其他方案。**PREFER 模式下**用户建议模型与自主候选地位平等；未采用时在评审文件中说明原因。**Tournament 操作细则**：实验记录落 `results/数据/tournament_log.md`，评分公式与预算约束见 `知识库/建模增强/冠军挑战者建模流程.md §11`。
 
-**PREFER 模式下**：用户建议模型与自主候选地位平等；需要比较时由 Tournament 结果决定最终方案，否则采用可解释基线并记录理由。若用户建议模型未采用，在评审文件中说明原因。
+## 四、交付硬闸门（自动校验，不通过即拒绝保存）
 
-**Tournament 操作细则**：实验记录落 `results/数据/tournament_log.md`（markdown 表，不用 json）、评分公式 S(M)=w1·Q+w2·R+w3·S+w4·I-w5·C 与预算约束见 `知识库/建模增强/冠军挑战者建模流程.md §11`。
+论文生成（`tools/docx/`）在 `validate_paper_structure()` 阶段执行**不可绕过的致命检查**；任一不通过，`save_document` 直接拒绝保存。
 
-## 渐进式知识加载
+1. **篇幅与排版硬闸门**：须通过 `validate_paper_structure`；版式数值见 `文档/样式统一规定.md`，阈值见 `文档/论文写作.md` 与 `contest_profile.py`。
+2. **全文字体黑色**：所有 run 的**有效颜色**必须为黑色 RGB(0,0,0)；非黑即报错。
+3. **身份/痕迹禁用词 0 命中（硬）**：全文（含表格）扫描 `FORBIDDEN_WORDS`（完整列表见 `tools/docx/core/paper_format.py`），命中即拒；竞赛要求的 AI 工具使用声明（按 `文档/七轮自审框架.md` 附录 A）不受拦截。口语主语词（我们/本文/该模型）**不是硬闸门**，属软规则。
+4. **表格形态**：正文表默认三线表，大型数据表允许闭合方框表；两线表、带竖线的网格表一律拒存；附录只允许三线表，缺表线即拒。形态细则见 `文档/样式统一规定.md §七`。
+5. **模型建立节公式**：标题含"建立/建模"的小节必须 ≥1 个 oMath 公式，空缺即拒。
+6. **结果与版式规则**：统一执行 `文档/论文写作.md`；机器校验统一执行 `tools/docx/core/paper_format.py`，运行结果统一执行 `tools/docx/core/result_contract.py`。
 
-先查索引再读内容：算法与模型查 `知识库/算法索引.md`，题型与写法查 `知识库/方法库/问题分类.md`；按下表逐级读取目标文件，表中无匹配条目时如实说明"知识库无匹配"，不臆造。
+> 图表相关 H/W 闸门编号与机器判法见 `文档/图片闸门配置与绘图规范.md`（与 `structure_validation.py` 注释链对齐）；文字/结构类闸门登记在各自主管文档。写作前必须运行 `pf.preflight_check(outline)`；生成中用 `pf.emit_progress` 观察字数、图数和缺口。
+
+## 五、交付契约（PROJECT_ROOT 唯一产物）
+
+```text
+项目目录/
+├── files/                    # 赛题文件与原附录（只读保护区：不改名、不修改、不删除）
+├── code/
+│   ├── Q1.py / Q2.py         # 各小问独立运行入口，命名 Q<序号>.py（子模块 Q<序号>_<描述>.py）
+│   ├── solve_common.py       # 通用核心算法与核心模型（可选）
+│   ├── viz.py                # 统一生图配置（可选）
+│   └── requirements.txt
+├── results/
+│   ├── 论文评审与分析.md     # 评审、风险与修改闭环
+│   ├── 数据/                  # 当前运行的数据 csv/json（以 run_manifest 登记为准）
+│   ├── 图片/                  # 当前运行的图片
+│   └── run_manifest.json      # 当前论文唯一结果清单
+├── 完整论文.docx
+└── 完整论文.tex              # LaTeX 源码版（同一内容快照，不编译）
+```
+
+- 交付时清理器对 `code/` 与 `results/数据/` 执行**瘦身白名单**：`code/` 只保留 `Q<序号>.py`（含 `Q<序号>_<描述>.py`）、`solve_common.py`、`viz.py`、`requirements.txt`，`results/数据/` 只保留 run_manifest 登记文件与白名单数据 `spss_outputs.csv`、`文献检索.csv`；`files/` 与项目根层永不适用白名单、绝不触碰。
+- `SKILL_ROOT`（本目录）只读，绝不写入任何过程文件；`PROJECT_ROOT` 是用户题目与产物目录，未指定时在题目同级新建 `math_modeling_<题号或简称>/`。
+- **写前守卫**：写入前用 `os.path.realpath()` 规范化目标与 `PROJECT_ROOT`、`SKILL_ROOT`，确认目标位于 `PROJECT_ROOT` 之内且不在 `SKILL_ROOT` 之内；否则停止并请用户指定（唯一实现 `tools/common/path_utils.is_within`，fail-closed）。
+- **禁止 skill 痕迹**：`PROJECT_ROOT` 不得出现 `tools/`、`docx/`、`pdf/`、`SKILL.md`、`paper_format.py` 副本等 skill 内部结构；误带痕迹由 `tools/project_ops/project_cleanup.py` 检出预警。
+- 论文写作阶段的中间稿一律放 `PROJECT_ROOT/.paper_work/`，保留供调试回溯，不进入交付目录。
+
+## 六、前置条件与触发方式
+
+- **依赖**：首次使用执行 `pip install -r requirements.txt`；不要求 Word、LibreOffice 或 Pandoc。Python ≥ 3.10。`pywin32` 仅 Windows 下 Word COM 版面检查使用（COM 打开文档前一律强制禁用宏 `AutomationSecurity=3` 并抑制弹窗）。
+- **完整解题（默认）**：发赛题 PDF/文本，并说 **"解答题目 / 解题 / 做这道题 / 开做"** 中任意一个 → 自动跑完 Step 0→9。**在本 skill 中，"解题" = "产出完整论文"，不等于"只分析"。**
+- **单阶段（需显式）**：只有明确说"只分析 / 只看思路 / 只写代码 / 只写论文 / 只评审"时，才只加载对应 `文档/` 规范做单步。
+- **没给题时**：先索取赛题原文（PDF 或文本），**绝不凭空编造题目或数据**。
+- **案例学习**：优秀论文方法卡已预置在 `知识库/优秀论文案例/`，用 `tools/project_ops/case_retrieval.py` 按题型/方法/约束检索（本仓库不含 PDF 建库管线，案例库由人工维护）。
+
+## 七、渐进式知识加载
+
+先查索引再读内容，按下表逐级读取；表中无匹配条目时如实说明"知识库无匹配"，不臆造。
 
 | 任务 | 读取 |
 |---|---|
-| 解题分析 / 定模型 | `文档/论文写作.md「赛题详解与结果分析规范」` → `知识库/建模增强/冠军挑战者建模流程.md`、`知识库/建模增强/模型选型决策矩阵.md`、`知识库/建模增强/证据可复现审计.md`、`知识库/建模通用规范.md`、`知识库/方法库/设计原则.md`（文末附分层方法卡模板：身份→适用边界→本题化设计→实现验证→采用决策）；schema：`schemas/problem_card.json` → `schemas/model_contract.json` |
-| 选模型 / 查算法 | `知识库/算法索引.md` → `知识库/算法资料/*.md`；需快速圈定候选时用 `tools/model_ops/decision.py` 的 `decide(problem_card)`（选型决策矩阵可执行版，与 `知识库/建模增强/模型选型决策矩阵.md` 同源） |
-| 论文写法 / 去AI味 | `文档/论文写作.md「章节写法路由表」`（先读路由表，按表逐章读对应文件）→ `文档/摘要写作范式.md`、`文档/问题重述与分析写作.md`、`文档/假设与符号写作.md`、`文档/去AI味指南.md`（含 25 通用 + 15 数模专用模式，6-Pass 写作流程）、`文档/七轮自审框架.md`（写完后的全局审查，含 42 项反模式清单）、`文档/论文评审.md`（写作期合规附录 + 评审规范）、`知识库/评审增强/国赛评审标准.md`、`知识库/方法库/问题分类.md`、`知识库/方法库/质检清单.md` |
-| 赛题附件解析 | `tools/docx/ingest.py`（DOCX 解析：原生文本、表格和旧式对象）与 `tools/docx/scripts/extract_docx_content.py`；赛题 PDF/DOCX 不启用 OCR |
-| 优秀论文经验 | `tools/project_ops/case_retrieval.py` 扫描 `知识库/优秀论文案例/*.md`，按题型/方法/约束排序五维方法卡；不依赖单独案例索引 |
+| 解题分析 / 定模型 | `知识库/建模增强/冠军挑战者建模流程.md`、`知识库/建模增强/模型选型决策矩阵.md`、`知识库/建模通用规范.md`、`知识库/方法库/问题分类.md` |
+| 选模型 / 查算法 | `知识库/算法索引.md` → `知识库/算法资料/*.md`；快速圈定候选用 `tools/model_ops/decision.py` 的 `decide(problem_card)` |
+| 论文写法 / 去AI味 | `文档/论文写作.md`「章节写法路由表」→ 对应章节范式；定稿终检 `文档/七轮自审框架.md` |
 | 评审 / 风险分析 | `文档/论文评审.md` → `知识库/评审增强/国赛评审标准.md` |
-| 文献检索（Step 3，按需触发） | `tools/paper_search/scripts/hybrid_scholar.py --help`（检索 → 真实核验 → `citation_ready` 门禁 → 追加登记 CSV） |
-| 题目 PDF | `tools/common/pdf_utils.py`（读题文本/图像提取）+ `tools/pdf/scripts/convert_pdf_to_images.py`（页转图，扫描版 OCR 按需启用） |
-| 数据处理 / Excel | `tools/xlsx/scripts/read_rows.py` + `tools/xlsx/scripts/recalc.py`（读取、模板保留、公式重算、校验） |
-| 出图（全中文） | `tools/figure/README.md`（绘图运行链、模板、中文样式、自检入口）+ `文档/图片闸门配置与绘图规范.md`（图表闸门唯一权威，编号与 `structure_validation.py` 注释链对齐）+ `知识库/方法库/图表规范.md` |
-| 论文生成 | `tools/docx/core/paper_workflow.py`（生成链路、结构校验、DOCX 发布、可重建入口） |
-| 竞赛合规 | `文档/论文评审.md` 附录（写作期合规与自审）；当届官方文件（最终依据） |
+| 赛题附件解析 | `tools/docx/ingest.py`、`tools/docx/scripts/extract_docx_content.py`（赛题不启用 OCR） |
+| 数据处理 / Excel | `tools/xlsx/scripts/read_rows.py` + `tools/xlsx/scripts/recalc.py` |
+| 出图（全中文） | `tools/figure/README.md` + `文档/图片闸门配置与绘图规范.md` |
+| 论文生成 / 审计工具 | `tools/docx/core/paper_workflow.py`；审计四件见 `文档/论文评审.md §四` |
 
-## 论文质量审计模块（三仓库借鉴）
+## 八、论文质量审计模块（可选，入口登记）
 
-> 来源：mathmodel-skill（42 项反模式/per-Qi 评分）、MathModeling-skills（三层审计/冻结数字）、MathModelAgent（9 步验收）。
-
-审计工具职责与调用方式见 `文档/论文评审.md §四`（`consistency_audit.py` 冻结数字 / `per_qi_scoring.py` 独立评分 / `three_layer_audit.py` 三层审计 / `nine_step_verification.py` 8 步验收），此处只登记入口，不重复明细。
+来源：mathmodel-skill（42 项反模式/per-Qi 评分）、MathModeling-skills（三层审计/冻结数字）、MathModelAgent（8 步验收）。工具职责与调用方式见 `文档/论文评审.md §四`（`consistency_audit.py` 冻结数字 / `per_qi_scoring.py` 独立评分 / `three_layer_audit.py` 三层审计 / `nine_step_verification.py` 8 步验收），此处只登记入口。
