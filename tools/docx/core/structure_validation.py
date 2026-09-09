@@ -2089,7 +2089,8 @@ def _model_eval_bullet_format_issues(doc):
         return []
     end = next(
         (i for i, tx in enumerate(paras)
-         if i > start and re.match(r'^[一二三四五六七八九十]+、', tx)),
+         if i > start and (re.match(r'^[一二三四五六七八九十]+、', tx)
+                          or re.match(r'^(参考文献|附录|AI工具使用声明)', tx))),
         len(paras),
     )
     section_paras = paras[start + 1:end]

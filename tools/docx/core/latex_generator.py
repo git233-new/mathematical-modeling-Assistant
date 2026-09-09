@@ -13,8 +13,6 @@ from .latex_export import _escape, PREAMBLE
 
 END = r'\end{document}'
 
-_MD_HEADING_RE = re.compile(r'^(#{1,6})\s*(.*)$')
-
 
 _LATEX_ESCAPED = set('%$&#_{}\\')
 
@@ -127,36 +125,6 @@ class PaperLatexBuilder:
 
     def page_break(self):
         self._body.append(r'\clearpage')
-
-    def import_chapter_text(self, text, *, first_break=False):
-        """整章正文文本块一次导入（与 paper_format.import_chapter_text 语义一致）。
-
-        行首 '#' 个数 → 1–3 级标题；空行忽略；其余非空行按正文段写入。
-        返回标题行数；LaTeX 版不在此计数正文单位（由外部统计）。
-        """
-        headings = 0
-        for raw in text.splitlines():
-            line = raw.strip()
-            if not line:
-                continue
-            m = _MD_HEADING_RE.match(line)
-            if m:
-                heading_text = ' '.join(m.group(2).split())
-                if not heading_text:
-                    continue
-                level = min(len(m.group(1)), 3)
-                if level == 1:
-                    if first_break and headings == 0:
-                        self.page_break()
-                    self.heading1(heading_text)
-                elif level == 2:
-                    self.heading2(heading_text)
-                else:
-                    self.heading3(heading_text)
-                headings += 1
-                continue
-            self.body(line)
-        return headings
 
     def add_bibliography(self, entries):
         self._body.append(r'\begin{thebibliography}{99}')

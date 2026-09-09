@@ -1242,48 +1242,4 @@ def test_model_eval_gate_rejects_few_items_and_stray_prose():
     assert any('非编号正文段' in i for i in issues)
 
 
-def test_import_chapter_text_single_pass_docx():
-    """整章文本一次导入（DOCX-native）：# 标题→heading、正文→body、返回净增正文单位。"""
-    from tools.docx.core import paper_workflow
-    from tools.docx.core.paper_format import HEADING1_STYLE, HEADING2_STYLE, HEADING3_STYLE
 
-    text = (
-        "# 一、问题重述\n"
-        "本题要求对生产调度系统进行数学建模并给出可执行的排程方案。\n"
-        "## 1.1 问题背景\n"
-        "背景段落说明调度对象与硬约束条件。\n"
-        "### 1.1.1 术语说明\n"
-        "术语段用于统一全文符号含义。\n"
-    )
-    doc = paper_format.new_document()
-    before = paper_format.count_body_units(doc)
-    stats = paper_workflow.import_chapter_text(doc, text, first_break=True)
-    assert stats["headings"] == 3
-    assert stats["chapter_units"] == paper_format.count_body_units(doc) - before
-    assert stats["chapter_units"] > 0
-    paras = [p for p in doc.paragraphs if p.text.strip()]
-    assert [p.text.strip() for p in paras] == [
-        "一、问题重述", "本题要求对生产调度系统进行数学建模并给出可执行的排程方案。",
-        "1.1 问题背景", "背景段落说明调度对象与硬约束条件。",
-        "1.1.1 术语说明", "术语段用于统一全文符号含义。",
-    ]
-    from tools.docx.core.paper_format import BODY_STYLE
-    assert [p.style.name for p in paras] == [
-        HEADING1_STYLE, BODY_STYLE, HEADING2_STYLE, BODY_STYLE, HEADING3_STYLE, BODY_STYLE,
-    ]
-    assert paras[0].paragraph_format.page_break_before is True  # first_break 仅作用于本章首个一级标题
-
-
-def test_import_chapter_text_latex_builder(tmp_path):
-    """整章文本一次导入（LaTeX-first）：heading 映射与分页与 DOCX 版语义一致。"""
-    from tools.docx.core.latex_generator import PaperLatexBuilder
-
-    builder = PaperLatexBuilder()
-    text = "# 二、问题分析\n分析段落说明总体思路。\n## 2.1 问题一\n细化分析段落。\n"
-    assert builder.import_chapter_text(text, first_break=True) == 2
-    out = builder.save_latex(tmp_path / "paper.tex")
-    src = out.read_text(encoding="utf-8")
-    assert "\\section{二、问题分析}" in src
-    assert "\\subsection{2.1 问题一}" in src
-    assert "分析段落说明总体思路。" in src
-    assert src.count("\\clearpage") == 1

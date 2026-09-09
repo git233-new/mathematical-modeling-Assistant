@@ -142,6 +142,6 @@ python scripts/office/validate.py "<PROJECT_ROOT>/完整论文.docx"
 - `python scripts/extract_docx_content.py <docx> --asset-dir <tmp/assets> --manifest <tmp/docx_manifest.json> --render-dir <tmp/pages>`：无 OCR 提取赛题 DOCX 的原生文本、表格、WMF/EMF、VML 和 OLE 公式对象，并将完整页面渲染为 PNG 供视觉检查；提取的资产和页面均为临时文件，验收后删除。
 - `save_latex_first(builder, project_root, ...)`：可选 LaTeX-first 路径（需 pandoc）——先写 `.tex`，再经 pandoc 转 `.docx`。
 
-默认生成链为 python-docx 编程：`pf.new_document()`/`pf.import_chapter_text()` 逐章整块导入 → `pf.save_document()`（写暂存 DOCX → 重开校验 → 原子发布 DOCX）。LaTeX-first（`save_latex_first`，`PaperLatexBuilder.import_chapter_text` 同语义）为可选路径。
+默认生成链为 python-docx 编程：`pf.new_document()` 逐章把整块正文一次性写入 → `pf.save_document()`（写暂存 DOCX → 重开校验 → 原子发布 DOCX）。LaTeX-first（`save_latex_first`）为可选路径，其 `PaperLatexBuilder` 同样按整章一次性写入。
 
 Windows 环境 checklist：覆盖前关闭正在打开目标 DOCX 的 Word。

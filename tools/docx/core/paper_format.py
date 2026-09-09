@@ -1379,10 +1379,6 @@ def emit_progress(doc, stage='writing', rendered_pages=None, stream=None):
 def emit_chapter_gate(doc, stream=None):
     from .paper_workflow import emit_chapter_gate as _emit_chapter_gate
     return _emit_chapter_gate(doc, stream)
-def import_chapter_text(doc, text, *, first_break=False):
-    """整章正文文本块一次导入（一次成型；每章只调一次，缺额整体改写后重建 doc）。"""
-    from .paper_workflow import import_chapter_text as _import_chapter_text
-    return _import_chapter_text(doc, text, first_break=first_break)
 if __name__ == '__main__':
     doc = new_document()
     title(doc, '论文题目')
