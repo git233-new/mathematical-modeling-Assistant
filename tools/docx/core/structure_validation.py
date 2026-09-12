@@ -7,7 +7,6 @@
 
 import csv
 import json
-import math
 import re
 from collections import Counter
 from datetime import datetime
@@ -59,7 +58,6 @@ from .paper_format import (
     check_black_fonts,
     _CLAIM_STRENGTH_PATTERNS,
 )
-from tools.common.path_utils import is_within
 from tools.common.reproducibility import scan_code_files as _scan_repro
 
 

@@ -9,7 +9,6 @@
 避免权限或文件占用导致整个清理中止并遗留部分临时文件。
 """
 import argparse
-import json
 import logging
 import re
 import sys
