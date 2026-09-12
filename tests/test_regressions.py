@@ -830,7 +830,7 @@ def test_plot_pitfall_warnings_flag_bare_legend_and_best(tmp_path):
 
 
 def test_figure_table_context_warnings(tmp_path):
-    """W10 图表引出与解释：缺引出/未点名/缺解释 → 预警；逐张点名引出+读数解释不触发。"""
+    """W10 图表引出与解释：缺引出/缺解释 → 预警；逐张引出+读数解释不触发。"""
     from docx.enum.style import WD_STYLE_TYPE
     from tools.docx.core.paper_format import CAPTION_STYLE
     from tools.docx.core.structure_validation import _figure_table_context_warnings
@@ -843,7 +843,7 @@ def test_figure_table_context_warnings(tmp_path):
             pass
         return doc
 
-    # 坏例：图表紧跟标题、引出句不点名、无解释
+    # 坏例：图表紧跟（无引出）、无解释
     bad = _doc()
     bad.add_paragraph("一、问题重述")
     bad.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
@@ -852,12 +852,11 @@ def test_figure_table_context_warnings(tmp_path):
     tb.rows[0].cells[0].text = "方法"
     tb.rows[1].cells[0].text = "x"
     ws = _figure_table_context_warnings(bad)
-    assert any("图1" in w and "没有点名" in w for w in ws)
     assert any("图1" in w and "缺少解释" in w for w in ws)
     assert any("表1" in w and "缺少引出" in w for w in ws)
     assert any("表1" in w and "缺少解释" in w for w in ws)
 
-    # 好例：逐张单独引出（点名）+ 各自读数解释
+    # 好例：逐张引出 + 各自读数解释
     good = _doc()
     good.add_paragraph("一、问题重述")
     good.add_paragraph("图1 给出两种方案收敛速度的对比。")
@@ -893,25 +892,6 @@ def test_batch_lead_in_then_individual_flags_duplicate(tmp_path):
     ws = _figure_table_context_warnings(doc)
     assert any("图2" in w and "重复引出" in w for w in ws)
     assert not any("图1" in w for w in ws)
-
-
-def test_unnamed_lead_in_flagged(tmp_path):
-    """引出句不点名图号（"对比如下"式指代）→ 预警要求明确写出图号。"""
-    from docx.enum.style import WD_STYLE_TYPE
-    from tools.docx.core.paper_format import CAPTION_STYLE
-    from tools.docx.core.structure_validation import _figure_table_context_warnings
-
-    doc = Document()
-    try:
-        doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
-    except (KeyError, ValueError):
-        pass
-    doc.add_paragraph("一、问题重述")
-    doc.add_paragraph("两种方案的收敛情况对比如下。")   # 未点名"图1"
-    doc.add_paragraph("图1 收敛对比", style=CAPTION_STYLE)
-    doc.add_paragraph("图1 中方案A的误差下降速度明显快于方案B。")
-    ws = _figure_table_context_warnings(doc)
-    assert any("图1" in w and "没有点名" in w for w in ws)
 
 
 def test_symbol_table_exempt_from_context_warnings(tmp_path):

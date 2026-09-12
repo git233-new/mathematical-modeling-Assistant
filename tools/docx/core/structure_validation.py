@@ -1603,23 +1603,18 @@ def _data_file_warnings(project_root):
     return issues
 
 
-# W10 图表上下文：每张图/表用一句自己的引出句点名引出、图表后给实质解释；
-# 不用一句总起同时引出多张图表（总起后再逐张引出会重复）。
+# W10 图表上下文：每张图/表前有正文引出、后有实质解释；同一图号不得被多处点名
+# （总起多图后再逐张引出会重复，主要写法是逐张单独引出——口径见 文档/论文写作.md）。
 _CAPTION_RE = re.compile(r'^([图表])\s*(\d+)')
 
 
 def _figure_table_context_warnings(doc):
-    """引出/解释的自然性检查（预警级）。
+    """图表引出/解释检查（预警级）：前有引出、后有解释、不重复引出。
 
-    写法约定（唯一口径，见 文档/论文写作.md「图表前置引导」）：
-    - 主要采用"逐张单独引出"：每张图/表出现前，紧跟一句自己的引出句，
-      句中明确点名该图号（"图5给出两种方案的收敛对比"），把"展示什么、
-      回答什么问题"写进行文，不套"如图N所示"模板；
-    - 不用一句总起同时引出多张图表（"图5与图6分别给出…"）——总起之后再
-      逐张引出必然重复，重复点名会被本检查预警；
-    - 图表后给一段结合读数的解释（关键数字/差异/原因，落到本问结论）。
-    符号说明表整条豁免（H10 禁止其表后写描述段，两规则不得死锁）；
-    附录图表不纳入本检查（口径见 文档/图片闸门配置与绘图规范.md）。
+    - 引出：图表前一非空段须是正文引出句（说明展示什么，自然融入行文）；
+    - 不重复引出：同一图/表号被 ≥2 个正文段点名（总起 + 逐张引出）即预警；
+    - 解释：图表后须有 ≥15 字读数分析。
+    符号说明表整条豁免（H10 禁止其表后写描述段）；附录图表不检查。
     """
     symbol_tbl = _find_symbol_table(doc)
     seq = []
@@ -1658,7 +1653,6 @@ def _figure_table_context_warnings(doc):
         cap_match = _CAPTION_RE.match(text)
         cap_kind, cap_num = cap_match.group(1), cap_match.group(2)
         label = f'{cap_kind}{cap_num}'
-        label_re = re.compile(rf'{cap_kind}\s*{cap_num}(?!\d)')
         # 前引导：上一个非空条目必须是普通正文段（不能是题注、标题、另一张表或开头）
         prev = None
         for e in reversed(seq[:idx]):
@@ -1666,17 +1660,11 @@ def _figure_table_context_warnings(doc):
                 prev = e
                 break
         if prev is None or prev[0] != 'p' or is_caption(prev[0], prev[1], prev[2]) or is_heading(prev[2]):
-            issues.append(
-                f'{label} 缺少引出：图表出现前紧跟一句自己的引出句，句中点名"{label}"'
-                f'（如"{label}给出…的对比"），写清它展示什么、回答什么问题，不能紧跟标题或另一图表')
+            issues.append(f'{label} 缺少引出：图/表前需要一句正文引出（说明该图表展示什么、回答什么问题），不能紧跟标题或另一图表')
         else:
-            lead_norm = re.sub(r'\s+', '', prev[1])
-            if not label_re.search(lead_norm):
-                issues.append(
-                    f'{label} 的引出句没有点名图表：引出句须明确写出"{label}"'
-                    f'（如"{label}给出…"），不要只写"对比如下"之类的指代')
             # 重复引出：向前回溯（至标题或上一张同类题注为止），统计点名本图的正文段数；
-            # ≥2 段即"总起/预告 + 单独引出"重复——主要写法是逐张单独引出，删掉总起句
+            # ≥2 段即"总起 + 逐张引出"的重复——主要写法是逐张单独引出，删掉总起句
+            label_re = re.compile(rf'{cap_kind}\s*{cap_num}(?!\d)')
             mentions = 0
             passed_same_caption = False
             for e in reversed(seq[:idx]):
@@ -1695,9 +1683,7 @@ def _figure_table_context_warnings(doc):
                 if e[1] and label_re.search(re.sub(r'\s+', '', e[1])):
                     mentions += 1
             if mentions >= 2:
-                issues.append(
-                    f'{label} 被重复引出：除图表紧前的引出句外，前文总起/预告句也点名过{label}'
-                    f'——逐张单独引出即可，删掉总起句避免前后重复')
+                issues.append(f'{label} 被重复引出：总起/预告句已点名过{label}，图表前又有单独引出——保留逐张单独引出，删掉总起句')
         # 后解释：图——下一非空段；表——跳过表格实体后的第一非空段；须为实质解释（≥15 字、非题注）
         after = seq[idx + 1:]
         skip_table = False
@@ -1713,9 +1699,7 @@ def _figure_table_context_warnings(doc):
             nxt = (atext, astyle)
             break
         if nxt is None or is_heading(nxt[1]) or len(nxt[0]) < 15:
-            issues.append(
-                f'{label} 缺少解释：图表后用一段自己的话读数——点出关键数字/差异、给原因、'
-                f'落到本问结论（≥15 字），不能只写"如图{cap_num}所示"或连续堆图')
+            issues.append(f'{label} 缺少解释：图/表后需一段读数分析（关键数字/差异与原因，≥15 字），不能只写"如图N所示"或连续堆图')
     return issues
 
 
