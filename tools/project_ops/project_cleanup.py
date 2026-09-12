@@ -132,47 +132,8 @@ def collect_candidates(project: Path, whitelist=frozenset()) -> list[Path]:
     return sorted(set(candidates), key=lambda item: (len(item.parts), str(item)))
 
 
-def _manifest_text(project: Path) -> str | None:
-    manifest = project / "results" / "run_manifest.json"
-    if not manifest.is_file():
-        return None
-    try:
-        return manifest.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
-        return None
-
-
-def _manifest_data_basenames(project: Path) -> set[str]:
-    """manifest 登记的全部数据来源文件名（input_files + 参数/结论/人工/表 source）。
-
-    生成器读取的数据文件一律登记进 manifest，清理时纳入白名单，杜绝误删。
-    """
-    manifest = project / "results" / "run_manifest.json"
-    if not manifest.is_file():
-        return set()
-    try:
-        data = json.loads(manifest.read_text(encoding="utf-8", errors="ignore"))
-    except (OSError, ValueError):
-        return set()
-    if not isinstance(data, dict):
-        return set()
-    names: set[str] = set()
-
-    def _add(rel):
-        if isinstance(rel, str) and rel:
-            names.add(rel.replace("\\", "/").rsplit("/", 1)[-1])
-
-    for rel in (data.get("execution") or {}).get("input_files", []) or []:
-        _add(rel)
-    for group in ("parameters", "claims", "manual_stats", "tables"):
-        for item in data.get(group, []) or []:
-            if isinstance(item, dict):
-                _add(item.get("source"))
-    return names
-
-
 def _collect_whitelist_overruns(project: Path) -> list[Path]:
-    """code/ 与 results/数据/ 内非白名单项（瘦身制）：登记外数据、多余脚本。"""
+    """code/ 与 results/数据/ 内非白名单项（瘦身制）：多余脚本、非白名单数据。"""
     overruns = []
     code_dir = project / "code"
     if code_dir.is_dir():
@@ -183,19 +144,12 @@ def _collect_whitelist_overruns(project: Path) -> list[Path]:
                 overruns.append(path)
     data_dir = project / "results" / "数据"
     if data_dir.is_dir():
-        text = _manifest_text(project)
-        manifest_basenames = _manifest_data_basenames(project)
-        if text is not None:  # manifest 缺失时不启用数据白名单，避免误删
-            for path in data_dir.iterdir():
-                if not path.is_file():
-                    continue
-                if path.name in DATA_ALWAYS_KEEP:
-                    continue
-                if path.name in manifest_basenames:
-                    continue
-                if path.name in text:
-                    continue
-                overruns.append(path)
+        for path in data_dir.iterdir():
+            if not path.is_file():
+                continue
+            if path.name in DATA_ALWAYS_KEEP:
+                continue
+            overruns.append(path)
     return overruns
 
 

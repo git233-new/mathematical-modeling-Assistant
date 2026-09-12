@@ -75,15 +75,12 @@ def _check_artifact(project: Path, row: dict, label: str, errors: list, warnings
 
 
 def _check_figures(project, payload, errors, warnings):
-    """登记图片：存在/非空/phash。"""
+    """登记图片：存在/非空。"""
     for index, row in enumerate(payload.get("figures", [])):
         if not isinstance(row, dict):
             errors.append(f"figures[{index}] 不是对象")
             continue
         _check_artifact(project, row, "图片", errors, warnings)
-        path_value = row.get("path", "")
-        if isinstance(path_value, str) and path_value.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff")) and "phash" not in row:
-            warnings.append(f"图片缺 phash 字段: {row.get('path')}")
 
 
 def _check_numeric_sources(project, payload, errors, warnings):

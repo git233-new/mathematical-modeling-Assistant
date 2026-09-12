@@ -1016,8 +1016,6 @@ def _support_role(entry, kind):
             return '数据预处理脚本'
         return '可运行脚本'
     if entry.endswith('.json'):
-        if 'run_manifest' in name:
-            return '运行登记清单'
         if '文献' in name:
             return '文献检索登记'
         if 'spss' in name:
@@ -1028,54 +1026,15 @@ def _support_role(entry, kind):
     return '支撑数据'
 
 
-def _appendix_support_materials(doc, project_root):
-    """附录A 支撑材料：自动列出 run_manifest 登记的可运行源码与数据文件清单。
-
-    清单由证据链真实产物驱动（source_scripts + 数据目录），不编造；manifest 缺失时
-    给出空段提示作者手填。表格两列：文件名 | 功能与作用。返回 True 表示已写入非空段。
-    """
-    root = Path(project_root)
-    manifest = root / 'results' / 'run_manifest.json'
-    scripts, data_files = [], []
-    if manifest.is_file():
-        try:
-            data = json.loads(manifest.read_text(encoding='utf-8'))
-        except (OSError, ValueError):
-            data = None
-        if isinstance(data, dict):
-            for item in data.get('source_scripts', []) or []:
-                p = item if isinstance(item, str) else str(item.get('path', '') if isinstance(item, dict) else '')
-                p = p.replace('\\', '/')
-                if p:
-                    scripts.append(p)
-            data_files = [d.get('source') or d.get('path') for d in (data.get('tables', []) or [])
-                          if isinstance(d, dict)] + \
-                         [p.relative_to(root).as_posix() for p in sorted((root / 'results' / '数据').glob('*')) if p.is_file()]
-    heading2(doc, '附录A 支撑材料')
-    if scripts or data_files:
-        rows = [['文件名', '功能与作用']]
-        for entry in sorted(set(scripts)):
-            rows.append([_support_filename(entry), _support_role(entry, 'script')])
-        for entry in sorted(set(data_files)):
-            rows.append([_support_filename(entry), _support_role(entry, 'data')])
-        three_line_table(doc, rows)
-        paragraph(doc, '注：来源脚本与数据文件清单见 results/run_manifest.json；核心代码以文件形式保留于 code/ 目录，不随论文排版。',
-                  style_name=BODY_STYLE)
-        return True
-    paragraph(doc, '（支撑材料清单由 run_manifest.json 自动生成；此处暂无登记，请作者补充可运行源码与数据文件清单）',
-              style_name=BODY_STYLE)
-    return False
-
-
 def append_code_files(doc, project_root):
     """渲染论文附录：只写附录A 支撑材料清单（2026 口径，代码附录已取消）。
 
-    附录A 由 `results/run_manifest.json` 的 source_scripts + 数据文件自动生成清单
-    （调用 `_appendix_support_materials`），非空赛题必有实质内容。
     各小问核心代码**不再进入论文**，全部保留在 PROJECT_ROOT/code/ 目录
-    （Q<序号>_*.py + solve_common.py 等），支撑材料清单登记其文件名与用途。
+    （Q<序号>_*.py + solve_common.py 等），此处仅留空提示。
     """
-    _appendix_support_materials(doc, project_root)
+    heading2(doc, '附录A 支撑材料')
+    paragraph(doc, '（可运行源码与数据文件清单见 code/ 与 results/ 目录；核心代码以文件形式保留于 code/ 目录，不随论文排版）',
+              style_name=BODY_STYLE)
 
 
 def _set_table_fixed_layout(table):
@@ -1221,36 +1180,8 @@ def _content_units(text):
 # endregion ── 文档统计 ──
 
 # region ── 保存与发布 ──
-def _manifest_figure_paths(project):
-    """读取 run_manifest 登记的图片路径；源图缺失即拒绝生成并保护结果目录。"""
-    manifest_path = project / 'results' / 'run_manifest.json'
-    paths = []
-    if manifest_path.is_file():
-        try:
-            payload = json.loads(manifest_path.read_text(encoding='utf-8'))
-            if not isinstance(payload, dict) or not isinstance(payload.get('figures', []), list):
-                raise ValueError('run_manifest.json 的 figures 必须是数组')
-            result_root = (project / 'results').resolve()
-            for item in payload['figures']:
-                if not isinstance(item, dict):
-                    raise ValueError('run_manifest.json 的 figures 条目必须是对象')
-                relative = item.get('path')
-                if not isinstance(relative, str) or not relative.strip():
-                    raise ValueError('run_manifest.json 图片路径必须是非空字符串')
-                path = (project / relative.replace('\\', '/')).resolve()
-                if not is_within(path, result_root):
-                    raise ValueError(f'运行清单图片必须位于 results/: {relative}')
-                paths.append(path)
-        except (OSError, ValueError, TypeError):
-            raise ValueError('run_manifest.json 图片清单非法，拒绝生成论文')
-    missing = [path for path in paths if not path.is_file()]
-    if missing:
-        raise ValueError('论文图片源文件不存在，拒绝生成并保护结果目录: ' + '、'.join((str(p) for p in missing[:5])))
-    return paths
-
-
-def _stage_and_publish(doc, contest, project, output, manifest_image_paths, staged_docx, staged_tex=None):
-    """暂存 → 终态二次校验 → 图片保全 → tex 先落位 → DOCX 原子发布 → 交付清理。"""
+def _stage_and_publish(doc, contest, project, output, staged_docx, staged_tex=None):
+    """暂存 → 终态二次校验 → tex 先落位 → DOCX 原子发布 → 交付清理。"""
     from .structure_validation import validate_paper_structure
 
     doc.save(staged_docx)
@@ -1269,10 +1200,7 @@ def _stage_and_publish(doc, contest, project, output, manifest_image_paths, stag
             "  修复指引：对照 文档/论文写作.md 逐项检查，核心阈值见 tools/docx/core/contest_profile.py"
         )
         raise ValueError("终态 DOCX 校验失败：" + "；".join(final_errors) + fix_hint)
-    missing_after = [path for path in manifest_image_paths if not path.is_file()]
-    if missing_after:
-        raise RuntimeError('论文生成过程中结果图片被删除，已拒绝发布: ' + '、'.join((str(p) for p in missing_after[:5])))
-    # 先 tex 后 docx：终态校验与图片保全通过后，tex 先落位（同卷临时名 + os.replace
+    # 先 tex 后 docx：终态校验通过后，tex 先落位（同卷临时名 + os.replace
     # 原子替换，目标被占用时抛错、旧文件完整保留），DOCX 随后原子发布
     if staged_tex is not None:
         latex_path = output.with_suffix('.tex')
@@ -1315,7 +1243,6 @@ def save_document(
         raise ValueError('论文输出必须位于 PROJECT_ROOT 内部')
     if is_within(output, SKILL_ROOT):
         raise ValueError('论文输出不能位于 SKILL_ROOT 内部')
-    manifest_image_paths = _manifest_figure_paths(project)
     ensure_page_numbers(doc)
     force_black_fonts(doc)
     sweep_count = len(auto_clean_code(project))
@@ -1352,8 +1279,7 @@ def save_document(
     staged_tex = staging_dir / latex_path.name
     try:
         export_latex_source(doc, staged_tex, graphics_dir='results/图片', project_root=project)
-        _stage_and_publish(doc, contest, project, output, manifest_image_paths,
-                           staged_docx, staged_tex)
+        _stage_and_publish(doc, contest, project, output, staged_docx, staged_tex)
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
     print(json.dumps({'stage': 'delivered', 'path': str(output), 'warnings': len(warnings),
@@ -1438,10 +1364,7 @@ _VALIDATION_REEXPORTS = (
 
 def __getattr__(name):
     if name in _VALIDATION_REEXPORTS:
-        try:
-            from . import structure_validation as _sv
-        except ImportError:
-            import structure_validation as _sv
+        from . import structure_validation as _sv
         value = getattr(_sv, name)
         globals()[name] = value
         return value

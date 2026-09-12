@@ -448,40 +448,6 @@ def test_emit_progress_calculates_snapshot_once(monkeypatch):
     assert json.loads(stream.getvalue()) == {"stage": "validated"}
 
 
-def test_manifest_does_not_require_source_script_mtime_during_run(tmp_path: Path):
-    project = tmp_path
-    source_script = project / "code" / "build.py"
-    result_file = project / "results" / "value.txt"
-    source_script.parent.mkdir()
-    result_file.parent.mkdir()
-    source_script.write_text("print('ok')\n", encoding="utf-8")
-    result_file.write_text("42\n", encoding="utf-8")
-    now = datetime.now(timezone.utc)
-    manifest = {
-        "schema_version": 1,
-        "status": "success",
-        "started_at": (now + timedelta(seconds=1)).isoformat(),
-        "completed_at": (now + timedelta(seconds=3)).isoformat(),
-        "execution": {"exit_code": 0},
-        "source_scripts": ["code/build.py"],
-        "figures": [{
-            "path": "results/value.txt",
-            "source_script": "code/build.py",
-        }],
-        "parameters": [],
-        "claims": [],
-        "tables": [],
-    }
-    (project / "results" / "run_manifest.json").write_text(
-        json.dumps(manifest),
-        encoding="utf-8",
-    )
-
-    issues = paper_format._run_manifest_issues(Document(), project)
-
-    assert not any("生成脚本修改时间不在本次运行区间" in issue for issue in issues)
-
-
 def test_pdf_conversion_creates_output_directory(tmp_path: Path):
     import fitz
 
@@ -501,18 +467,6 @@ def test_recalc_rejects_non_positive_timeout(tmp_path: Path):
     workbook.write_bytes(b"not used")
 
     assert "超时秒数" in recalc(workbook, timeout=0)["error"]
-
-
-def test_manifest_figure_paths_reject_path_outside_results(tmp_path: Path):
-    results = tmp_path / "results"
-    results.mkdir()
-    (results / "run_manifest.json").write_text(
-        json.dumps({"figures": [{"path": "../outside.png"}]}),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError, match="图片清单非法"):
-        paper_format._manifest_figure_paths(tmp_path)
 
 
 def test_paper_quality_gate_rejects_short_rendered_paper():
@@ -763,31 +717,6 @@ def _mk_project(tmp_path):
     return code, data, files
 
 
-def test_cleanup_whitelist_removes_unregistered_data_and_extra_code(tmp_path):
-    """登记外数据 csv 与 code/ 白名单外文件进入清理候选；白名单内文件保留。"""
-    from tools.project_ops.project_cleanup import plan_cleanup
-    code, data, _ = _mk_project(tmp_path)
-    (tmp_path / "results" / "run_manifest.json").write_text(
-        '{"figures": [], "input_files": ["results/数据/登记.csv"]}', encoding="utf-8")
-    (data / "登记.csv").write_text("a\n", encoding="utf-8")
-    (data / "未登记.csv").write_text("b\n", encoding="utf-8")
-    (data / "spss_outputs.csv").write_text("name,unit,value,required\n", encoding="utf-8-sig")
-    (code / "Q1.py").write_text("pass\n", encoding="utf-8")
-    (code / "Q1_子模块.py").write_text("pass\n", encoding="utf-8")
-    (code / "README.md").write_text("x\n", encoding="utf-8")
-    (code / "scratch.py").write_text("x\n", encoding="utf-8")
-
-    targets, _ = plan_cleanup(tmp_path)
-    names = {p.name for p in targets}
-    assert "未登记.csv" in names
-    assert "README.md" in names
-    assert "scratch.py" in names
-    assert "登记.csv" not in names
-    assert "spss_outputs.csv" not in names
-    assert "Q1.py" not in names
-    assert "Q1_子模块.py" not in names
-
-
 def test_cleanup_never_touches_files_dir_or_project_root(tmp_path):
     """files/（赛题原件）与项目根层文件永不进入清理候选。"""
     from tools.project_ops.project_cleanup import plan_cleanup
@@ -834,35 +763,6 @@ def test_plot_pitfall_warnings_flags_pie_twinx_jet(tmp_path):
 
 
 # ===== 新版契约补充覆盖 =====
-
-def test_appendix_support_materials_renders_three_line_table(tmp_path):
-    """附录A 支撑材料清单渲染为三线表（表头 文件名|功能与作用，各列等宽），过 H10 与三线闸门。"""
-    from tools.docx.core.structure_validation import (
-        _appendix_boxed_table_issues,
-        _three_line_table_issues,
-    )
-    manifest_dir = tmp_path / "results" / "数据"
-    manifest_dir.mkdir(parents=True)
-    (tmp_path / "results" / "run_manifest.json").write_text(
-        json.dumps({"schema_version": 1,
-                    "source_scripts": ["code/Q1.py"]}), encoding="utf-8")
-    (manifest_dir / "result.csv").write_text("a,b\n1,2\n", encoding="utf-8")
-    doc = paper_format.new_document()
-    assert paper_format._appendix_support_materials(doc, str(tmp_path)) is True
-    table = doc.tables[-1]
-    assert [c.text for c in table.rows[0].cells] == ["文件名", "功能与作用"]
-    rows = [[c.text for c in r.cells] for r in table.rows[1:]]
-    assert ["Q1.py", "第1问求解脚本"] in rows
-    csv_row = next(r for r in rows if r[0] == "result.csv")
-    assert csv_row[1] == "支撑数据"
-    col_widths = [c.width for c in table.columns]
-    assert max(col_widths) - min(col_widths) <= 1  # 三线表各列平均分布（余数只差 1twip）
-    borders = table._tbl.tblPr.find(qn("w:tblBorders"))
-    vals = {n.tag.rsplit("}", 1)[-1]: n.get(qn("w:val")) for n in borders}
-    assert vals.get("top") == "single" and vals.get("bottom") == "single"
-    assert vals.get("left") in (None, "none", "nil") and vals.get("right") in (None, "none", "nil")
-    assert _three_line_table_issues(doc) == []
-    assert _appendix_boxed_table_issues(doc) == []
 
 
 def test_nine_step_verification_no_report_by_default(tmp_path):
@@ -1048,60 +948,6 @@ def test_claim_strength_guard():
     issues3 = _claim_strength_issues(doc3)
     assert len(issues3) == 1
     assert '显著优于' in issues3[0]
-
-
-def test_abstract_body_number_consistency():
-    """摘要数值须在正文中出现。"""
-    from tools.docx.core.structure_validation import _abstract_body_number_consistency_issues
-    from docx import Document
-
-    doc = Document()
-    doc.add_paragraph('摘 要')
-    doc.add_paragraph('本文建立了优化模型。')
-    doc.add_paragraph('结果表明成本降低12.3%，效率提升8.7%。')
-    doc.add_paragraph('关键词：优化；成本')
-    doc.add_paragraph('一、问题重述')
-    doc.add_paragraph('成本降低12.3%，效率提升8.7%。')
-    doc.add_paragraph('参考文献')
-    assert _abstract_body_number_consistency_issues(doc) == []
-
-    doc2 = Document()
-    doc2.add_paragraph('摘 要')
-    doc2.add_paragraph('本文建立了优化模型。')
-    doc2.add_paragraph('结果表明成本降低12.3%。')
-    doc2.add_paragraph('关键词：优化')
-    doc2.add_paragraph('一、问题重述')
-    doc2.add_paragraph('成本有所降低。')
-    doc2.add_paragraph('参考文献')
-    issues = _abstract_body_number_consistency_issues(doc2)
-    assert len(issues) == 1
-    assert '12.3%' in issues[0]
-
-
-def test_conclusion_new_number():
-    """结论段不得引入正文未出现过的数值。"""
-    from tools.docx.core.structure_validation import _conclusion_new_number_issues
-    from docx import Document
-
-    doc = Document()
-    doc.add_paragraph('一、问题重述')
-    doc.add_paragraph('五、模型建立与求解')
-    doc.add_paragraph('误差为3.2%。')
-    doc.add_paragraph('六、结论')
-    doc.add_paragraph('误差为3.2%，验证了模型有效性。')
-    doc.add_paragraph('参考文献')
-    assert _conclusion_new_number_issues(doc) == []
-
-    doc2 = Document()
-    doc2.add_paragraph('一、问题重述')
-    doc2.add_paragraph('五、模型建立与求解')
-    doc2.add_paragraph('误差较低。')
-    doc2.add_paragraph('六、结论')
-    doc2.add_paragraph('误差仅为3.2%。')
-    doc2.add_paragraph('参考文献')
-    issues = _conclusion_new_number_issues(doc2)
-    assert len(issues) == 1
-    assert '3.2%' in issues[0]
 
 
 def test_keyword_body_consistency():

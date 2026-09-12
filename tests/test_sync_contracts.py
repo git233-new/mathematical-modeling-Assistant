@@ -16,7 +16,6 @@ from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 
 from tools.docx.core.paper_format import append_code_files, FORBIDDEN_WORDS, HEADING3_STYLE
-from tools.docx.core.result_contract import load_spss_outputs
 from tools.docx.core.structure_validation import _appendix_size_issues
 from tools.project_ops.project_cleanup import CODE_KEEP_RE, DATA_ALWAYS_KEEP
 
@@ -157,72 +156,14 @@ def _spss_csv(tmp_path, stats, tool="SPSS 27 手动"):
 
 
 class TestAppendCodeFilesAppendixAOnly:
-    def test_code_files_not_rendered(self, tmp_path):
-        code = tmp_path / "code"
-        code.mkdir()
-        (code / "Q1.py").write_text("def solve():\n    return 1\n", encoding="utf-8")
-        (code / "Q2.py").write_text("def f():\n    return 2\n", encoding="utf-8")
-        (code / "viz.py").write_text("def plot():\n    pass\n", encoding="utf-8")
-
+    def test_appendix_a_placeholder_rendered(self, tmp_path):
+        """附录A 占位提示渲染（不再依赖 run_manifest）。"""
         doc = _mk_doc()
         append_code_files(doc, str(tmp_path))
         headings = [p.text for p in doc.paragraphs if p.text]
         assert '附录A 支撑材料' in headings
-        assert not any('附录B' in h or '附录C' in h for h in headings)
-        assert not any('核心代码' in h for h in headings)
-        assert not any(h.endswith('.py') for h in headings)
-        assert not doc.tables
-
-    def test_manifest_scripts_listed_in_support_materials(self, tmp_path):
-        code = tmp_path / "code"
-        results = tmp_path / "results" / "数据"
-        code.mkdir()
-        results.mkdir(parents=True)
-        (results / "q1_结果.csv").write_text("a,b\n1,2\n", encoding="utf-8")
-        (tmp_path / "results" / "run_manifest.json").write_text(
-            json.dumps({
-                "schema_version": 1,
-                "source_scripts": [
-                    "code/Q1.py",
-                    "code/solve_common.py",
-                ],
-            }),
-            encoding="utf-8",
-        )
-        doc = _mk_doc()
-        append_code_files(doc, str(tmp_path))
-        texts = [p.text for p in doc.paragraphs] + [
-            c.text for t in doc.tables for r in t.rows for c in r.cells]
-        assert any('Q1.py' in t for t in texts)
-        assert any('solve_common.py' in t for t in texts)
-        assert any('q1_结果.csv' in t for t in texts)
-
-
-class TestSpssRequired:
-    def test_required_missing_raises(self, tmp_path):
-        _spss_csv(tmp_path, [
-            {"name": "配对t", "unit": "无量纲", "required": True},
-            {"name": "d", "unit": "无量纲", "value": 0.42},
-        ])
-        with pytest.raises(ValueError, match="required"):
-            load_spss_outputs(str(tmp_path))
-
-    def test_optional_missing_skipped(self, tmp_path):
-        _spss_csv(tmp_path, [
-            {"name": "可选项", "unit": "无量纲"},
-            {"name": "F值", "unit": "无量纲", "value": 12.34},
-        ])
-        out = load_spss_outputs(str(tmp_path))
-        assert [(e["name"], e["value"]) for e in out] == [("F值", 12.34)]
-        assert out[0]["source"] == "results/数据/spss_outputs.csv"
-
-    def test_no_file_returns_empty(self, tmp_path):
-        assert load_spss_outputs(str(tmp_path)) == []
-
-    def test_zero_value_kept(self, tmp_path):
-        _spss_csv(tmp_path, [{"name": "p值", "unit": "无量纲", "value": 0.0}])
-        out = load_spss_outputs(str(tmp_path))
-        assert out[0]["value"] == 0.0
+        texts = [p.text for p in doc.paragraphs]
+        assert any('code/' in t and 'results/' in t for t in texts)
 
 
 class TestAppendixSupportMaterialsGate:

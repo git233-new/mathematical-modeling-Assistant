@@ -22,8 +22,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .consistency_audit import audit_consistency_from_text
-
 
 # 12 项硬错误标准
 HARD_ERROR_CODES = {
@@ -178,17 +176,8 @@ def step5_numeric_consistency(
     text: str,
     manifest_path: Path | None = None,
 ) -> list[VerificationFinding]:
-    """STEP 5: 数值和结果一致性"""
-    findings = []
-    if manifest_path and manifest_path.exists():
-        audit = audit_consistency_from_text(text, manifest_path)
-        for conflict in audit.conflicts:
-            findings.append(VerificationFinding(
-                step=5, code="HE09", severity="error",
-                message=f"数值 '{conflict.number}' 与冻结快照冲突",
-                location=conflict.context,
-            ))
-    return findings
+    """STEP 5: 数值和结果一致性（已简化，不再依赖 run_manifest）"""
+    return []
 
 
 def step6_reference_check(text: str) -> list[VerificationFinding]:

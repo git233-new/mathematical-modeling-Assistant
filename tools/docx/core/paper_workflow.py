@@ -147,11 +147,8 @@ def _figure_plan_value(source, issues, warnings, questions):
     return figure_plan
 
 
-def _manifest_and_abstract_issues(source, issues):
-    """run_manifest 必填 + 摘要独占首页与字数；返回 (abstract_page, abstract_units)。"""
-    run_manifest = _metric(source, 'run_manifest', 'result_manifest')
-    if not str(run_manifest or '').strip():
-        issues.append('未提供 run_manifest；代码成功运行并生成 results/run_manifest.json 后才能写论文')
+def _abstract_issues(source, issues):
+    """摘要独占首页与字数检查；返回 (abstract_page, abstract_units)。"""
     abstract_data = source.get('abstract') if isinstance(source.get('abstract'), Mapping) else {}
     abstract_page = _metric(source, 'abstract_exclusive_page', 'abstract_on_first_page')
     if abstract_page is None:
@@ -169,7 +166,7 @@ def _manifest_and_abstract_issues(source, issues):
 
 
 def preflight_check(outline):
-    """写作前预检编排：分问 → 字数 → 图/表/公式 → 画像 → 计划 → 清单/摘要。"""
+    """写作前预检编排：分问 → 字数 → 图/表/公式 → 画像 → 计划 → 摘要。"""
     source = outline if isinstance(outline, Mapping) else {'sections': outline}
     sections = source.get('sections', source.get('chapters', source))
     issues = []
@@ -181,9 +178,8 @@ def preflight_check(outline):
     profiles = _profiles_value(source, issues, warnings)
     formula_plan = _formula_plan_value(source, issues, warnings)
     figure_plan = _figure_plan_value(source, issues, warnings, questions)
-    run_manifest = _metric(source, 'run_manifest', 'result_manifest')
-    abstract_page, abstract_units = _manifest_and_abstract_issues(source, issues)
-    return {'ok': not issues, 'issues': issues, 'metrics': {'questions': sorted(set(questions), key=int), 'problem_profiles': profiles, 'planned_body_units': planned_units, 'figures': _metric(source, 'figures', 'figure_count'), 'tables': _metric(source, 'tables', 'table_count'), 'equations': _metric(source, 'equations', 'equation_count'), 'abstract_exclusive_page': abstract_page, 'formula_plan': formula_plan, 'figure_plan': figure_plan, 'run_manifest': run_manifest}, 'warnings': warnings}
+    abstract_page, abstract_units = _abstract_issues(source, issues)
+    return {'ok': not issues, 'issues': issues, 'metrics': {'questions': sorted(set(questions), key=int), 'problem_profiles': profiles, 'planned_body_units': planned_units, 'figures': _metric(source, 'figures', 'figure_count'), 'tables': _metric(source, 'tables', 'table_count'), 'equations': _metric(source, 'equations', 'equation_count'), 'abstract_exclusive_page': abstract_page, 'formula_plan': formula_plan, 'figure_plan': figure_plan}, 'warnings': warnings}
 
 
 def progress_snapshot(doc, stage='writing', rendered_pages=None):

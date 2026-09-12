@@ -12,7 +12,6 @@ import pytest
 from tools.common.io_utils import safe_extract_zip, ZIP_MAX_TOTAL_BYTES
 from tools.common.path_utils import is_within
 from tools.project_ops import project_cleanup as pc
-from tools.project_ops.three_layer_audit import run_completeness_audit
 
 
 # ---------------------------------------------------------------------------
@@ -150,37 +149,6 @@ def test_cli_preview_shows_only_actual_targets(tmp_path, monkeypatch, capsys):
     assert "__pycache__" not in out             # results/ 内一律保护
     # 预览模式不产生任何删除
     assert (project / "write_paper_draft.py").exists()
-
-
-# ---------------------------------------------------------------------------
-# three_layer_audit：completeness 默认清单与交付契约一致
-# ---------------------------------------------------------------------------
-
-CONTRACT_FILES = [
-    "完整论文.docx",
-    "results/论文评审与分析.md",
-    "results/run_manifest.json",
-]
-
-
-def test_completeness_passes_on_contract_project(tmp_path):
-    for rel in CONTRACT_FILES:
-        p = tmp_path / rel
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text("x", encoding="utf-8")
-    for rel in ("results/数据", "results/图片"):
-        (tmp_path / rel).mkdir(parents=True, exist_ok=True)
-    result = run_completeness_audit(tmp_path)
-    assert result.passed, [f.message for f in result.findings]
-
-
-def test_completeness_fails_on_missing_contract_file(tmp_path):
-    (tmp_path / "results").mkdir()
-    result = run_completeness_audit(tmp_path)
-    assert not result.passed
-    missing = {f.message for f in result.findings if f.category == "missing_file"}
-    for rel in CONTRACT_FILES + ["results/数据/", "results/图片/"]:
-        assert any(rel in m for m in missing), f"{rel} 未被报告缺失"
 
 
 # ---------------------------------------------------------------------------
