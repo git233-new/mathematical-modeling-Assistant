@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 """删除建模项目中的论文构建和临时过程文件，保留最终交付物。
 
-默认只列出待清理文件；使用 ``--apply`` 才执行删除。
+默认只列出待清理文件；使用 ``--apply`` 才执行删除——save_document 发布后
+只做预览（``preview_cleanup``），绝不自动删文件。执行删除前自动把待删项
+整体备份到 `.paper_work/trash/<时间戳>/`（可完整回滚），并逐路径打日志。
 清理操作全部包裹在 ``try/except`` 中：单个文件失败不阻断其余清理，
 避免权限或文件占用导致整个清理中止并遗留部分临时文件。
 """
@@ -11,6 +13,7 @@ import json
 import logging
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 import shutil
 
@@ -51,10 +54,11 @@ PROCESS_NAME_MARKERS = (
     "generate_paper", "write_paper", "render_paper", "paper_generation",
     "extract_question", "extract_pdf", "temporary_", "临时",
 )
-# 瘦身白名单（只对 code/ 与 results/数据/ 生效）：非白名单项即过程物，交付时清理。
-# files/ 与项目根层永不适用白名单。与 SKILL.md 交付契约保持一致。
+# 瘦身白名单（只对 code/ 生效）：非白名单项即过程物，交付时清理。
+# files/ 与项目根层永不适用白名单；results/数据/ 是论文证据（图表源数据、
+# 登记文件），一律不自动删除——瘦身只删可再生的脚本层，不动数据层。
+# 与 SKILL.md 交付契约保持一致。
 CODE_KEEP_RE = re.compile(r"^(Q\d+(?:_.+)?\.py|solve_common\.py|viz\.py|requirements\.txt)$")
-DATA_ALWAYS_KEEP = {"spss_outputs.csv", "文献检索.csv"}
 # 解题公共模块名：仅被 Q<序号>.py 复用，非解答脚本不得依赖
 SOLUTION_COMMON_NAME = "solve_common.py"
 # 统一生图配置模块：绘图参数（配色/字号/尺寸/导出）唯一入口，各问只调不各写
@@ -65,7 +69,8 @@ FILES_DIR_NAME = "files"
 # 库函数与 CLI --apply 必须使用同一份清单，杜绝双路径守卫强度不一致。
 # 完整论文.tex 是 LaTeX 源码版交付物（save_document 与 DOCX 同快照写出），与 DOCX 同级保护。
 # files/ 是赛题原件与原附录，任何情况下不得修改或删除。
-PROTECTED_ITEMS = ("results", "code", "files", "完整论文.docx", "完整论文.tex")
+# .paper_work/ 是过程工作区（章节源稿 + trash 回滚区），清理器不清除。
+PROTECTED_ITEMS = ("results", "code", "files", ".paper_work", "完整论文.docx", "完整论文.tex")
 
 
 def _tex_docx_sync_warning(project: Path) -> list[str]:
@@ -133,7 +138,7 @@ def collect_candidates(project: Path, whitelist=frozenset()) -> list[Path]:
 
 
 def _collect_whitelist_overruns(project: Path) -> list[Path]:
-    """code/ 与 results/数据/ 内非白名单项（瘦身制）：多余脚本、非白名单数据。"""
+    """code/ 内非白名单项（瘦身制）：多余脚本。results/数据/ 不参与——数据是证据。"""
     overruns = []
     code_dir = project / "code"
     if code_dir.is_dir():
@@ -142,14 +147,6 @@ def _collect_whitelist_overruns(project: Path) -> list[Path]:
                 continue
             if not CODE_KEEP_RE.match(path.name):
                 overruns.append(path)
-    data_dir = project / "results" / "数据"
-    if data_dir.is_dir():
-        for path in data_dir.iterdir():
-            if not path.is_file():
-                continue
-            if path.name in DATA_ALWAYS_KEEP:
-                continue
-            overruns.append(path)
     return overruns
 
 
@@ -221,22 +218,62 @@ def plan_cleanup(project: Path) -> tuple[list[Path], list[str]]:
     return targets, rejected
 
 
+def _backup_to_trash(project: Path, targets: list[Path]) -> Path | None:
+    """删除前把全部待删项整体拷入 `.paper_work/trash/<时间戳>/`，可完整回滚。
+
+    备份失败不阻断删除（记日志），但会缩小回滚保障；目录项整树拷贝。
+    返回 trash 目录路径；无待删项或全部备份失败时可能为 None。
+    """
+    real_targets = [t for t in targets if t.exists()]
+    if not real_targets:
+        return None
+    trash_root = project / ".paper_work" / "trash" / datetime.now().strftime("%Y%m%d-%H%M%S")
+    try:
+        for path in real_targets:
+            relative = path.relative_to(project)
+            destination = trash_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if path.is_dir():
+                shutil.copytree(path, destination)
+            else:
+                shutil.copy2(path, destination)
+        logger.info("清理备份: %s 项已存入 %s", len(real_targets), trash_root)
+        return trash_root
+    except (PermissionError, OSError, shutil.Error) as exc:
+        logger.warning("清理备份失败（继续删除，无回滚副本）: %s", exc)
+        return None
+
+
 def _execute_cleanup(project: Path) -> list[Path]:
-    """统一清理入口：先全量校验，再一次性删除，杜绝"删一半中断"的半删状态。
+    """统一清理入口：先全量校验 → trash 备份 → 一次性删除，杜绝"删一半中断"。
 
     库函数 ``cleanup_after_delivery`` 与 CLI ``--apply`` 都走这里，
-    保证两条路径的守卫规则完全一致。
+    保证两条路径的守卫规则完全一致；每个删除路径都打进日志。
     """
     targets, rejected = plan_cleanup(project)
     if rejected:
         raise RuntimeError("；".join(rejected))
+    _backup_to_trash(project, targets)
     removed: list[Path] = []
     for path in targets:
         if _safe_remove(path):
+            logger.info("已删除: %s", path)
             removed.append(path)
     for warning in scan_reproducibility_warnings(project):
         logger.warning("可复现性: %s", warning)
     return removed
+
+
+def preview_cleanup(project: Path) -> list[Path]:
+    """清理预览：只列出待删清单，不做任何删除（save_document 发布后调用）。
+
+    真正删除只走独立 CLI：``python tools/project_ops/project_cleanup.py <project> --apply``
+    （执行前自动 trash 备份，可完整回滚）。
+    """
+    targets, _rejected = plan_cleanup(project)
+    for path in targets:
+        logger.info("待删除: %s", path)
+    return targets
 
 
 def cleanup_after_delivery(project: Path) -> list[Path]:
@@ -248,8 +285,7 @@ def cleanup_after_delivery(project: Path) -> list[Path]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("project", type=Path, help="已完成的题目项目目录")
-    parser.add_argument("--apply", action="store_true", help="执行清理；默认仅预览")
-    parser.add_argument("--verbose", action="store_true", help="逐项列出清理明细（默认只输出统计行）")
+    parser.add_argument("--apply", action="store_true", help="执行清理（删除前自动 trash 备份）；默认仅预览")
     parser.add_argument("--allow-skill-root", action="store_true", help="仅用于仓库维护时清理 Skill 自身缓存")
     args = parser.parse_args()
     project = args.project.resolve()
@@ -265,10 +301,10 @@ def main() -> int:
             parser.error("PROJECT_ROOT 不能是 Skill 根目录或其父目录；仅可用 --allow-skill-root 清理精确的 Skill 根目录")
     targets, rejected = plan_cleanup(project)
     action = "已删除" if args.apply else "待删除"
-    if args.verbose:
-        for path in sorted(targets, key=lambda item: (len(item.parts), str(item))):
-            print(f"[cleanup] {action}: {path.relative_to(project)}")
+    for path in sorted(targets, key=lambda item: (len(item.parts), str(item))):
+        print(f"[cleanup] {action}: {path.relative_to(project)}")
     if args.apply:
+        logging.basicConfig(level=logging.INFO, format="[cleanup] %(message)s")
         _execute_cleanup(project)
     print(f"[cleanup] 完成：{action} {len(targets)} 项")
     for warning in scan_reproducibility_warnings(project):

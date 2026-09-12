@@ -937,9 +937,13 @@ def build_parser() -> argparse.ArgumentParser:
 
   # JSON 输出
   python hybrid_scholar.py --query "LSTM" --json
+
+  # 人工登记（中文文献等后端命不中的来源；--template 查看输入模板）
+  python hybrid_scholar.py --manual 人工书目.csv --project <项目目录>
         """,
     )
-    parser.add_argument("--query", "-q", required=True, help="搜索关键词")
+    parser.add_argument("--query", "-q",
+                        help="搜索关键词（--manual 模式下可省略）")
     parser.add_argument("--limit", "-n", type=int, default=8,
                         help="最终返回结果数量（默认 8）")
     parser.add_argument("--email", "-e",
@@ -964,7 +968,153 @@ def build_parser() -> argparse.ArgumentParser:
                         help="以 JSON 格式输出")
     parser.add_argument("--append-to", type=Path, metavar="CSV",
                         help="把本次检索结果追加到 CSV 登记文件（默认 results/数据/文献检索.csv）")
+    parser.add_argument("--manual", type=Path, metavar="INPUT_CSV",
+                        help="人工登记模式：从 INPUT_CSV 读取人工核验的书目条目（中文文献等"
+                             "检索后端命不中的来源），DOI 可反查 Crossref 回填元数据后追加登记")
+    parser.add_argument("--project", type=Path, metavar="PROJECT_ROOT",
+                        help="项目根目录（--manual 模式默认登记到 <project>/results/数据/文献检索.csv）")
+    parser.add_argument("--template", action="store_true",
+                        help="打印人工登记输入 CSV 的字段模板并退出")
     return parser
+
+
+MANUAL_TEMPLATE_COLUMNS = ("title", "authors", "year", "venue", "doi", "url", "ref_type", "abstract", "query")
+_MANUAL_EXAMPLE = {
+    "title": "基于灰色预测模型的某某研究",
+    "authors": "张三; 李四",
+    "year": "2023",
+    "venue": "数学的实践与认识",
+    "doi": "10.xxxx/yyyy（可留空）",
+    "url": "",
+    "ref_type": "J",
+    "abstract": "",
+    "query": "灰色预测",
+}
+
+
+def print_manual_template() -> None:
+    import csv
+    import io
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=MANUAL_TEMPLATE_COLUMNS)
+    writer.writeheader()
+    writer.writerow(_MANUAL_EXAMPLE)
+    print("人工登记输入 CSV 模板（utf-8-sig；每行一条，字段如下；示例行为占位请替换）：")
+    print(buffer.getvalue().strip())
+    print("说明：title/authors/year/venue 全部非空才置 citation_ready=true；"
+          "填了 doi 会自动反查 Crossref——命中即回填卷期页码并把 verification_status 升为 crossref_verified。")
+
+
+def manual_register(input_csv: Path, registry: Path, email: Optional[str] = None) -> int:
+    """人工登记：读取 INPUT_CSV，DOI 反查回填后追加进登记文件；返回新增行数。
+
+    中文文献等检索后端（OpenAlex/Crossref 书目覆盖有限）命不中的来源，走人工核验
+    路径：操作者对题名/作者/年份/刊名逐字段核对后填表，本函数只做格式校验、
+    DOI 反查辅助与追加登记，不虚构任何字段。
+    """
+    import csv
+
+    if not input_csv.is_file():
+        raise FileNotFoundError(f"人工登记输入文件不存在: {input_csv}")
+    with input_csv.open("r", encoding="utf-8-sig", newline="") as stream:
+        rows = [dict(row) for row in csv.DictReader(stream)]
+    if not rows:
+        return 0
+
+    validator = CrossrefValidator(email=email)
+    existing_titles = set()
+    if registry.is_file() and registry.stat().st_size > 0:
+        with registry.open("r", encoding="utf-8-sig", newline="") as stream:
+            for old in csv.DictReader(stream):
+                existing_titles.add(HybridScholar._normalized_title(old.get("title", "") or ""))
+
+    prepared = []
+    for index, row in enumerate(rows, start=1):
+        title = str(row.get("title", "") or "").strip()
+        if not title:
+            print(f"[manual] 第 {index} 行缺 title，跳过")
+            continue
+        if HybridScholar._normalized_title(title) in existing_titles:
+            print(f"[manual] 第 {index} 行已登记过（题名重复），跳过: {title[:40]}")
+            continue
+        doi = _normalize_doi(str(row.get("doi", "") or "").strip())
+        authors = [a.strip() for a in re.split("[;；]", str(row.get("authors", "") or "")) if a.strip()]
+        year = str(row.get("year", "") or "").strip()
+        venue = str(row.get("venue", "") or "").strip()
+        status = "manual_registered"
+        issues = []
+        volume = issue = pages = ""
+        if doi:
+            try:
+                metadata = validator.fetch(doi)
+                if _titles_match(metadata.title or "", title):
+                    year = str(metadata.year) if metadata.year else year
+                    venue = metadata.venue or venue
+                    volume = metadata.volume or ""
+                    issue = metadata.issue or ""
+                    pages = metadata.pages or ""
+                    status = "crossref_verified"
+                else:
+                    issues.append("DOI 反查题名与登记题名不一致，保持人工登记口径")
+            except CrossrefLookupError as exc:
+                issues.append(f"DOI 反查未命中（Crossref 无此 DOI 或网络失败）：{exc}")
+        ready = bool(title and authors and year and venue)
+        if not ready:
+            issues.append("title/authors/year/venue 未填全，citation_ready=false")
+        ref_type = str(row.get("ref_type", "") or "").strip() or ("J" if venue else "")
+        if ready and not ref_type:
+            issues.append("缺少 ref_type，无法生成著录格式")
+        author_text = ", ".join(authors[:3]) + (", et al" if len(authors) > 3 else "")
+        citation_format = ""
+        if ready and ref_type:
+            citation_format = f"{author_text}. {title}[{ref_type}]. {venue}, {year}." if venue else f"{author_text}. {title}[{ref_type}]. {year}."
+            if volume:
+                citation_format = citation_format.rstrip(".") + f", {volume}" + (f"({issue})" if issue else "") + (f": {pages}" if pages else "") + "."
+        prepared.append({
+            "query": str(row.get("query", "") or "manual"),
+            "title": title,
+            "authors": "; ".join(authors),
+            "year": year,
+            "venue": venue,
+            "doi": doi or "",
+            "url": str(row.get("url", "") or "").strip(),
+            "citation_ready": ready,
+            "verification_status": status,
+            "verification_issues": "；".join(issues),
+            "citation_format": citation_format,
+            "abstract": str(row.get("abstract", "") or "").strip(),
+        })
+        existing_titles.add(HybridScholar._normalized_title(title))
+    if not prepared:
+        return 0
+
+    path = registry
+    path.parent.mkdir(parents=True, exist_ok=True)
+    exists = path.exists() and path.stat().st_size > 0
+    all_rows = []
+    if exists:
+        with path.open("r", encoding="utf-8-sig", newline="") as stream:
+            all_rows = [{key: old.get(key, "") for key in REGISTRY_COLUMNS}
+                        for old in csv.DictReader(stream)]
+    all_rows.extend(prepared)
+    import tempfile
+
+    handle = tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8-sig", newline="", dir=path.parent, suffix=".tmp", delete=False)
+    try:
+        writer = csv.DictWriter(handle, fieldnames=REGISTRY_COLUMNS)
+        writer.writeheader()
+        writer.writerows(all_rows)
+        handle.close()
+        os.replace(handle.name, path)
+    finally:
+        if os.path.exists(handle.name):
+            os.remove(handle.name)
+    for row in prepared:
+        flag = "✓" if row["citation_ready"] else "✗"
+        print(f"[manual] {flag} {row['title'][:48]}  ({row['verification_status']})")
+    return len(prepared)
 
 
 def append_json_result(path: Path, payload: str) -> None:
@@ -1045,6 +1195,22 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.template:
+        print_manual_template()
+        return
+    if args.manual:
+        if args.append_to is not None:
+            registry = args.append_to
+        elif args.project is not None:
+            registry = args.project.resolve() / "results" / "数据" / "文献检索.csv"
+        else:
+            parser.error("--manual 需要 --project（登记到项目 results/数据/文献检索.csv）或 --append-to 指定登记文件")
+        count = manual_register(args.manual, registry, email=args.email)
+        print(f"已人工登记 {count} 条到: {registry}")
+        return
+
+    if not args.query:
+        parser.error("--query 必填（或使用 --manual 人工登记 / --template 查看模板）")
     if args.limit <= 0:
         parser.error("--limit 必须大于 0")
     if args.year_from is not None and args.year_to is not None and args.year_from > args.year_to:

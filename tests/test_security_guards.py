@@ -141,7 +141,7 @@ def test_cli_preview_shows_only_actual_targets(tmp_path, monkeypatch, capsys):
     project = _make_project(tmp_path)
     (project / "code" / "temporary_用户脚本.py").write_text("x", encoding="utf-8")
     (project / "write_paper_draft.py").write_text("junk", encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["project_cleanup.py", str(project), "--verbose"])
+    monkeypatch.setattr("sys.argv", ["project_cleanup.py", str(project)])
     assert pc.main() == 0
     out = capsys.readouterr().out
     assert "write_paper_draft.py" in out
@@ -149,6 +149,19 @@ def test_cli_preview_shows_only_actual_targets(tmp_path, monkeypatch, capsys):
     assert "__pycache__" not in out             # results/ 内一律保护
     # 预览模式不产生任何删除
     assert (project / "write_paper_draft.py").exists()
+
+
+def test_cli_apply_backs_up_to_trash(tmp_path, monkeypatch, capsys):
+    """--apply 删除前必须整体备份到 .paper_work/trash/<时间戳>/，可完整回滚。"""
+    project = _make_project(tmp_path)
+    (project / "write_paper_draft.py").write_text("junk", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["project_cleanup.py", str(project), "--apply"])
+    assert pc.main() == 0
+    assert not (project / "write_paper_draft.py").exists()
+    trash_dirs = list((project / ".paper_work" / "trash").iterdir())
+    assert len(trash_dirs) == 1
+    restored = trash_dirs[0] / "write_paper_draft.py"
+    assert restored.is_file() and restored.read_text(encoding="utf-8") == "junk"
 
 
 # ---------------------------------------------------------------------------

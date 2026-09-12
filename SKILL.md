@@ -41,7 +41,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 4. **质量 > 文件数量**：评价标准是解题质量、模型质量、代码质量、论文质量、最终获奖竞争力——不是文件多少。
 5. **赛题数据必须真读真用**：赛题文件（PDF/附件）中附带的数据表格（xlsx / csv / PDF 内表格），必须用 `tools/xlsx/`、`tools/pdf/` 完整读取并在建模求解中**实际使用**；禁止忽略附件数据、禁止凭空编造或"示意性"伪造数据。
 6. **可联网、绝不抄袭**。原文：允许联网搜索赛题背景、公开数据、相关方法与真实文献辅助理解题目；但**绝不允许抄袭**——不复制任何网络论文/题解/博客的文字、公式、模型、代码与创新点，检索所得只作理解与查证用途。
-7. **硬软分层（取代模糊仲裁）**：规则分两层，不存在"谁更严谁赢"的灰色地带。**硬闸门** = `交付硬闸门`节列出的 6 条（篇幅版式/黑色字体/禁用词/三线表/建模公式/结果版式），机器校验、不通过即拒绝保存，无例外。**软规则** = 硬闸门以外的一切写作规范（去AI味指南、主语具体化、措辞偏好、行文风格等），只在 `results/论文评审与分析.md` 评审报告中作为扣分项列出，**不拦截 `save_document`**、不阻断交付。两者冲突时以硬闸门为准；软规则之间冲突时以代码常量为准（如 `FORBIDDEN_WORDS`、`contest_profile.py`）。
+7. **硬软分层（取代模糊仲裁）**：规则分两层，不存在"谁更严谁赢"的灰色地带。**硬闸门** = `交付硬闸门`节列出的 6 条（篇幅版式/黑色字体/禁用词/三线表/建模公式/结果版式），机器校验、不通过即拒绝保存，无例外。**机检写作规范**（可静态检查的预警项：图表上下文、评价章编号格式、文献取向、代码风格红线等）以"预警："级别出现在校验输出中——与硬闸门一样**必须清零才能保存/发布**（零预警发布是质量底线），但其修复路径可含人工确认与 brownfield 降级。**纯写作软规则**（去AI味指南的非机检部分、主语具体化、措辞偏好等无法机器判定的项）只在 `results/论文评审与分析.md` 评审报告中作为扣分项列出，不进入机器校验。两者冲突时以硬闸门为准；机检项口径以代码常量为准（如 `FORBIDDEN_WORDS`、`contest_profile.py`）。
 8. **结果真实可复现（Step 6 只执行不重复规则）**：论文关键数字、图表、摘要结论必须来自当前批次 `results/` 的真实运行产物（Python 脚本或 SPSS 等人工工具导出文件）。SPSS 等人工工具统计量与 Python 结果平级，同受健全性检查约束。用不到 SPSS 不建该文件即放行，不设全局强制。
 
 ## 三、完整执行流程（Step 0 → 9）
@@ -66,7 +66,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 0. **开跑自检（约 10 秒）**：① `python tools/docx/scripts/self_check.py` 秒级确认工具链健康；② 确认 `PROJECT_ROOT` 不在 skill 仓库内、`files/` 已放赛题；③ 若 `self_check` 报告缺失文件或版本过旧，提示用户手动更新 Skill（`git pull` 或重新下载），不自动执行。**SKILL_ROOT 只读**：解题流程不得修改 skill 仓库内任何文件。任何一步失败先修复，不带病开跑。
 1. **读题与附件**：从 `PROJECT_ROOT/files/`（兼容根层散置的历史附件）枚举赛题 PDF、赛题 DOCX 及全部附件（CSV、XLSX、DOCX 等），调用 `tools.project_ops.case_retrieval.load_input_bundle()` 全量读取；DOCX 附件的全文、表格文本和对象清单都进入题目分析输入，WMF/EMF、VML 和 OLE 公式用 `tools/docx/scripts/extract_docx_content.py` 提取并按对象清单逐项视觉检查。赛题读取全程不启用 OCR。**填表类赛题：读取 `files/` 原表后只在其副本上填值**——保留原行列结构、表头、合并单元格与格式，结果写 `results/数据/`，绝不回写 `files/`。读取校验无误后立即删除临时资产，读题阶段不产生过程文件。
 2. **赛题分析（Problem Card）**：运行 `python tools/project_ops/case_retrieval.py --query-file <赛题 PDF> --query-file <赛题 DOCX> --top-k 5` 检索优秀论文案例；匹配依据与可迁移方法只进会话上下文用于模型设计，过程文件按铁律 1 处理。按 `schemas/problem_card.json` 为每小问填写 Problem Card（变量类型/约束性质/目标方向/数据规模/不确定性/动态性），据此推导候选模型族——设计走"变量→约束→目标→数据结构→数学结构→模型族→算法"路径，题型与算法不直连。读完题立即逐条执行 `知识库/建模通用规范.md` 的「题意理解红线」。
-3. **文献检索（按需触发，参考文献真实性的唯一来源）**：不预先凑数，仅在赛题需要理论依据/方法出处支撑或写作需要参考文献时才触发。**用 `tools/paper_search/scripts/hybrid_scholar.py` 执行检索、Crossref 等真实核验与引用门禁**，核验通过的条目逐条追加登记 `results/数据/文献检索.csv`（utf-8-sig）。铁律：每条入库文献必须真实可查，禁止虚构；论文参考文献只放行 `citation_ready=true` 的条目。
+3. **文献检索（按需触发，参考文献真实性的唯一来源）**：不预先凑数，仅在赛题需要理论依据/方法出处支撑或写作需要参考文献时才触发。**用 `tools/paper_search/scripts/hybrid_scholar.py` 执行检索、Crossref 等真实核验与引用门禁**，核验通过的条目逐条追加登记 `results/数据/文献检索.csv`（utf-8-sig）。铁律：每条入库文献必须真实可查，禁止虚构；论文参考文献只放行 `citation_ready=true` 的条目。检索后端命不中的中文文献走人工核验登记：`hybrid_scholar.py --manual <输入CSV> --project <项目>`（字段模板 `--template`，DOI 反查回填），核验责任在人，不在表。
 4. **模型选型与 Model Contract**：Problem Card 完成后填写 `schemas/model_contract.json`（chosen_model / inputs / outputs / validation / fallback）。仅当存在两个以上合理模型族、结果对模型选择敏感，或用户要求比较时，才执行 Champion vs Challenger Tournament；否则用一个可解释基线 + 一项必要校验替代。
 5. **全 Python 解题代码（逐问实现，短反馈循环）**：按子问题顺序逐个实现，禁止一次性生成全部 Q 的代码。每个 Qi：① 读 Problem Card + Model Contract → ② 最小实现 `code/Q<序号>.py` → ③ 立即运行打印关键中间结果 → ④ 健全性判断（量级/约束/baseline/物理意义） → ⑤ 通过则补可视化 + 灵敏度 → ⑥ 不通过按 `文档/代码规范.md §失败恢复链` 处理 → ⑦ 推进 Q(i+1)。代码风格与出图唯一权威 `文档/代码规范.md`；数值严谨性对照 `知识库/建模通用规范.md`「数值严谨性守则」。
 6. **真实运行与落盘**：图片和数值写入 `results/图片/` 与 `results/数据/`；运行出错按 §失败恢复链 分级处理；健全性检查 6 条逐项过，不通过不得写入论文。
@@ -117,7 +117,8 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 └── 完整论文.tex              # LaTeX 源码版（同一内容快照，不编译）
 ```
 
-- 交付时清理器对 `code/` 与 `results/数据/` 执行**瘦身白名单**：`code/` 只保留 `Q<序号>.py`（含 `Q<序号>_<描述>.py`）、`solve_common.py`、`viz.py`、`requirements.txt`，`results/数据/` 只保留白名单数据 `spss_outputs.csv`、`文献检索.csv`；`files/` 与项目根层永不适用白名单、绝不触碰。
+- **交付时清理只预览、不自动删除**：`save_document` 发布后仅打印待清理清单；实际清理只走 `python tools/project_ops/project_cleanup.py <项目> --apply`（删除前自动整体备份到 `.paper_work/trash/<时间戳>/`，可完整回滚，逐路径打日志）。瘦身白名单只作用于 `code/`（保留 `Q<序号>.py`、`Q<序号>_<描述>.py`、`solve_common.py`、`viz.py`、`requirements.txt`）；`results/`（数据=论文证据）与 `files/`、项目根层、`.paper_work/` 永不适用白名单、绝不触碰。
+- **brownfield（老项目）兼容**：项目已有成熟代码/论文时，在 `.paper_work/brownfield` 放置标记文件开启宽松模式——skill 只管理自己生成的脚本（`Q<序号>*.py`/`solve_common.py`/`viz.py`，用户文件只检不改、风格红线降级为预警），图/表/公式/流程图数量下限不再强制（不为凑数制造无效图表）；篇幅与页数闸门不豁免。
 - `SKILL_ROOT`（本目录）只读，绝不写入任何过程文件；`PROJECT_ROOT` 是用户题目与产物目录，未指定时在题目同级新建 `math_modeling_<题号或简称>/`。
 - **写前守卫**：写入前用 `os.path.realpath()` 规范化目标与 `PROJECT_ROOT`、`SKILL_ROOT`，确认目标位于 `PROJECT_ROOT` 之内且不在 `SKILL_ROOT` 之内；否则停止并请用户指定（唯一实现 `tools/common/path_utils.is_within`，fail-closed）。
 - **禁止 skill 痕迹**：`PROJECT_ROOT` 不得出现 `tools/`、`docx/`、`pdf/`、`SKILL.md`、`paper_format.py` 副本等 skill 内部结构；误带痕迹由 `tools/project_ops/project_cleanup.py` 检出预警。
@@ -145,7 +146,8 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 | 数据处理 / Excel | `tools/xlsx/scripts/read_rows.py` + `tools/xlsx/scripts/recalc.py` |
 | 出图（全中文） | `tools/figure/README.md` + `文档/图片闸门配置与绘图规范.md` |
 | 论文生成 / 审计工具 | `tools/docx/core/paper_workflow.py`；审计四件见 `文档/论文评审.md §四` |
+| 论文自检（全量校验不落盘） | `tools/docx/scripts/lint_paper.py`（一次列出全部硬错误与预警，替代"保存失败才知道哪里错"的迭代） |
 
 ## 八、论文质量审计模块（可选，入口登记）
 
-来源：mathmodel-skill（42 项反模式/per-Qi 评分）、MathModeling-skills（三层审计/冻结数字）、MathModelAgent（8 步验收）。工具职责与调用方式见 `文档/论文评审.md §四`（`consistency_audit.py` 冻结数字 / `per_qi_scoring.py` 独立评分 / `three_layer_audit.py` 三层审计 / `nine_step_verification.py` 8 步验收），此处只登记入口。
+来源：MathModelAgent（8 步验收）。工具职责与调用方式见 `文档/论文评审.md §四`（`nine_step_verification.py` 8 步验收，分步返回硬错误与警告；`project_audit.py` 项目结构与过期引用审计），此处只登记入口。

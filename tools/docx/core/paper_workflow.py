@@ -165,8 +165,31 @@ def _abstract_issues(source, issues):
     return abstract_page, abstract_units
 
 
+def _formula_plan_latex_issues(formula_plan, issues):
+    """公式计划逐条预转 OMML：LaTeX 写错在预检阶段按公式编号暴露，不拖到逐章写入。
+
+    检查器在正式写入前按同一转换器（equations.latex2omml）试转每条 latex，
+    转换失败直接报第 N 项，省去"写一半发现公式坏掉"的返工循环。
+    """
+    if not isinstance(formula_plan, (list, tuple)):
+        return
+    from .equations import latex2omml
+    for index, item in enumerate(formula_plan, start=1):
+        if not isinstance(item, Mapping):
+            continue
+        latex = str(item.get('latex', '')).strip()
+        if not latex:
+            continue
+        try:
+            latex2omml(latex)
+        except Exception as exc:
+            section = str(item.get('section', '')).strip()
+            label = f'{section} ' if section else ''
+            issues.append(f'公式计划第 {index} 项{label}LaTeX 无法转换为 OMML: {str(exc)[:80]}——修复 latex 字段后重试')
+
+
 def preflight_check(outline):
-    """写作前预检编排：分问 → 字数 → 图/表/公式 → 画像 → 计划 → 摘要。"""
+    """写作前预检编排：分问 → 字数 → 图/表/公式 → 画像 → 计划 → 摘要 → 公式 LaTeX 可转性。"""
     source = outline if isinstance(outline, Mapping) else {'sections': outline}
     sections = source.get('sections', source.get('chapters', source))
     issues = []
@@ -177,6 +200,7 @@ def preflight_check(outline):
     _planned_counts_issues(source, issues)
     profiles = _profiles_value(source, issues, warnings)
     formula_plan = _formula_plan_value(source, issues, warnings)
+    _formula_plan_latex_issues(formula_plan, issues)
     figure_plan = _figure_plan_value(source, issues, warnings, questions)
     abstract_page, abstract_units = _abstract_issues(source, issues)
     return {'ok': not issues, 'issues': issues, 'metrics': {'questions': sorted(set(questions), key=int), 'problem_profiles': profiles, 'planned_body_units': planned_units, 'figures': _metric(source, 'figures', 'figure_count'), 'tables': _metric(source, 'tables', 'table_count'), 'equations': _metric(source, 'equations', 'equation_count'), 'abstract_exclusive_page': abstract_page, 'formula_plan': formula_plan, 'figure_plan': figure_plan}, 'warnings': warnings}
@@ -221,7 +245,7 @@ def _classify_paragraph(text):
         return 'heading3'
     if re.match('^\\d+[.．]\\d+(?:\\s|、|：|:|$)', text):
         return 'heading2'
-    if re.match('^[一二三四五六七八九十]+、', text) or text in {'参考文献', '附录', 'AI工具使用声明'}:
+    if re.match('^[一二三四五六七八九十]+、', text) or text in {'参考文献', '附录', 'AI工具使用声明', 'AI工具使用详情'}:
         return 'heading1'
     if text.startswith('图'):
         return 'figure_caption'

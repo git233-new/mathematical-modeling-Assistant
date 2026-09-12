@@ -19,10 +19,25 @@ OpenAlex 负责发现候选文献，Crossref 负责 DOI 元数据核验。只有
 ## 使用
 
 ```powershell
-python scripts/hybrid_scholar.py --query "robust optimization vehicle routing" --limit 10 --append-to results/数据/文献检索.json
+python scripts/hybrid_scholar.py --query "robust optimization vehicle routing" --limit 10 --append-to results/数据/文献检索.csv
 ```
 
-**登记落盘**：使用 `--append-to <PROJECT_ROOT>/results/数据/文献检索.json`，工具会原子追加本次结果并保证顶层为列表（作为参考文献来源的证据链，清理器保留该文件）。如只需查看结果，使用 `--json` 输出到 stdout；不要用重定向覆盖登记文件。
+**登记落盘**：使用 `--append-to <PROJECT_ROOT>/results/数据/文献检索.csv`（UTF-8-SIG），工具会原子追加本次结果（解题过程数据文件一律 CSV，不用 JSON；清理器保留 `results/` 不删）。如只需查看结果，使用 `--json` 输出到 stdout；不要用重定向覆盖登记文件。
+
+### 人工登记（中文文献等后端命不中的来源）
+
+OpenAlex/Crossref 对中文期刊覆盖有限，检索命中率低是数据源问题，不是文献不真实。路径：
+
+```powershell
+python scripts/hybrid_scholar.py --template                      # 打印输入 CSV 字段模板
+python scripts/hybrid_scholar.py --manual 人工书目.csv --project <项目目录>
+```
+
+- 操作者对题名/作者/年份/刊名逐字段核对后填入 CSV（官方期刊页、知网/CNKI 页面均可作核验依据）；
+- 填了 DOI 会自动反查 Crossref：命中即回填卷期页码并升为 `crossref_verified`；未命中保持 `manual_registered`；
+- `title/authors/year/venue` 全部非空才置 `citation_ready=true`；题名重复的行自动跳过。
+
+不虚构任何字段；人工登记只替代表格填写，不替代核验本身。
 
 每次检索自动调用 Crossref 核验，未通过核验的结果不会进入 `verified` 和 `citation_ready`。
 

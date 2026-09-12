@@ -470,12 +470,15 @@ def title(doc, text):
     set_run_font(p.add_run(sanitize_text(text)), '黑体', 16, False)
     return p
 def abstract_title(doc):
-    p = _claim_template_slot(doc, 'abstract', '摘 要') or paragraph(doc)
-    p.style = BODY_STYLE
+    # 摘要标题是一级标题：Heading 1 样式（大纲级别 0），版式与一级标题一致（黑体四号居中）
+    p = _claim_template_slot(doc, 'abstract', '摘 要') or paragraph(doc, style_name=HEADING1_STYLE)
+    p.style = HEADING1_STYLE
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.first_line_indent = Pt(0)
     p.paragraph_format.space_before = Pt(7.8)
     p.paragraph_format.space_after = Pt(7.8)
+    p.paragraph_format.line_spacing = BODY_LINE_SPACING
+    p.paragraph_format.keep_with_next = True
     set_run_font(p.add_run('摘 要'), '黑体', 14, False)
     return p
 def body(doc, text):
@@ -1181,7 +1184,7 @@ def _content_units(text):
 
 # region ── 保存与发布 ──
 def _stage_and_publish(doc, contest, project, output, staged_docx, staged_tex=None):
-    """暂存 → 终态二次校验 → tex 先落位 → DOCX 原子发布 → 交付清理。"""
+    """暂存 → 终态二次校验 → tex 先落位 → DOCX 原子发布 → 清理预览（不删除）。"""
     from .structure_validation import validate_paper_structure
 
     doc.save(staged_docx)
@@ -1214,8 +1217,23 @@ def _stage_and_publish(doc, contest, project, output, staged_docx, staged_tex=No
     # 跨文件系统（如 C: 暂存 → D: 项目输出）时 os.replace 会抛 WinError 17，
     # 改用 shutil.move：同盘走原子重命名，跨盘自动回退为复制+删除。
     shutil.move(str(staged_docx), str(output))
-    from tools.project_ops.project_cleanup import cleanup_after_delivery
-    cleanup_after_delivery(project)
+
+
+def _preview_cleanup(project):
+    """发布后只打印待清理清单，绝不自动删除（删除只走 project_cleanup.py --apply）。"""
+    try:
+        from tools.project_ops.project_cleanup import preview_cleanup
+        targets = preview_cleanup(project)
+    except Exception as exc:  # 预览失败不影响发布结果
+        print(json.dumps({'stage': 'cleanup_preview', 'error': str(exc)}), file=sys.stderr, flush=True)
+        return 0
+    for path in targets:
+        print(f"[cleanup-preview] 待删除: {path}", file=sys.stderr, flush=True)
+    if targets:
+        print("[cleanup-preview] 执行删除请运行: "
+              "python tools/project_ops/project_cleanup.py "
+              f"{project} --apply（删除前自动 trash 备份）", file=sys.stderr, flush=True)
+    return len(targets)
 
 
 def save_document(
@@ -1229,10 +1247,14 @@ def save_document(
     pdf_backend=None,
     soffice_timeout=None,
 ):
-    """论文保存编排：写守卫 → 自动清扫 → 预检闸门 → 暂存发布（其余硬错误仍拒存）。"""
+    """论文保存编排：写守卫 → 预检闸门 → 暂存发布（其余硬错误仍拒存）。
+
+    保存过程绝不改写 code/ 源文件、绝不删除任何项目文件（自动清扫已取消，
+    代码痕迹由可复现性硬闸门在保存前拒存兜底）；发布后仅打印清理预览，
+    实际删除只走 tools/project_ops/project_cleanup.py --apply（带 trash 备份）。
+    """
     # 校验子系统的硬闸门函数：函数内惰性导入，避免本模块加载期与
     # structure_validation 形成循环导入（模块级 API 由尾部 __getattr__ 提供）。
-    from tools.common.reproducibility import auto_clean_code
     from .structure_validation import validate_paper_structure
 
     project = Path(project_root).resolve()
@@ -1245,7 +1267,6 @@ def save_document(
         raise ValueError('论文输出不能位于 SKILL_ROOT 内部')
     ensure_page_numbers(doc)
     force_black_fonts(doc)
-    sweep_count = len(auto_clean_code(project))
     issues = _embedded_figure_caption_errors(project)
     issues += validate_paper_structure(doc, contest, require_rendered_pages=False, project_root=project)
     hard_errors = [i for i in issues if not i.startswith('预警：')]
@@ -1282,8 +1303,9 @@ def save_document(
         _stage_and_publish(doc, contest, project, output, staged_docx, staged_tex)
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
+    cleanup_preview = _preview_cleanup(project)
     print(json.dumps({'stage': 'delivered', 'path': str(output), 'warnings': len(warnings),
-                      'auto_sweep': sweep_count}), file=sys.stderr, flush=True)
+                      'cleanup_preview': cleanup_preview}), file=sys.stderr, flush=True)
     return output
 
 def save_latex_first(
@@ -1357,7 +1379,6 @@ _VALIDATION_REEXPORTS = (
     '_check_figure_placement_issues',
     '_section_figure_issues',
     '_paragraph_style_issues',
-    '_run_manifest_issues',
     'validate_paper_structure',
 )
 

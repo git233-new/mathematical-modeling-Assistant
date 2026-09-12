@@ -228,7 +228,7 @@ for matched, snippet in hits:
 | Pass | 职责 | 输入 | 输出 |
 |------|------|------|------|
 | 1 | 数学草稿 | 解题结果 + Problem Card | 章节骨架 + 公式推导 + 结果表 |
-| 2 | 证据对齐 | Pass1 + run_manifest.json | 每数字/结论指向 evidence 来源 |
+| 2 | 证据对齐 | Pass1 + results/ 真实结果文件 | 每数字/结论指向 results/数据、results/图片 的对应来源 |
 | 3 | Humanizer | Pass2 | 去 AI 味（25 通用 + 15 数学模式） |
 | 4 | Claim Guard | Pass3 + evidence | 检查润色未改数字/结论强度/公式含义 |
 | 5 | 排版格式化 | Pass4 | DOCX 格式/字体/图表编号/公式编号 |

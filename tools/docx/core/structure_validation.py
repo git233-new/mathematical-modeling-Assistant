@@ -181,19 +181,38 @@ def _numbered_object_issues(doc, kind, object_count):
     return issues
 
 
+def _bibliography_after(paragraphs, split_at):
+    """收集参考文献条目：遇"附录"/"AI工具使用…"一级标题即停止。
+
+    附录与 AI 使用详情排在参考文献之后（官方模板顺序），其段落不是书目条目——
+    不停止会把附录正文当书目，登记闸门必然误报"未命中"。
+    """
+    bibliography = []
+    for p in paragraphs[split_at + 1:]:
+        text = p.text.strip()
+        if not text:
+            continue
+        if re.match('^(?:附录|AI工具使用)', text):
+            break
+        bibliography.append(text)
+    return bibliography
+
+
 def _reference_issues(paragraphs):
     split_at = next((index for index, p in enumerate(paragraphs) if ('参考文献' in p.text or re.search('references', p.text, re.I)) and len(p.text.strip()) <= 30), None)
     if split_at is None:
         return ['未找到参考文献章节']
-    bibliography = [p.text.strip() for p in paragraphs[split_at + 1:] if p.text.strip()]
+    bibliography = _bibliography_after(paragraphs, split_at)
     bib_texts = set(bibliography)
     # 引用扫描覆盖全文（含参考文献节之后的总结段等），仅排除参考文献列表条目本身。
     body = '\n'.join(
         p.text for i, p in enumerate(paragraphs)
         if i != split_at and p.text.strip() not in bib_texts
     )
+    listed = {int(match.group(1)) for text in bibliography if (match := re.match('^\\[(\\d+)\\]', text))}
     cited = set()
     for group in re.findall('\\[([0-9,，\\-–—\\s]+)\\]', body):
+        group_numbers = []
         for item in re.split('[,，]', group):
             item = item.strip()
             if not item:
@@ -202,10 +221,13 @@ def _reference_issues(paragraphs):
             if len(bounds) == 2 and all((bound.strip().isdigit() for bound in bounds)):
                 start, end = (int(bound.strip()) for bound in bounds)
                 if start <= end:
-                    cited.update(range(start, end + 1))
+                    group_numbers.extend(range(start, end + 1))
             elif item.isdigit():
-                cited.add(int(item))
-    listed = {int(match.group(1)) for text in bibliography if (match := re.match('^\\[(\\d+)\\]', text))}
+                group_numbers.append(int(item))
+        # 引用编号必须落在书目条数内：超出即视为数值区间/数据（如"取值范围 [973, 975]"），
+        # 整组跳过，不当引用解析（正文允许写数值区间）。
+        if group_numbers and max(group_numbers) <= len(bibliography):
+            cited.update(group_numbers)
     issues = [f'正文引用 [{number}] 未出现在参考文献表' for number in sorted(cited - listed)]
     issues.extend((f'参考文献 [{number}] 未在正文引用（文献只在参考文献节，正文须有 [n] 标注）' for number in sorted(listed - cited)))
     # 真实性/占位符校验：参考文献项不得为占位、空壳或不可信来源占位。
@@ -239,7 +261,9 @@ def _reference_issues(paragraphs):
                 f'参考文献 [{number}] 年份 {min(years)} 早于 {REFERENCE_MIN_YEAR}，'
                 f'仅收录 {REFERENCE_MIN_YEAR} 年及之后的文献: {item_text[:48]}'
             )
-    # 文献取向预警（md §2.10，只提示不拒存）：以近 10 年为主、中文文献为主
+    # 文献取向预警（md §2.10，预警级）：以近 10 年为主、中文文献为主。
+    # 预警级 = 与其他机检预警一样须清零后发布，但给出可操作修复路径——
+    # 检索后端命中不了中文来源时，用 hybrid_scholar.py --manual 人工核验登记。
     recent_years = []
     cn_total = 0
     for item_text in bibliography:
@@ -251,10 +275,11 @@ def _reference_issues(paragraphs):
         if re.search(r'[\u4e00-\u9fff]', item_text):
             cn_total += 1
     recent_cutoff = datetime.now().year - 9
+    manual_hint = '（检索后端命不中中文来源时，用 tools/paper_search/scripts/hybrid_scholar.py --manual 人工核验登记真实书目）'
     if len(recent_years) >= 4 and sum((y >= recent_cutoff for y in recent_years)) * 2 < len(recent_years):
-        issues.append(f'参考文献整体偏旧：近 10 年（≥{recent_cutoff}）文献不足半数——以近 10 年文献为主')
+        issues.append(f'预警：参考文献整体偏旧：近 10 年（≥{recent_cutoff}）文献不足半数——以近 10 年文献为主')
     if len(bibliography) >= 4 and cn_total * 2 < len(bibliography):
-        issues.append('参考文献以英文为主、中文文献不足半数——建议中文文献为主')
+        issues.append('预警：参考文献以英文为主、中文文献不足半数——建议中文文献为主' + manual_hint)
     return issues
 
 
@@ -269,7 +294,7 @@ def _reference_registry_issues(paragraphs, project_root):
                      if ('参考文献' in p.text or re.search('references', p.text, re.I)) and len(p.text.strip()) <= 30), None)
     if split_at is None:
         return []
-    bibliography = [p.text.strip() for p in paragraphs[split_at + 1:] if p.text.strip()]
+    bibliography = _bibliography_after(paragraphs, split_at)
     if not bibliography or not project_root:
         return []
     registry = Path(project_root).resolve() / 'results' / '数据' / '文献检索.csv'
@@ -916,7 +941,7 @@ def _fragmented_prose_issues(doc, *, max_units=8, run_limit=4):
         if paragraph._p.findall('.//' + qn('m:oMath')):
             continue
         style = paragraph.style.name if paragraph.style is not None else ''
-        is_prose = bool(text) and (not appendix) and (style == BODY_STYLE) and (text not in {'摘 要', '关键词：', '参考文献', '附录'}) and (not re.match('^(?:关键词|[图表]\\s*\\d+|[一二三四五六七八九十]+、|\\d+[.．])', text))
+        is_prose = bool(text) and (not appendix) and (style == BODY_STYLE) and (text not in {'摘 要', '关键词：', '参考文献', '附录', 'AI工具使用声明', 'AI工具使用详情'}) and (not re.match('^(?:关键词|[图表]\\s*\\d+|[一二三四五六七八九十]+、|\\d+[.．])', text))
         units = len(re.sub('\\s+', '', text))
         if is_prose and units <= max_units:
             streak.append((index, text))
@@ -930,33 +955,6 @@ def _fragmented_prose_issues(doc, *, max_units=8, run_limit=4):
     if len(streak) >= run_limit:
         sample = ' / '.join((value for _, value in streak[:4]))
         issues.append(f'第 {streak[0][0]}-{streak[-1][0]} 段疑似被拆成连续短行: {sample}')
-    return issues
-
-
-def _undeclared_numeric_claim_issues(doc, manifest):
-    declared = set()
-    for group in ('parameters', 'claims'):
-        for item in manifest.get(group, []) if isinstance(manifest.get(group), list) else []:
-            if isinstance(item, dict):
-                declared.add(str(item.get('value', '')))
-                declared.add(str(item.get('paper_value', item.get('value', ''))))
-    issues = []
-    pattern = re.compile('(?<![\\w.])-?(?:\\d{2,}|\\d+\\.\\d+)%?(?![\\w.])')
-    active = False
-    for index, paragraph in enumerate(doc.paragraphs, start=1):
-        text = paragraph.text.strip()
-        if re.match('^(?:五|六|七|八)、', text) or re.match('^[56]\\.\\d+', text):
-            active = True
-        if text in {'参考文献', '附录'} or re.match('^八、', text):
-            active = False
-        if not active or not text or re.match('^(?:[图表]\\s*\\d+|[一二三四五六七八九十]+、|\\d+[.．])', text):
-            continue
-        if paragraph._p.find('.//' + qn('m:oMath')) is not None:
-            continue
-        for token in pattern.findall(text):
-            bare = token.rstrip('%')
-            if token not in declared and bare not in declared and (not token.startswith('20')):
-                issues.append(f'第 {index} 段出现未登记关键数值 {token}: {text[:36]}')
     return issues
 
 
@@ -1005,6 +1003,8 @@ def _body_filename_issues(doc):
 
 
 def _paragraph_style_issues(doc):
+    # "摘 要"与 AI 使用详情/声明是一级标题（黑体四号居中，大纲级别 0）
+    _H1_TEXTS = {'参考文献', '附录', '摘 要', 'AI工具使用声明', 'AI工具使用详情'}
     issues = []
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
@@ -1013,12 +1013,14 @@ def _paragraph_style_issues(doc):
         if _is_appendix_start(text) or _is_reference_start(text):
             break
         if re.match('^[图表]\\s*\\d+', text):
-            expected = CAPTION_STYLE
+            # 与 W 口径一致（题注 ≤25 字）：短"图N/表N"行是题注，长句（如"图 4 的左幅…"）
+            # 是以图号开头的正文引导段，按正文样式判定，不再靠文本前缀误伤
+            expected = CAPTION_STYLE if len(text) <= 25 else BODY_STYLE
         elif re.match('^\\d+[.．]\\d+[.．]\\d+(?:\\s|、|：|:|$)', text):
             expected = HEADING3_STYLE
         elif re.match('^\\d+[.．]\\d+(?:\\s|、|：|:|$)', text):
             expected = HEADING2_STYLE
-        elif re.match('^[一二三四五六七八九十]+、', text) or text in {'参考文献', '附录'}:
+        elif re.match('^[一二三四五六七八九十]+、', text) or text in _H1_TEXTS:
             expected = HEADING1_STYLE
         else:
             expected = BODY_STYLE
@@ -1065,7 +1067,7 @@ def _appendix_size_issues(doc, project_root=None, *args, **kwargs):
                     cell_texts.append(t)
     appendix_text = '\n'.join(para_texts + cell_texts)
     # 2026 口径：附录只保留附录A 支撑材料清单，代码不入论文（全部在 code/ 目录）。
-    # 支撑材料清单条目以"· "开头，由 pf.append_code_files 从 run_manifest 自动生成。
+    # 支撑材料清单条目以"· "开头，由 pf.append_code_files 渲染（也可人工写"· "条目）。
     if not appendix_text:
         return ['附录为空；须含附录A 支撑材料清单（由 pf.append_code_files 自动生成）']
     has_support = any(p.text.strip().startswith('· ') for p in paragraphs[start + 1:])
@@ -1078,7 +1080,7 @@ def _appendix_size_issues(doc, project_root=None, *args, **kwargs):
                 has_support = True
                 break
     if not has_support:
-        return ['附录缺少附录A 支撑材料清单（由 pf.append_code_files 从 run_manifest 自动生成）']
+        return ['附录缺少附录A 支撑材料清单（由 pf.append_code_files 自动生成，或人工写"· "条目/两列清单表）']
     return []
 
 
@@ -1321,20 +1323,37 @@ def _claim_strength_issues(doc):
     return issues
 
 
-# H10 符号说明题注后不写描述段
+# H10 符号说明表后不写描述段
 def _symbol_caption_no_prose_issues(doc):
-    seen_cap = False
+    """符号说明表之后、下一级标题之前不得再写描述段。
+
+    以实际符号说明表定位（表头含"符号"列），不再假设它是"表 1"——老项目
+    （brownfield）里"表 1"可能是任何表；没有符号说明表则整条检查跳过。
+    """
+    table = _find_symbol_table(doc)
+    if table is None:
+        return []
+    seen_table = False
     for p in doc.paragraphs:
+        if not seen_table:
+            if _element_after(p._p, table._tbl):
+                seen_table = True
+            else:
+                continue
         t = p.text.strip()
-        if not seen_cap:
-            if re.match(r'^表\s*1', t):
-                seen_cap = True
-            continue
         if re.match(r'^[一二三四五六七八九十]+、', t) or re.match(r'^\d+[.．]', t):
             break
         if p.style.name == BODY_STYLE and t:
-            return ['符号说明表题注后不应再写描述段，应紧接下一级大标题']
+            return ['符号说明表后不应再写描述段，应紧接下一级大标题']
     return []
+
+
+def _element_after(element, pivot):
+    """element 与 pivot 同层（w:body 直属段落/表格）时，element 是否位于 pivot 之后。"""
+    if element.getparent() is not pivot.getparent():
+        return False  # 表格单元格内段落等不同层元素一律视为不在其后
+    body_children = list(pivot.getparent())
+    return body_children.index(element) > body_children.index(pivot)
 
 
 # H11 符号说明表 ≥ 12 行
@@ -1553,6 +1572,7 @@ _CAPTION_RE = re.compile(r'^[图表]\s*\d+')
 
 
 def _figure_table_context_warnings(doc):
+    symbol_tbl = _find_symbol_table(doc)
     seq = []
     for child in doc.element.body.iterchildren():
         if child.tag == qn('w:p'):
@@ -1562,30 +1582,39 @@ def _figure_table_context_warnings(doc):
             style = para.style.name if para.style is not None else ''
             seq.append(('p', para.text.strip(), style))
         elif child.tag == qn('w:tbl'):
-            seq.append(('tbl', '', ''))
+            # 携带表格元素：符号说明表（参考表）整条豁免——H10 禁止其后写描述段，
+            # 两条规则对同一张表会死锁（符号说明表也不计入建模表数）
+            seq.append(('tbl', '', '', child))
     def is_caption(kind, text, style):
         # 题注只按样式判定：正文引导句常以"图N"开头，文本正则会误伤
         return kind == 'p' and style == CAPTION_STYLE
     def is_heading(style):
         return 'Heading' in style or '标题' in style
+    def is_symbol_table(entry):
+        return symbol_tbl is not None and entry[0] == 'tbl' and entry[3] is symbol_tbl._tbl
     issues = []
-    for idx, (kind, text, style) in enumerate(seq):
+    for idx, entry in enumerate(seq):
+        kind, text, style = entry[0], entry[1], entry[2]
         if not is_caption(kind, text, style):
+            continue
+        # 符号说明表的题注：豁免前引导/后解释要求
+        next_entry = next((e for e in seq[idx + 1:] if e[0] == 'tbl' or (e[0] == 'p' and e[1])), None)
+        if next_entry is not None and is_symbol_table(next_entry):
             continue
         label = re.match(r'^[图表]\s*\d+', text).group(0).replace(' ', '')
         # 前引导：上一个非空条目必须是普通正文段（不能是题注、标题、另一张表或开头）
         prev = None
-        for pk, ptext, pstyle in reversed(seq[:idx]):
-            if ptext or pk == 'tbl':
-                prev = (pk, ptext, pstyle)
+        for e in reversed(seq[:idx]):
+            if e[1] or e[0] == 'tbl':
+                prev = e
                 break
-        if prev is None or prev[0] != 'p' or is_caption(*prev) or is_heading(prev[2]):
+        if prev is None or prev[0] != 'p' or is_caption(prev[0], prev[1], prev[2]) or is_heading(prev[2]):
             issues.append(f'{label} 缺少前置引导：图/表前需一行正文引出（说明该图表展示什么），不能紧跟标题或另一图表')
         # 后解释：图——下一非空段；表——跳过表格实体后的第一非空段；须为实质解释（≥15 字、非题注）
         after = seq[idx + 1:]
         skip_table = False
         nxt = None
-        for ak, atext, astyle in after:
+        for ak, atext, astyle, *_ in after:
             if ak == 'tbl':
                 skip_table = True
                 continue
@@ -1603,7 +1632,7 @@ def _figure_table_context_warnings(doc):
 # W9 图表引出：每个 图N/表N 前必须有一行文字引出（说明展示什么、为何此处出现），禁止紧跟标题或连续堆图
 def _figure_table_lead_in_warnings(doc):
     cap = re.compile(r'^[图表]\s*\d+')  # 题注 = 图/表N 开头且不超过 25 字（引出句是完整长句）
-    heading = re.compile(r'^(附录|参考文献|[一二三四五六七八九十]+、)')
+    heading = re.compile(r'^(附录|参考文献|AI工具使用声明|AI工具使用详情|[一二三四五六七八九十]+、)')
     issues = []
     paras = doc.paragraphs
     for i, p in enumerate(paras):
@@ -1662,7 +1691,7 @@ def _model_eval_bullet_format_issues(doc):
     end = next(
         (i for i, tx in enumerate(paras)
          if i > start and (re.match(r'^[一二三四五六七八九十]+、', tx)
-                          or re.match(r'^(参考文献|附录|AI工具使用声明)', tx))),
+                          or re.match(r'^(参考文献|附录|AI工具使用声明|AI工具使用详情)', tx))),
         len(paras),
     )
     section_paras = paras[start + 1:end]
@@ -1780,10 +1809,12 @@ def _uses_ai_tools(doc):
 
 AI_DECLARATION_FIXED_TEXT = '本参赛队在竞赛过程中使用了AI工具，主要用于【简要用途，如语言润色、代码调试等】，详细使用情况见支撑材料。'
 AI_DECLARATION_SECTION = 'AI工具使用声明'
+# 官方模板两种节名等价：AI工具使用声明 / AI工具使用详情，均为一级标题
+AI_DECLARATION_SECTIONS = (AI_DECLARATION_SECTION, 'AI工具使用详情')
 
 
 def _ai_usage_details_issues(doc, project_root):
-    """已声明使用 AI 工具时：参考文献之前必须存在官方固定 AI 工具使用声明段（不再要求 AI工具使用详情.pdf）。"""
+    """已声明使用 AI 工具时：参考文献之前必须存在官方固定 AI 工具使用声明段（一级标题，节名两种写法等价）。"""
     if project_root is None or not _uses_ai_tools(doc):
         return []
     paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
@@ -1791,7 +1822,7 @@ def _ai_usage_details_issues(doc, project_root):
     if split_at is None:
         return ['未找到参考文献章节，无法定位 AI 工具使用声明']
     before_refs = '\n'.join(paragraphs[:split_at])
-    if AI_DECLARATION_SECTION in before_refs and '本参赛队在竞赛过程中使用了AI工具' in before_refs:
+    if any(name in before_refs for name in AI_DECLARATION_SECTIONS) and '本参赛队在竞赛过程中使用了AI工具' in before_refs:
         return []
     return [f'已声明使用 AI 工具，参考文献前缺少官方 AI 工具使用声明段（{AI_DECLARATION_SECTION}，固定文案：{AI_DECLARATION_FIXED_TEXT}）']
 
@@ -1840,11 +1871,11 @@ def _base_compliance_issues(doc, contest, *, enforce_min=True):
 
 
 def _count_references(paragraphs):
-    """统计参考文献条目数。"""
+    """统计参考文献条目数（遇附录/AI使用详情标题即停止，见 _bibliography_after）。"""
     split_at = next((index for index, p in enumerate(paragraphs) if ('参考文献' in p.text or re.search('references', p.text, re.I)) and len(p.text.strip()) <= 30), None)
     if split_at is None:
         return 0
-    bibliography = [p.text.strip() for p in paragraphs[split_at + 1:] if p.text.strip()]
+    bibliography = _bibliography_after(paragraphs, split_at)
     listed = {int(match.group(1)) for text in bibliography if (match := re.match('^\\[(\\d+)\\]', text))}
     return len(listed)
 
@@ -1877,26 +1908,30 @@ def _resolved_limits(doc, contest, profile, *, min_content_units, min_equations,
     return limits, counts
 
 
-def _enforce_min_issues(doc, counts, limits, body_pages, rendered_pages, require_rendered_pages):
-    """硬闸门：正文/公式/图/表/流程图/总页数/正文页数下限与上限（任一不满足即阻断）。"""
+def _enforce_min_issues(doc, counts, limits, body_pages, rendered_pages, require_rendered_pages, brownfield=False):
+    """硬闸门：正文/公式/图/表/流程图/总页数/正文页数下限与上限（任一不满足即阻断）。
+
+    brownfield=True 时图/表/公式/流程图数量下限放行（现有成果全部规范插入即可，
+    不为凑下限制造无效图表）；篇幅与页数闸门不受豁免。
+    """
     errors = []
     units, equations, figures, tables = counts['units'], counts['equations'], counts['figures'], counts['tables']
     if units < limits['min_content_units']:
         errors.append(_shortage_message(units, rendered_pages, body_pages, limits['min_content_units'], limits['official_max_pages']))
-    if equations < limits['min_equations']:
+    if not brownfield and equations < limits['min_equations']:
         errors.append(f'仅 {equations} 个可编辑公式，低于项目交付下限 {limits["min_equations"]}')
     if equations > CUMCM_MAX_EQUATIONS:
         errors.append(f'可编辑公式 {equations} 个，超过项目建议上限 {CUMCM_MAX_EQUATIONS}')
-    if figures < limits['min_figures']:
+    if not brownfield and figures < limits['min_figures']:
         errors.append(f'仅 {figures} 幅图，低于项目交付下限 {limits["min_figures"]}')
     flow_count, has_overall = _flowchart_caption_count(doc)
-    if flow_count < CUMCM_MIN_FLOWCHARTS:
+    if not brownfield and flow_count < CUMCM_MIN_FLOWCHARTS:
         errors.append(f'仅 {flow_count} 张流程图，低于项目交付下限 {CUMCM_MIN_FLOWCHARTS}（须至少 1 张总体研究思路/技术路线流程图）')
     if flow_count > CUMCM_MAX_FLOWCHARTS:
         errors.append(f'流程图 {flow_count} 张，超过项目上限 {CUMCM_MAX_FLOWCHARTS}（最多 2 张）')
     if CUMCM_MIN_FLOWCHARTS <= flow_count and not has_overall:
         errors.append('缺少总体研究思路/技术路线流程图（须至少 1 张标注"总体"或"研究思路/技术路线"的流程图）')
-    if tables < limits['min_tables']:
+    if not brownfield and tables < limits['min_tables']:
         errors.append(f'仅 {tables} 个表（不含符号说明表），低于项目交付下限 {limits["min_tables"]}')
     references = counts['references']
     if references and references < CUMCM_MIN_REFERENCES:
@@ -2173,9 +2208,15 @@ def _deep_quality_issues(doc, project_root):
 
 
 def _empty_section_issues(doc):
-    """空节检测：标题后无任何正文即遇同级/上级标题，或标题含占位词。"""
+    """空节检测：标题后无任何正文即遇同级/上级标题，或标题含占位词。
+
+    标题后紧跟下一级子标题不算空（如"七、模型评价"下直接是"7.1 优点"编号列表，
+    该章只允许编号条目，无独立正文段）：穿过下级标题继续向后找，下级的正文
+    即视为本节的实质内容；只有遇同级/上级标题仍无正文才判空。
+    """
     _PLACEHOLDER = re.compile(r'XXX|xxx|TODO|待填|待补|占位', re.IGNORECASE)
-    heading_styles = {HEADING1_STYLE, HEADING2_STYLE, HEADING3_STYLE}
+    level_of = {HEADING1_STYLE: 1, HEADING2_STYLE: 2, HEADING3_STYLE: 3}
+    heading_styles = set(level_of)
     issues = []
     paras = list(doc.paragraphs)
     for i, p in enumerate(paras):
@@ -2188,12 +2229,15 @@ def _empty_section_issues(doc):
         if _PLACEHOLDER.search(text):
             issues.append(f'标题含占位词: "{text[:30]}"——替换为实际内容或删除')
             continue
+        level = level_of[style]
         has_body = False
         for j in range(i + 1, len(paras)):
             nxt_style = paras[j].style.name if paras[j].style else ''
             nxt_text = paras[j].text.strip()
             if nxt_style in heading_styles:
-                break
+                if level_of[nxt_style] > level:
+                    continue  # 下级标题：其正文隶属本节，继续向后找
+                break  # 同级/上级标题：本节到此为止
             if nxt_text and nxt_style == BODY_STYLE:
                 has_body = True
                 break
@@ -2260,17 +2304,19 @@ def _font_and_forbidden_issues(doc):
 
 
 def _reproducibility_issues(project_root) -> list[str]:
-    """赛题 code/ 的可复现性与代码风格硬闸门（清扫兜底）。
+    """赛题 code/ 的可复现性与代码风格硬闸门。
 
-    save_document 先对 code/ 自动整行清扫迁移类硬痕迹（reproducibility.auto_clean_code）；
-    本函数对「清扫后仍残留」的硬痕迹 + 硬风格红线（多行空白/大量文字描述/调试进度 print）
-    拒存——后者不自动删行（恐改坏语法），须手工或重新生成清干净；软红线不在此阻断。
+    save_document 不再自动清扫/改写 code/ 源文件；本函数直接上报硬痕迹与
+    硬风格红线（不自动删行，恐改坏语法），须手工或重新生成清干净；
+    软红线不在此阻断。条目内"预警："前缀（用户既有代码 / brownfield 标记
+    的降级项，见 reproducibility.scan_code_files）在此放行，不算硬错误。
     """
     if project_root is None:
         return []
     return [
-        f'赛题代码硬闸门未过（自动清扫后仍残留或命中代码风格红线，须清干净才能交付）: {hit}'
+        f'赛题代码硬闸门未过（命中迁移痕迹或代码风格红线，须清干净才能交付）: {hit}'
         for hit in _scan_repro(project_root, hard_only=True)
+        if not hit.startswith('预警：')
     ]
 
 
@@ -2284,6 +2330,12 @@ def validate_paper_structure(doc, contest='cumcm', *, quality_checks=True, min_c
     errors = _required_marker_issues(doc, profile)
     if not quality_checks:
         return errors
+    # brownfield（老项目）宽松口径：`.paper_work/brownfield` 标记存在时，
+    # 图/表/公式/流程图数量下限不再强制——避免为凑数给成熟作品硬加无效图表。
+    brownfield = False
+    if project_root is not None:
+        from tools.common.reproducibility import is_brownfield
+        brownfield = is_brownfield(project_root)
     errors.extend(_base_compliance_issues(doc, contest, enforce_min=enforce_min))
     limits, counts = _resolved_limits(
         doc, contest, profile,
@@ -2297,7 +2349,7 @@ def validate_paper_structure(doc, contest='cumcm', *, quality_checks=True, min_c
     if body_pages is None:
         body_pages = getattr(rendered_pages, 'body_pages', None)
     if enforce_min:
-        errors.extend(_enforce_min_issues(doc, counts, limits, body_pages, rendered_pages, require_rendered_pages))
+        errors.extend(_enforce_min_issues(doc, counts, limits, body_pages, rendered_pages, require_rendered_pages, brownfield=brownfield))
     else:
         errors.extend(_quality_warning_issues(counts, limits, rendered_pages, require_rendered_pages, target_pages))
     errors.extend(_body_page_issues(body_pages, limits['official_max_pages'], profile.min_body_pages))

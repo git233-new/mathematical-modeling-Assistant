@@ -17,7 +17,7 @@ from docx.enum.style import WD_STYLE_TYPE
 
 from tools.docx.core.paper_format import append_code_files, FORBIDDEN_WORDS, HEADING3_STYLE
 from tools.docx.core.structure_validation import _appendix_size_issues
-from tools.project_ops.project_cleanup import CODE_KEEP_RE, DATA_ALWAYS_KEEP
+from tools.project_ops.project_cleanup import CODE_KEEP_RE, PROTECTED_ITEMS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -68,12 +68,14 @@ class TestCleanupWhitelistSync:
         for sample in ("Q1.py", "Q1_求解.py", "solve_common.py", "viz.py", "requirements.txt"):
             assert CODE_KEEP_RE.match(sample), f"CODE_KEEP_RE 未覆盖文档承诺项: {sample}"
 
-    def test_data_always_keep_whitelist_doc_matches_code(self):
+    def test_results_data_never_deleted_doc_matches_code(self):
+        """results/数据/ 是论文证据：清理白名单只作用于 code/，数据层不自动删除。"""
         code_spec = _read("文档/代码规范.md")
-        for name in sorted(DATA_ALWAYS_KEEP):
-            assert name in code_spec, f"代码规范.md 未登记结果数据白名单: {name}"
-        assert "run_manifest.json" in code_spec
-        assert "不得使用 JSON" in code_spec or "不用 JSON" in code_spec
+        assert "results/数据" in code_spec, "代码规范.md 未声明数据层清理口径"
+        skill = _read("SKILL.md")
+        assert "results" in PROTECTED_ITEMS and ".paper_work" in PROTECTED_ITEMS, (
+            "清理器保护清单缺少 results/ 与 .paper_work/")
+        assert "trash" in skill or "trash" in code_spec, "文档未登记 trash 回滚机制"
 
 
 class TestGateThresholdSync:

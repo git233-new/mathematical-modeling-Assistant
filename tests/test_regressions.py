@@ -835,7 +835,7 @@ def test_figure_table_context_warnings(tmp_path):
     from tools.docx.core.paper_format import CAPTION_STYLE
     from tools.docx.core.structure_validation import _figure_table_context_warnings
 
-    def build(lead, explain):
+    def build(lead, explain, header="方法"):
         doc = Document()
         try:
             doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
@@ -847,12 +847,12 @@ def test_figure_table_context_warnings(tmp_path):
         doc.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
         if explain:
             doc.add_paragraph(explain)
-        doc.add_paragraph("表1 符号说明", style=CAPTION_STYLE)
+        doc.add_paragraph("表1 方法对比", style=CAPTION_STYLE)
         tb = doc.add_table(rows=2, cols=2)
-        tb.rows[0].cells[0].text = "符号"
+        tb.rows[0].cells[0].text = header
         tb.rows[1].cells[0].text = "x"
         if explain:
-            doc.add_paragraph("表1 给出全文符号体系，含义与单位逐列对应。")
+            doc.add_paragraph("表1 给出全文方法体系，各列口径逐项对应。")
         return doc
 
     bad = build(None, None)
@@ -864,6 +864,26 @@ def test_figure_table_context_warnings(tmp_path):
     good = build("图1 展示两种方案的误差对比结果。",
                  "图1 中方案 A 在前 10 轮误差下降最快，原因是学习率设置更保守。")
     assert _figure_table_context_warnings(good) == []
+
+
+def test_symbol_table_exempt_from_context_warnings(tmp_path):
+    """符号说明表整条豁免 W（前后引导/解释）：H10 禁止其表后写描述段，两条规则不得死锁。"""
+    from docx.enum.style import WD_STYLE_TYPE
+    from tools.docx.core.paper_format import CAPTION_STYLE
+    from tools.docx.core.structure_validation import _figure_table_context_warnings
+
+    doc = Document()
+    try:
+        doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
+    except (KeyError, ValueError):
+        pass
+    doc.add_paragraph("一、问题重述")
+    doc.add_paragraph("表1 符号说明", style=CAPTION_STYLE)
+    tb = doc.add_table(rows=2, cols=2)
+    tb.rows[0].cells[0].text = "符号"
+    tb.rows[1].cells[0].text = "x"
+    doc.add_paragraph("四、模型建立")
+    assert _figure_table_context_warnings(doc) == []
 
 def test_figure_table_lead_in_warnings(tmp_path):
     """W9 图表引出：紧跟标题/连续图表/紧跟标题后首图 → 预警；正常引出→解释不触发。"""

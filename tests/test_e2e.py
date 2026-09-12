@@ -187,7 +187,6 @@ def test_preflight_flags_low_equivalent_pages():
         "sections": [{"title": "5.1 子问题一"}],
         "planned_body_units": 1000,  # 等效约 2.2 页，远低于总页下限 30
         "figures": 12, "tables": 1, "equations": 15,
-        "run_manifest": "x",
         "abstract": {"exclusive_page": True},
         "abstract_units": 750,
     })

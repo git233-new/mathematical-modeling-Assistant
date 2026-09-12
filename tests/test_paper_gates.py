@@ -327,9 +327,15 @@ def test_auto_clean_removes_hard_trace_lines(tmp_path):
 
 
 def test_auto_clean_leaves_soft_style_and_thirdparty(tmp_path):
-    """清扫只动硬痕迹：三引号/长横线/第三方 docx import 原地保留。"""
+    """清扫只动 skill 生成脚本（Q*/solve_common/viz）的硬痕迹；用户文件一律只检不改。"""
     from tools.common.reproducibility import auto_clean_code
     (tmp_path / "code").mkdir(exist_ok=True)
+    own = tmp_path / "code" / "Q1_求解.py"
+    own.write_text(
+        'from docx import Document\n'
+        'from mm_style import configure_chinese_style\n',
+        encoding="utf-8",
+    )
     victim = tmp_path / "code" / "render_paper.py"
     victim.write_text(
         '"""说明"""\nfrom docx import Document\n# -------\n'
@@ -337,10 +343,39 @@ def test_auto_clean_leaves_soft_style_and_thirdparty(tmp_path):
         encoding="utf-8",
     )
     auto_clean_code(tmp_path)
-    body = victim.read_text(encoding="utf-8")
-    assert "# -------" in body          # 软红线不自动改
-    assert "from docx import" in body   # 第三方库不误删
-    assert "mm_style" not in body       # 硬痕迹整行移除
+    own_body = own.read_text(encoding="utf-8")
+    victim_body = victim.read_text(encoding="utf-8")
+    assert "mm_style" not in own_body  # skill 生成脚本：硬痕迹整行移除
+    assert "from docx import" in own_body  # 第三方库不误删
+    assert '"""说明"""' in victim_body   # 用户文件：docstring 原样保留
+    assert "# -------" in victim_body    # 用户文件：软红线不自动改
+    assert "mm_style" in victim_body     # 用户文件：硬痕迹也只检不改
+    assert "from docx import" in victim_body
+
+
+def test_scan_code_files_downgrades_user_files(tmp_path):
+    """用户既有代码：风格红线降级为预警（前缀"预警："），迁移痕迹保持硬闸门。"""
+    from tools.common.reproducibility import scan_code_files
+    (tmp_path / "code").mkdir(exist_ok=True)
+    (tmp_path / "code" / "legacy_sim.py").write_text(
+        '"""老代码说明文档"""\n'
+        'BASE_URL = "http://example.com/api"\n',
+        encoding="utf-8",
+    )
+    # 预警扫描（hard_only=False）：用户文件风格红线以"预警："前缀出现
+    hits = scan_code_files(tmp_path, hard_only=False)
+    style_hits = [h for h in hits if h.startswith("预警：")]
+    hard_hits = [h for h in hits if not h.startswith("预警：")]
+    assert any("docstring" in h for h in style_hits)
+    assert any("机器绝对路径" in h for h in hard_hits)  # "http://" 命中路径正则，保持硬闸门
+    # 硬闸门扫描（hard_only=True）：预警项不进入硬错误
+    gate_hits = scan_code_files(tmp_path, hard_only=True)
+    assert gate_hits and all(not h.startswith("预警：") for h in gate_hits)
+
+    (tmp_path / ".paper_work").mkdir(exist_ok=True)
+    (tmp_path / ".paper_work" / "brownfield").write_text("1", encoding="utf-8")
+    brownfield_hits = scan_code_files(tmp_path, hard_only=True)
+    assert brownfield_hits and all(h.startswith("预警：") for h in brownfield_hits)
 
 
 def test_plot_font_warning_requires_any_cjk(tmp_path):
