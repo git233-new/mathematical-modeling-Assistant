@@ -19,4 +19,4 @@
 | `io_utils.safe_extract_zip(zip_ref, target)` | 解压不受信 OOXML/zip 的唯一入口。防护四类攻击面：zip-slip（成员路径越出 target 即拒绝）、zip 炸弹（累计解压 ≤ `ZIP_MAX_TOTAL_BYTES`=1GB、成员数 ≤ `ZIP_MAX_MEMBERS`=2 万，超限拒绝）、符号链接成员（POSIX 下可指向外部，拒绝）、重名成员（拒绝） |
 | `io_utils.safe_xml_parser()` | lxml 解析器工厂：禁用实体解析、网络加载与 DTD（防 XXE/实体炸弹）。所有解析不可信 XML 的代码必须经它或其产物；受信的仓库内置 XSD 可例外 |
 
-另：`pdf_readable.is_readable(pdf_path)` 是"能否由 pypdf 解析"的布尔判定唯一来源——任何解析异常（损坏/加密/畸形 PDF 抛出的任意 Exception）一律判为不可读并返回 False，不向上抛错；入库闸门（paperingest/pipeline.py）与清理（prune_unreadable.py）共用此口径。
+另：`pdf_readable.is_readable(pdf_path)` 是"能否由 pypdf 解析"的布尔判定唯一来源——任何解析异常（损坏/加密/畸形 PDF 抛出的任意 Exception）一律判为不可读并返回 False，不向上抛错；建库管线不在本仓库（案例库人工维护），赛题解析链路共用此口径。

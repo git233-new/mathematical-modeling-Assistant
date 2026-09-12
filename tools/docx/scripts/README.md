@@ -10,7 +10,7 @@
 | 命令入口 | `extract_docx_content.py`、`export_paper_structure.py`、`validate_paper_json.py` 等 | 将公共 API 或论文引擎包装成可单独断点运行的命令 |
 | 外部适配与资源 | `office/`、`templates/` | Word/Office 辅助逻辑和模板资源 |
 
-赛题 PDF/DOCX 不进入 `paperingest`，也不启用 OCR。新增优秀论文 PDF
+赛题 PDF/DOCX 不启用 OCR。新增优秀论文 PDF
 建库才使用 `tools/paperingest/` 的 OCR 流程。
 
 ## Canonical imports

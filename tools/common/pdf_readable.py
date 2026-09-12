@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 """pdf_readable: pypdf 可读性判定（单一来源）。
 
-被 ``tools/paperingest/pipeline.py``（入库闸门，抛错拒绝）与
-``tools/paperingest/prune_unreadable.py``（清理，收集坏文件）共用，
+赛题解析链路（tools/pdf/、tools/docx/ingest）共用，
 保证两端对"能否由 pypdf 解析"的判定一致。
 """
 

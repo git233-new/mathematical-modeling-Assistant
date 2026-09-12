@@ -269,7 +269,7 @@ def run_verification(
         project_root: 项目根目录
         docx_path: 论文 DOCX 路径
         paper_text: 论文全文文本
-        manifest_path: run_manifest.json 路径
+        manifest_path: 兼容参数（已不依赖，可忽略）
         write_report: 是否写 results/论文验收报告.md（瘦身默认不落盘，
         stdout 摘要与 exit code 是唯一权威记录）
 

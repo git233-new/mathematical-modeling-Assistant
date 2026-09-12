@@ -6,7 +6,7 @@ OCR 隔离规则：
 - ``allow_ocr=False``（默认）：调用方显式声明"此 PDF 不应当被 OCR"。
   此时 ``ocr`` 参数只能为 ``"never"``，传 ``"auto"`` 或 ``"always"`` 直接报错。
   赛题 PDF/DOCX 读取链路必须走此模式，防止 OCR 噪声改变题目数字与约束。
-- ``allow_ocr=True``：仅 ``tools/paperingest/`` 优秀论文建库链路上调。
+- ``allow_ocr=True``：默认禁用，仅解析失败确需 OCR 时由调用方显式开启。
   其他模块不得传入 True。
 """
 import re
@@ -58,7 +58,7 @@ def _text_pages(pdf_path) -> list[str]:
     except Exception as exc:
         raise RuntimeError(
             f"pypdf 无法完整解析 PDF: {pdf_path}；优秀论文请先运行 "
-            "tools/paperingest/prune_unreadable.py --apply 删除。"
+            "确认无需保留后手动删除。"
         ) from exc
 
 
@@ -125,13 +125,13 @@ def extract_pages(pdf_path, *, ocr: str = "auto", min_text_chars: int = 300,
     **OCR 隔离**：``allow_ocr=False``（默认）时，``ocr`` 只能为 ``"never"``。
     传入 ``"auto"`` 或 ``"always"`` 直接报错。赛题读取链路必须走此模式，
     防止 OCR 噪声改变题目数字与约束。``allow_ocr=True`` 仅允许
-    ``tools/paperingest/`` 优秀论文建库调用。
+    需要OCR兜底的解析调用。
     """
     if not allow_ocr and ocr != "never":
         raise ValueError(
             f"此调用未授权 OCR（allow_ocr=False），但传入 ocr={ocr!r}。"
             "赛题 PDF 读取必须强制 ocr='never'；"
-            "如需 OCR，请在 tools/paperingest/ 中显式 allow_ocr=True。"
+            "如确需 OCR，请在调用处显式 allow_ocr=True。"
         )
     if ocr not in {"auto", "always", "never"}:
         raise ValueError("ocr 必须是 auto、always 或 never")

@@ -302,78 +302,6 @@ def _claim_template_slot(doc, role, text):
     doc._mathmodeling_insert_cursor = chosen['element']
     return paragraph
 _CN_CHAPTER_NUM = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
-def _body_h1_numbers(doc, exclude_elements=()):
-    """正文中已写入的一级章号集合（一、二、…），用于识别模板槽位与内容标题重复。
-
-    只认 Heading 1 样式的段落（按样式名解析，兼容中文模板的数字 styleId）；
-    exclude_elements 用于跳过模板槽位自身段落，防止槽位文本自匹配成"已写过"。
-    """
-    numbers = set()
-    body = doc._element.body
-    for p in body.iter(qn('w:p')):
-        if p in exclude_elements:
-            continue
-        paragraph = Paragraph(p, doc._body)
-        if paragraph.style is None or paragraph.style.name != HEADING1_STYLE:
-            continue
-        text = paragraph.text.strip()
-        m = re.match('^([一二三四五六七八九十]+)、', text)
-        if m:
-            value = 0
-            for ch in m.group(1):
-                value = value * 10 + _CN_CHAPTER_NUM.get(ch, 0)
-            if value:
-                numbers.add(value)
-    return numbers
-def _prune_unused_template_slots(doc):
-    body = doc._element.body
-    slots = getattr(doc, '_mathmodeling_template_slots', [])
-    pending_elements = [item['element'] for item in slots
-                        if item['state'] == 'pending' and item['element'].getparent() is body]
-    existing_numbers = _body_h1_numbers(doc, exclude_elements=pending_elements)
-    for item in slots:
-        element = item['element']
-        if item['state'] != 'pending' or element.getparent() is not body:
-            continue
-        if item.get('protected'):
-            # protected 槽位（如 AI 声明）若正文已写同名标题，则槽位即幻影，删除；
-            # written 收集必须排除槽位自身元素，否则恒自匹配导致全部误删
-            slot_text = ''.join(node.text or '' for node in element.iter(qn('w:t'))).strip()
-            written = [''.join(node.text or '' for node in p.iter(qn('w:t'))).strip()
-                       for p in body.iter(qn('w:p')) if p not in pending_elements]
-            if slot_text and any(t and _heading_key(t) == _heading_key(slot_text) for t in written):
-                body.remove(element)
-                item['state'] = 'skipped'
-                continue
-            if item['role'] == 'heading1':
-                # protected 的必需章槽位同样按章号去重：正文已写同章号标题 → 槽位即幻影
-                canonical = next((_REQUIRED_HEADING1_CANONICAL[marker] for marker in _REQUIRED_HEADING1_CANONICAL if marker in item['key']), None)
-                m = re.match('^([一二三四五六七八九十]+)、', canonical) if canonical else None
-                slot_num = _CN_CHAPTER_NUM.get(m.group(1)) if m else None
-                if slot_num and slot_num in existing_numbers:
-                    body.remove(element)
-                    item['state'] = 'skipped'
-                    continue
-            item['state'] = 'kept'
-            continue
-        if item['role'] == 'heading1':
-            canonical = next((_REQUIRED_HEADING1_CANONICAL[marker] for marker in _REQUIRED_HEADING1_CANONICAL if marker in item['key']), None)
-            if canonical is not None:
-                m = re.match('^([一二三四五六七八九十]+)、', canonical)
-                slot_num = _CN_CHAPTER_NUM.get(m.group(1)) if m else None
-                if slot_num and slot_num in existing_numbers:
-                    # 正文已写同章号标题（键不同导致 claim 未命中），模板槽位即幻影，删除
-                    body.remove(element)
-                    item['state'] = 'skipped'
-                    continue
-                paragraph = Paragraph(element, doc._body)
-                _clear_paragraph_content(paragraph)
-                paragraph.style = HEADING1_STYLE
-                set_run_font(paragraph.add_run(canonical), font='黑体', size=14, bold=False)
-                item['state'] = 'used'
-                continue
-        body.remove(element)
-        item['state'] = 'skipped'
 def _appendix_is_active(doc):
     for paragraph in reversed(doc.paragraphs):
         text = paragraph.text.strip()
@@ -391,56 +319,6 @@ def _normalise_prose_breaks(text):
     value = re.sub(' +([，。！？；：、,.!?;:）】》」』])', '\\1', value)
     value = re.sub('([（【《「『]) +', '\\1', value)
     return value
-def normalize_prose_line_breaks(doc):
-    appendix = False
-    fixed = 0
-    for paragraph in doc.paragraphs:
-        text = paragraph.text.strip()
-        if _is_appendix_start(text):
-            appendix = True
-            continue
-        if appendix:
-            continue
-        line_breaks = [node for node in paragraph._p.findall('.//' + qn('w:br')) if node.get(qn('w:type')) not in {'page', 'column'}]
-        line_breaks.extend(paragraph._p.findall('.//' + qn('w:cr')))
-        if not line_breaks:
-            continue
-        runs = list(paragraph.runs)
-        raw_values = [run.text or '' for run in runs]
-        def boundary_char(run_index, direction):
-            indices = range(run_index - 1, -1, -1) if direction < 0 else range(run_index + 1, len(raw_values))
-            for candidate in indices:
-                value = raw_values[candidate]
-                chars = reversed(value) if direction < 0 else iter(value)
-                for char in chars:
-                    if not char.isspace():
-                        return char
-            return ''
-        def replace_breaks(value, run_index):
-            parts = []
-            cursor = 0
-            for match in re.finditer('\\r\\n|\\r|\\n', value):
-                parts.append(value[cursor:match.start()])
-                left = next((char for char in reversed(value[:match.start()]) if not char.isspace()), '')
-                left = left or boundary_char(run_index, -1)
-                right = next((char for char in value[match.end():] if not char.isspace()), '')
-                right = right or boundary_char(run_index, 1)
-                if left and right and ('一' <= left <= '鿿' and '一' <= right <= '鿿' or right in '，。！？；：、,.!?;:）】》」』' or left in '（【《「『'):
-                    parts.append('')
-                else:
-                    parts.append(' ')
-                cursor = match.end()
-            parts.append(value[cursor:])
-            return _normalise_prose_breaks(''.join(parts))
-        for index, run in enumerate(runs):
-            value = raw_values[index]
-            if '\n' not in value and '\r' not in value:
-                continue
-            normalised = replace_breaks(value, index)
-            if normalised != value:
-                run.text = normalised
-                fixed += 1
-    return fixed
 # endregion ── 散文工具 ──
 
 # region ── 写作原语 ──
@@ -536,23 +414,6 @@ def equation(doc, latex, explanation=None, number=None):
         p._element.append(math)
         _append_equation_number(p, number)
     record_equation_source(doc, p._p, latex, number)
-    return p
-def equation_omml(doc, omml_xml, number=None):
-    p = paragraph(doc)
-    _set_equation_layout(doc, p, number)
-    math = OxmlElement('m:oMath')
-    source = etree.fromstring(omml_xml.encode('utf-8') if isinstance(omml_xml, str) else omml_xml)
-    if source.tag == qn('m:oMathPara'):
-        source = source.find(qn('m:oMath')) or source
-    for child in source:
-        math.append(child)
-    if number is None:
-        math_para = OxmlElement('m:oMathPara')
-        math_para.append(math)
-        p._element.append(math_para)
-    else:
-        p._element.append(math)
-        _append_equation_number(p, number)
     return p
 def equation_placeholder(doc, latex, prefix='EQ'):
     placeholder = f'{prefix}_{uuid.uuid4().hex[:8].upper()}'
@@ -994,41 +855,6 @@ def three_line_table(doc, rows):
     return table
 
 
-def _support_filename(entry):
-    """取纯文件名（去掉目录），支撑材料表按"文件名"列登记。"""
-    return entry.replace('\\', '/').rsplit('/', 1)[-1]
-
-
-def _support_role(entry, kind):
-    """按文件名推断"功能与作用"。
-
-    文件在证据链里本就是按规范命名的（Q<问号>_ 前缀、solve_common / figure 等约定，
-    见 文档/图片闸门配置与绘图规范.md §2 文件命名），因此功能可由文件名稳定得出。
-    """
-    name = _support_filename(entry).lower()
-    q = re.match(r'^q(\d+)(?=[_.-]|$)', name)
-    qlabel = f'第{q.group(1)}问' if q else ''
-    if kind == 'script':
-        if qlabel:
-            return f'{qlabel}求解脚本'
-        if 'solve_common' in name or 'common' in name:
-            return '公共求解工具'
-        if any(token in name for token in ('figure', 'plot', 'chart', 'draw', '出图')):
-            return '出图脚本'
-        if any(token in name for token in ('preprocess', 'clean', 'read', 'load')):
-            return '数据预处理脚本'
-        return '可运行脚本'
-    if entry.endswith('.json'):
-        if '文献' in name:
-            return '文献检索登记'
-        if 'spss' in name:
-            return '统计输出登记'
-        return '工具链登记文件'
-    if qlabel:
-        return f'{qlabel}结果数据'
-    return '支撑数据'
-
-
 def append_code_files(doc, project_root):
     """渲染论文附录：只写附录A 支撑材料清单（2026 口径，代码附录已取消）。
 
@@ -1076,10 +902,6 @@ def _assign_three_line_widths(table, doc):
                 tc_pr.append(tc_w)
             tc_w.set(qn('w:w'), str(widths[col_i]))
             tc_w.set(qn('w:type'), 'dxa')
-def _set_cell_no_wrap(cell):
-    tc_pr = cell._tc.get_or_add_tcPr()
-    if tc_pr.find(qn('w:noWrap')) is None:
-        tc_pr.append(OxmlElement('w:noWrap'))
 def _set_cell_vcenter(cell):
     tc_pr = cell._tc.get_or_add_tcPr()
     valign = tc_pr.find(qn('w:vAlign'))

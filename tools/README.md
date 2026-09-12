@@ -7,7 +7,6 @@
 | `docx/` | 论文生成核心：paper_format（样式/防重排/save_document）、structure_validation（硬闸门）、latex_export（完整论文.tex）、equations（OMML）、contest_profile（阈值）、paper_workflow（大纲/进度/重建） |
 | `figure/` | 出图：registry 按名发现渲染、templates/mm_style 中文样式、references 绘图规范 |
 | `paper_search/` | 文献检索：OpenAlex 发现 + Crossref 书目核验（仅 citation_ready=true 入参考文献） |
-| `paperingest/` | 优秀论文建库：pipeline（单篇五维方法卡）、distill（跨论文模板/创新点蒸馏） |
 | `pdf/` | 读题：赛题 PDF 原生文本/结构提取（默认禁 OCR） |
 | `xlsx/` | 表格：赛题 CSV/XLSX 数据读取 |
 

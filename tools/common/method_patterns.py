@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """method_patterns: 建模方法识别正则的单一事实来源。
 
-被 ``tools/paperingest/pipeline.py`` 与 ``tools/project_ops/case_retrieval.py`` 共同引用。
+被 ``tools/project_ops/case_retrieval.py`` 引用。
 曾有两份拷贝且已漂移（后者多出 调度/运输/指派/选址 等词），此处合并为并集，
 保证「宽题目画像」路由在入库与检索两端行为一致。
 """
