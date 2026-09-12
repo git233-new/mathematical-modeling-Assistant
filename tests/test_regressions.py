@@ -830,40 +830,88 @@ def test_plot_pitfall_warnings_flag_bare_legend_and_best(tmp_path):
 
 
 def test_figure_table_context_warnings(tmp_path):
-    """W9 图表上下文：前无引导/后无解释 → 预警；规范写法（前引出后解释）不触发。"""
+    """W10 图表引出与解释：缺引出/未点名/缺解释 → 预警；逐张点名引出+读数解释不触发。"""
     from docx.enum.style import WD_STYLE_TYPE
     from tools.docx.core.paper_format import CAPTION_STYLE
     from tools.docx.core.structure_validation import _figure_table_context_warnings
 
-    def build(lead, explain, header="方法"):
+    def _doc():
         doc = Document()
         try:
             doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
         except (KeyError, ValueError):
             pass
-        doc.add_paragraph("一、问题重述")
-        if lead:
-            doc.add_paragraph(lead)
-        doc.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
-        if explain:
-            doc.add_paragraph(explain)
-        doc.add_paragraph("表1 方法对比", style=CAPTION_STYLE)
-        tb = doc.add_table(rows=2, cols=2)
-        tb.rows[0].cells[0].text = header
-        tb.rows[1].cells[0].text = "x"
-        if explain:
-            doc.add_paragraph("表1 给出全文方法体系，各列口径逐项对应。")
         return doc
 
-    bad = build(None, None)
+    # 坏例：图表紧跟标题、引出句不点名、无解释
+    bad = _doc()
+    bad.add_paragraph("一、问题重述")
+    bad.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
+    bad.add_paragraph("表1 方法对比", style=CAPTION_STYLE)
+    tb = bad.add_table(rows=2, cols=2)
+    tb.rows[0].cells[0].text = "方法"
+    tb.rows[1].cells[0].text = "x"
     ws = _figure_table_context_warnings(bad)
-    assert any("图1" in w and "后置解释" in w for w in ws)
-    assert any("表1" in w and "前置引导" in w for w in ws)
-    assert any("表1" in w and "后置解释" in w for w in ws)
+    assert any("图1" in w and "没有点名" in w for w in ws)
+    assert any("图1" in w and "缺少解释" in w for w in ws)
+    assert any("表1" in w and "缺少引出" in w for w in ws)
+    assert any("表1" in w and "缺少解释" in w for w in ws)
 
-    good = build("图1 展示两种方案的误差对比结果。",
-                 "图1 中方案 A 在前 10 轮误差下降最快，原因是学习率设置更保守。")
+    # 好例：逐张单独引出（点名）+ 各自读数解释
+    good = _doc()
+    good.add_paragraph("一、问题重述")
+    good.add_paragraph("图1 给出两种方案收敛速度的对比。")
+    good.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
+    good.add_paragraph("从图1看，方案A误差下降最快，原因是学习率设置更保守。")
+    good.add_paragraph("两方案各指标的逐项数值对比见表1。")
+    good.add_paragraph("表1 方法对比", style=CAPTION_STYLE)
+    tb2 = good.add_table(rows=2, cols=2)
+    tb2.rows[0].cells[0].text = "方法"
+    tb2.rows[1].cells[0].text = "x"
+    good.add_paragraph("表1 显示方案A在四项指标中三项占优，综合性能最好。")
     assert _figure_table_context_warnings(good) == []
+
+
+def test_batch_lead_in_then_individual_flags_duplicate(tmp_path):
+    """总起句点名多图后再逐张单独引出 → 后图触发"重复引出"预警；首图不预警。"""
+    from docx.enum.style import WD_STYLE_TYPE
+    from tools.docx.core.paper_format import CAPTION_STYLE
+    from tools.docx.core.structure_validation import _figure_table_context_warnings
+
+    doc = Document()
+    try:
+        doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
+    except (KeyError, ValueError):
+        pass
+    doc.add_paragraph("一、问题重述")
+    doc.add_paragraph("图1与图2分别给出误差曲线与时间开销对比。")   # 总起句
+    doc.add_paragraph("图1 误差对比", style=CAPTION_STYLE)
+    doc.add_paragraph("图1 显示方案A在前10轮误差下降最快。")        # 图1 解释
+    doc.add_paragraph("图2 显示方案A节省约30%运行时间。")           # 图2 单独引出
+    doc.add_paragraph("图2 时间对比", style=CAPTION_STYLE)
+    doc.add_paragraph("图2 中两方案的耗时差异主要来自迭代次数不同。")
+    ws = _figure_table_context_warnings(doc)
+    assert any("图2" in w and "重复引出" in w for w in ws)
+    assert not any("图1" in w for w in ws)
+
+
+def test_unnamed_lead_in_flagged(tmp_path):
+    """引出句不点名图号（"对比如下"式指代）→ 预警要求明确写出图号。"""
+    from docx.enum.style import WD_STYLE_TYPE
+    from tools.docx.core.paper_format import CAPTION_STYLE
+    from tools.docx.core.structure_validation import _figure_table_context_warnings
+
+    doc = Document()
+    try:
+        doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
+    except (KeyError, ValueError):
+        pass
+    doc.add_paragraph("一、问题重述")
+    doc.add_paragraph("两种方案的收敛情况对比如下。")   # 未点名"图1"
+    doc.add_paragraph("图1 收敛对比", style=CAPTION_STYLE)
+    doc.add_paragraph("图1 中方案A的误差下降速度明显快于方案B。")
+    ws = _figure_table_context_warnings(doc)
+    assert any("图1" in w and "没有点名" in w for w in ws)
 
 
 def test_symbol_table_exempt_from_context_warnings(tmp_path):
@@ -885,21 +933,21 @@ def test_symbol_table_exempt_from_context_warnings(tmp_path):
     doc.add_paragraph("四、模型建立")
     assert _figure_table_context_warnings(doc) == []
 
-def test_figure_table_lead_in_warnings(tmp_path):
-    """W9 图表引出：紧跟标题/连续图表/紧跟标题后首图 → 预警；正常引出→解释不触发。"""
-    from tools.docx.core.structure_validation import _figure_table_lead_in_warnings
+
+def test_caption_style_by_position_not_prefix(tmp_path):
+    """题注样式按位置判定：表题紧邻表才要求题注样式；正文里的"图N给出…"是引出句保持正文样式。"""
+    from tools.docx.core.structure_validation import _paragraph_style_issues
+
     doc = Document()
-    doc.add_paragraph("一、问题重述")
-    doc.add_paragraph("图1 结果对比")            # 标题后直接图题 → 缺引出
-    doc.add_paragraph("图2 灵敏度曲线")          # 连续图表 → 缺引出
-    doc.add_paragraph("表1 主要符号说明")        # 仍连续 → 缺引出
-    doc.add_paragraph("为评估模型稳健性，图3 给出扰动下的目标函数变化。")  # 引出
-    doc.add_paragraph("图3 灵敏度分析")
-    doc.add_paragraph("图3 显示扰动 ±20% 内目标函数波动小于 2%，模型稳健。")     # 解释
-    doc.add_paragraph("为对比各方案的优劣，表2 汇总了关键指标。")                             # 引出
-    doc.add_paragraph("表2 方案对比")
-    issues = _figure_table_lead_in_warnings(doc)
-    assert len(issues) == 3 and all("缺引出" in i for i in issues)
+    doc.add_paragraph("图5给出两种方案的误差对比。")            # 正文引出句（不在题注位置）→ Normal 合法
+    doc.add_paragraph("两种方案对比如下。")                     # 普通正文
+    doc.add_paragraph("表9 结果", style="Normal")               # 紧邻表格 → 占题注位置却用正文样式 → 报错
+    tb = doc.add_table(rows=2, cols=2)
+    tb.rows[0].cells[0].text = "方法"
+    tb.rows[1].cells[0].text = "x"
+    issues = _paragraph_style_issues(doc)
+    assert any("表9 结果" in i and "图表标题" in i for i in issues)
+    assert not any("图5给出" in i for i in issues)
 
 
 def test_rebuild_extracts_title_and_ai_declaration_heading():

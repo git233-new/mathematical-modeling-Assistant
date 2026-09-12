@@ -1002,9 +1002,43 @@ def _body_filename_issues(doc):
     return issues
 
 
+def _caption_positions(doc):
+    """题注位置标记：{段落元素: '图'|'表'}。
+
+    图题图下 = 含图段之后第一个有文字的段落；表题表上 = 表格之前第一个有文字的段落。
+    用于区分真正的题注与以"图N/表N"开头的正文引出句——引出句是行文的一部分，
+    保持正文样式；只有占住题注位置的段落才要求题注样式。
+    """
+    positions = {}
+
+    def _text_of(element):
+        return ''.join(node.text or '' for node in element.iter(qn('w:t'))).strip()
+
+    children = list(doc.element.body.iterchildren())
+    for i, child in enumerate(children):
+        if child.tag == qn('w:p') and child.find('.//' + qn('a:blip')) is not None:
+            for j in range(i + 1, len(children)):
+                if children[j].tag == qn('w:tbl'):
+                    break
+                if children[j].tag == qn('w:p'):
+                    if _text_of(children[j]):
+                        positions.setdefault(children[j], '图')
+                        break
+        elif child.tag == qn('w:tbl'):
+            for j in range(i - 1, -1, -1):
+                if children[j].tag == qn('w:p'):
+                    if _text_of(children[j]):
+                        positions.setdefault(children[j], '表')
+                        break
+                elif children[j].tag != qn('w:tbl'):
+                    break
+    return positions
+
+
 def _paragraph_style_issues(doc):
     # "摘 要"与 AI 使用详情/声明是一级标题（黑体四号居中，大纲级别 0）
     _H1_TEXTS = {'参考文献', '附录', '摘 要', 'AI工具使用声明', 'AI工具使用详情'}
+    cap_positions = _caption_positions(doc)
     issues = []
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
@@ -1012,10 +1046,12 @@ def _paragraph_style_issues(doc):
             continue
         if _is_appendix_start(text) or _is_reference_start(text):
             break
-        if re.match('^[图表]\\s*\\d+', text):
-            # 与 W 口径一致（题注 ≤25 字）：短"图N/表N"行是题注，长句（如"图 4 的左幅…"）
-            # 是以图号开头的正文引导段，按正文样式判定，不再靠文本前缀误伤
-            expected = CAPTION_STYLE if len(text) <= 25 else BODY_STYLE
+        m = re.match('^([图表])\\s*\\d+', text)
+        if m:
+            # 题注/引出句按位置判定（图题紧随图、表题紧邻表），不按文本前缀：
+            # "图 4 的左幅…"与"图5给出误差对比。"都是正文，只有占住题注位置的
+            # 段落才要求题注样式
+            expected = CAPTION_STYLE if cap_positions.get(paragraph._p) == m.group(1) else BODY_STYLE
         elif re.match('^\\d+[.．]\\d+[.．]\\d+(?:\\s|、|：|:|$)', text):
             expected = HEADING3_STYLE
         elif re.match('^\\d+[.．]\\d+(?:\\s|、|：|:|$)', text):
@@ -1567,11 +1603,24 @@ def _data_file_warnings(project_root):
     return issues
 
 
-# W10 图表上下文：每张图/表前必须有一行引导、后必须有一段解释（全文逻辑连贯）
-_CAPTION_RE = re.compile(r'^[图表]\s*\d+')
+# W10 图表上下文：每张图/表用一句自己的引出句点名引出、图表后给实质解释；
+# 不用一句总起同时引出多张图表（总起后再逐张引出会重复）。
+_CAPTION_RE = re.compile(r'^([图表])\s*(\d+)')
 
 
 def _figure_table_context_warnings(doc):
+    """引出/解释的自然性检查（预警级）。
+
+    写法约定（唯一口径，见 文档/论文写作.md「图表前置引导」）：
+    - 主要采用"逐张单独引出"：每张图/表出现前，紧跟一句自己的引出句，
+      句中明确点名该图号（"图5给出两种方案的收敛对比"），把"展示什么、
+      回答什么问题"写进行文，不套"如图N所示"模板；
+    - 不用一句总起同时引出多张图表（"图5与图6分别给出…"）——总起之后再
+      逐张引出必然重复，重复点名会被本检查预警；
+    - 图表后给一段结合读数的解释（关键数字/差异/原因，落到本问结论）。
+    符号说明表整条豁免（H10 禁止其表后写描述段，两规则不得死锁）；
+    附录图表不纳入本检查（口径见 文档/图片闸门配置与绘图规范.md）。
+    """
     symbol_tbl = _find_symbol_table(doc)
     seq = []
     for child in doc.element.body.iterchildren():
@@ -1593,15 +1642,23 @@ def _figure_table_context_warnings(doc):
     def is_symbol_table(entry):
         return symbol_tbl is not None and entry[0] == 'tbl' and entry[3] is symbol_tbl._tbl
     issues = []
+    in_appendix = False
     for idx, entry in enumerate(seq):
         kind, text, style = entry[0], entry[1], entry[2]
+        if kind == 'p' and _is_appendix_start(text):
+            in_appendix = True
+        if in_appendix:
+            continue
         if not is_caption(kind, text, style):
             continue
         # 符号说明表的题注：豁免前引导/后解释要求
         next_entry = next((e for e in seq[idx + 1:] if e[0] == 'tbl' or (e[0] == 'p' and e[1])), None)
         if next_entry is not None and is_symbol_table(next_entry):
             continue
-        label = re.match(r'^[图表]\s*\d+', text).group(0).replace(' ', '')
+        cap_match = _CAPTION_RE.match(text)
+        cap_kind, cap_num = cap_match.group(1), cap_match.group(2)
+        label = f'{cap_kind}{cap_num}'
+        label_re = re.compile(rf'{cap_kind}\s*{cap_num}(?!\d)')
         # 前引导：上一个非空条目必须是普通正文段（不能是题注、标题、另一张表或开头）
         prev = None
         for e in reversed(seq[:idx]):
@@ -1609,7 +1666,38 @@ def _figure_table_context_warnings(doc):
                 prev = e
                 break
         if prev is None or prev[0] != 'p' or is_caption(prev[0], prev[1], prev[2]) or is_heading(prev[2]):
-            issues.append(f'{label} 缺少前置引导：图/表前需一行正文引出（说明该图表展示什么），不能紧跟标题或另一图表')
+            issues.append(
+                f'{label} 缺少引出：图表出现前紧跟一句自己的引出句，句中点名"{label}"'
+                f'（如"{label}给出…的对比"），写清它展示什么、回答什么问题，不能紧跟标题或另一图表')
+        else:
+            lead_norm = re.sub(r'\s+', '', prev[1])
+            if not label_re.search(lead_norm):
+                issues.append(
+                    f'{label} 的引出句没有点名图表：引出句须明确写出"{label}"'
+                    f'（如"{label}给出…"），不要只写"对比如下"之类的指代')
+            # 重复引出：向前回溯（至标题或上一张同类题注为止），统计点名本图的正文段数；
+            # ≥2 段即"总起/预告 + 单独引出"重复——主要写法是逐张单独引出，删掉总起句
+            mentions = 0
+            passed_same_caption = False
+            for e in reversed(seq[:idx]):
+                if e[0] != 'p':
+                    continue
+                # 先判题注再判标题："图表标题"样式名含"标题"字样，顺序颠倒会在题注处提前截断
+                if is_caption(e[0], e[1], e[2]):
+                    if passed_same_caption:
+                        break
+                    m_prev = _CAPTION_RE.match(e[1])
+                    if m_prev and m_prev.group(1) == cap_kind:
+                        passed_same_caption = True
+                    continue
+                if is_heading(e[2]):
+                    break
+                if e[1] and label_re.search(re.sub(r'\s+', '', e[1])):
+                    mentions += 1
+            if mentions >= 2:
+                issues.append(
+                    f'{label} 被重复引出：除图表紧前的引出句外，前文总起/预告句也点名过{label}'
+                    f'——逐张单独引出即可，删掉总起句避免前后重复')
         # 后解释：图——下一非空段；表——跳过表格实体后的第一非空段；须为实质解释（≥15 字、非题注）
         after = seq[idx + 1:]
         skip_table = False
@@ -1625,29 +1713,9 @@ def _figure_table_context_warnings(doc):
             nxt = (atext, astyle)
             break
         if nxt is None or is_heading(nxt[1]) or len(nxt[0]) < 15:
-            issues.append(f'{label} 缺少后置解释：图/表后需一段读数与原因分析（≥15 字，不能只写"如图N所示"或连续堆图）')
-    return issues
-
-
-# W9 图表引出：每个 图N/表N 前必须有一行文字引出（说明展示什么、为何此处出现），禁止紧跟标题或连续堆图
-def _figure_table_lead_in_warnings(doc):
-    cap = re.compile(r'^[图表]\s*\d+')  # 题注 = 图/表N 开头且不超过 25 字（引出句是完整长句）
-    heading = re.compile(r'^(附录|参考文献|AI工具使用声明|AI工具使用详情|[一二三四五六七八九十]+、)')
-    issues = []
-    paras = doc.paragraphs
-    for i, p in enumerate(paras):
-        text = p.text.strip()
-        if not cap.match(text) or len(text) > 25:
-            continue
-        # 向上找最近一个有文字的段落（跳过纯图片段）
-        j = i - 1
-        while j >= 0 and not paras[j].text.strip():
-            j -= 1
-        prev = paras[j].text.strip() if j >= 0 else ""
-        if not prev or heading.match(prev) or (cap.match(prev) and len(prev) <= 25):
-            label = "图" if text.startswith("图") else "表"
-            reason = "紧跟标题或上一张图表" if not prev else ("紧跟标题" if heading.match(prev) else "连续图表无引出")
-            issues.append(f'{text[:12]}… 前缺引出文字（{reason}）：先一行说明该{label}展示什么、为何此处出现，再放{label}，之后给出解释')
+            issues.append(
+                f'{label} 缺少解释：图表后用一段自己的话读数——点出关键数字/差异、给原因、'
+                f'落到本问结论（≥15 字），不能只写"如图{cap_num}所示"或连续堆图')
     return issues
 
 
@@ -1756,7 +1824,12 @@ def _model_eval_generalization_warning(doc):
 
 
 def _soft_quality_warnings(doc, project_root):
-    """聚合 W 类预警，统一加"预警："前缀（不阻断交付）。"""
+    """聚合 W 类预警，统一加"预警："前缀（不阻断交付）。
+
+    图表引出/解释只由 `_figure_table_context_warnings`（W10）一处检查：
+    引出点名、总起多图、重复引出、缺解释都在其中，不再设并列的引出检查，
+    避免同一张图被多个检查项重复报错。
+    """
     ws = []
     ws += _no_duplicate_figure_warnings(doc)
     ws += _figure_table_context_warnings(doc)
@@ -1766,7 +1839,6 @@ def _soft_quality_warnings(doc, project_root):
     ws += _plot_font_warnings(project_root)
     ws += _plot_pitfall_warnings(project_root)
     ws += _data_file_warnings(project_root)
-    ws += _figure_table_lead_in_warnings(doc)
     ws += _model_eval_generalization_warning(doc)
     return ['预警：' + w for w in ws]
 
