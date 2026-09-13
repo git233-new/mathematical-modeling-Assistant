@@ -128,7 +128,7 @@ def _quality(sections: dict[str, str]) -> str:
 
 
 def _methods(text: str) -> tuple[str, ...]:
-    # 与 _query_methods/paperingest._method_tags 一致：按正则模式匹配（统一来源，避免字面量/正则漂移）
+    # 方法标签按正则模式匹配（与知识库方法卡的方法标签口径一致）
     return tuple(name for name, pattern in METHOD_PATTERNS.items() if re.search(pattern, text, re.I))
 
 
@@ -467,7 +467,7 @@ def load_query_file(path: Path) -> str:
         from tools.common.pdf_utils import extract_text
 
         # 赛题是原始输入，不走优秀论文建库 OCR；保留原始文本层，避免
-        # OCR 噪声改变题目条件、数字和约束。优秀论文 OCR 只在 paperingest 中启用。
+        # OCR 噪声会改变题目条件、数字和约束，赛题与案例解析一律禁用。
         return extract_text(path, ocr="never")
     if suffix == ".doc":
         try:

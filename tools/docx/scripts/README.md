@@ -11,7 +11,7 @@
 | 外部适配与资源 | `office/`、`templates/` | Word/Office 辅助逻辑和模板资源 |
 
 赛题 PDF/DOCX 不启用 OCR。新增优秀论文 PDF
-建库才使用 `tools/paperingest/` 的 OCR 流程。
+建库管线已移出本仓库（案例库人工维护）；赛题解析一律不启用 OCR。
 
 ## Canonical imports
 

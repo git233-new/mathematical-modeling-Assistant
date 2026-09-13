@@ -43,7 +43,7 @@ CODE_INTERMEDIATE_NAMES = {
 }
 CACHE_DIR_NAMES = {"__pycache__", ".pytest_cache"}
 # skill 内部结构名；检测到 code/tools 等目录内带 skill 特征文件即视为误带痕迹
-SKILL_TRACE_DIR_NAMES = {"tools", "common", "figure", "paper_search", "paperingest"}
+SKILL_TRACE_DIR_NAMES = {"tools", "common", "figure", "paper_search"}
 SKILL_TRACE_MARKER_RELS = (
     ("SKILL.md",),
     ("docx", "core", "paper_format.py"),
