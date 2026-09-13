@@ -94,9 +94,10 @@ def step1_text_quality(text: str) -> list[VerificationFinding]:
 def step2_chapter_structure(text: str) -> list[VerificationFinding]:
     """STEP 2: 章节数量和标题顺序"""
     findings = []
-    # 检查一级标题
-    h1_pattern = re.compile(r"^# (.+)$", re.MULTILINE)
-    h1s = h1_pattern.findall(text)
+    # 检查一级标题：DOCX 交付口径为中文序号（一、二、…），兼容 Markdown "# " 形式
+    h1s = [line for line in text.splitlines()
+           if re.match(r"^[一二三四五六七八九十]+、", line.strip())
+           or re.match(r"^# ", line.strip())]
     if len(h1s) < 3:
         findings.append(VerificationFinding(
             step=2, code="HE04", severity="error",
@@ -284,3 +285,28 @@ def run_verification(
         step8_write_report(result, report_path)
 
     return result
+
+def main(argv: list[str] | None = None) -> int:
+    """命令行入口：stdout 打印验收摘要，硬错误 >0 时 exit 1（Step 8 放行依据）。"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="8 步自动验收（Step 8 机器核验）")
+    parser.add_argument("project", type=Path, help="项目根目录")
+    parser.add_argument("--docx", type=Path, help="论文 DOCX 路径（默认 <project>/完整论文.docx）")
+    parser.add_argument("--write-report", action="store_true",
+                        help="写 results/论文验收报告.md（默认只输出 stdout 摘要）")
+    args = parser.parse_args(argv)
+    docx = args.docx or (args.project / "完整论文.docx")
+    result = run_verification(args.project, docx_path=docx, write_report=args.write_report)
+    hard = result.hard_errors
+    print(f"8 步验收：硬错误 {len(hard)}，警告 {len(result.warnings)}，"
+          f"通过步骤 {result.steps_passed}，失败步骤 {result.steps_failed}")
+    for f in hard:
+        print(f"  ✗ [{f.code}] {f.message}")
+    for w in result.warnings:
+        print(f"  ! {w.message}")
+    return 1 if hard else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

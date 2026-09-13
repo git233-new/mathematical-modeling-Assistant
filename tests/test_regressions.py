@@ -3,6 +3,7 @@ import json
 
 from docx.oxml.ns import qn
 import pathlib
+import sys
 from pathlib import Path
 
 import pytest
@@ -771,6 +772,33 @@ def test_nine_step_verification_no_report_by_default(tmp_path):
     assert not (tmp_path / "results" / "论文验收报告.md").exists()
     run_verification(tmp_path, paper_text="一、问题重述\n测试正文。", write_report=True)
     assert (tmp_path / "results" / "论文验收报告.md").exists()
+
+
+def test_nine_step_cli_exit_code(tmp_path):
+    """CLI 契约：stdout 摘要 + exit code（硬错误 >0 → 1），Step 8 放行依据。"""
+    import subprocess
+
+    from tools.docx.core import paper_format as pf
+
+    script = str(pathlib.Path(__file__).resolve().parents[1] / "tools" / "project_ops" / "nine_step_verification.py")
+    doc = pf.new_document()
+    pf.title(doc, "测试论文题目")
+    pf.abstract_title(doc)
+    pf.body(doc, "本文建立模型求解，结果收敛且误差可控。其求解流程、参数设置与数据来源均在正文对应章节交代，结果经稳健性检验支撑。" * 8)
+    pf.keywords(doc, "优化")
+    for h in ("一、问题重述", "二、模型建立", "三、模型检验"):
+        pf.heading1(doc, h)
+        pf.body(doc, "该章正文内容，包含建模与检验的必要说明。" * 5)
+    clean_docx = tmp_path / "完整论文.docx"
+    doc.save(str(clean_docx))
+    clean = subprocess.run(
+        [sys.executable, script, str(tmp_path), "--docx", str(clean_docx)],
+        capture_output=True, text=True)
+    assert clean.returncode == 0 and "硬错误 0" in clean.stdout, clean.stdout + clean.stderr
+    missing = subprocess.run(
+        [sys.executable, script, str(tmp_path), "--docx", str(tmp_path / "无.docx")],
+        capture_output=True, text=True)
+    assert missing.returncode == 1 and "硬错误" in missing.stdout
 
 
 def test_soft_doc_structure_markers():
