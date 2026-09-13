@@ -31,7 +31,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 - **软规则**：写作风格、图表偏好、案例迁移方式；只在评审中扣分，不阻断可复现结果交付。
 - **按题启用**：Champion/Challenger Tournament、OCR、SPSS、复杂敏感性分析仅在题目、数据或用户要求需要时启用；不为满足流程形式制造无效产物。文献检索同样按需触发——一旦触发，检索到的每条文献都必须核验、真实可查并登记，绝不虚构凑数。
 - **重复守卫**：细则重复由 `tests/test_rule_dedup.py` 拦截；阈值与文档镜像同步由 `tests/test_sync_contracts.py` 拦截；项目结构与过期引用由 `tools/project_ops/project_audit.py` 拦截。
-- **停止条件**：每一步推进以该步的机器核验结果（exit code/校验输出/闸门通过）为唯一放行依据，未核验不得进入下一步；若当前阶段的硬闸门已通过且下一阶段输入完整，不重复试错；若失败，先定位根因并只重跑受影响阶段。
+- **停止条件**：每步以机器核验结果（exit code/校验输出/闸门通过）为唯一放行依据，未核验不推进；闸门已过且输入完整则不重复试错；失败先定位根因，只重跑受影响阶段。
 
 ## 二、设计铁律（最高优先级，违反即失败）
 
@@ -69,8 +69,8 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 3. **文献检索（按需触发，参考文献真实性的唯一来源）**：不预先凑数，仅在赛题需要理论依据/方法出处支撑或写作需要参考文献时才触发。**用 `tools/paper_search/scripts/hybrid_scholar.py` 执行检索、Crossref 等真实核验与引用门禁**，核验通过的条目逐条追加登记 `results/数据/文献检索.csv`（utf-8-sig）。铁律：每条入库文献必须真实可查，禁止虚构；论文参考文献只放行 `citation_ready=true` 的条目。检索后端命不中的中文文献走人工核验登记：`hybrid_scholar.py --manual <输入CSV> --project <项目>`（字段模板 `--template`，DOI 反查回填），核验责任在人，不在表。
 4. **模型选型与 Model Contract**：Problem Card 完成后填写 `schemas/model_contract.json`（chosen_model / inputs / outputs / validation / fallback）。仅当存在两个以上合理模型族、结果对模型选择敏感，或用户要求比较时，才执行 Champion vs Challenger Tournament；否则用一个可解释基线 + 一项必要校验替代。
 5. **全 Python 解题代码（逐问实现，短反馈循环）**：按子问题顺序逐个实现，禁止一次性生成全部 Q 的代码。每个 Qi：① 读 Problem Card + Model Contract → ② 最小实现 `code/Q<序号>.py` → ③ 立即运行打印关键中间结果 → ④ 健全性判断（量级/约束/baseline/物理意义） → ⑤ 通过则补可视化 + 灵敏度 → ⑥ 不通过按 `文档/代码规范.md §失败恢复链` 处理 → ⑦ 推进 Q(i+1)。代码风格与出图唯一权威 `文档/代码规范.md`；数值严谨性对照 `知识库/建模通用规范.md`「数值严谨性守则」。
-6. **真实运行与落盘**：图片和数值写入 `results/图片/` 与 `results/数据/`；**出图必须经 `mm_style.save_panel/finalize_figure` 共享导出**（有效字号/遮挡闸门内置，裸 `plt.savefig` 会被预警拦截），并对 `code/*.py` 跑 `validate_figure`（0 FAIL）与 `audit_figures.scan_english_labels`（无英文标签）；运行出错按 §失败恢复链 分级处理；健全性检查 6 条逐项过，不通过不得写入论文。
-7. **生成论文**：按 Step 7 规范入口读 `文档/论文写作.md`，按「章节写法路由表」在写某一章前才读该章范式。论文按目标篇幅与结构要求组织（章源 `.paper_work/NN_*.md`，整章一次性写入 docx、同一章只写一次），**篇幅与结构最终由统一质量门禁裁定**——`pf.preflight_check(outline)` 预检、`save_document()` 内 `validate_paper_structure` 终检，写作过程不设逐章断点。执行链：`pf.preflight_check(outline)` → 逐章写入（每章动笔前读对应范式，行文全程按 `文档/去AI味指南.md` 规避禁用词与 K1–K5 痕迹）→ **全量自检清零**（构建完成后先跑 `validate_paper_structure(doc, ...)`，硬错误与"预警："项全部修复后重建重跑，直到 0 issue）→ `save_document(doc, project_root)` 一次发布（同一内容快照先落 `.tex` 再原子发布 DOCX，不编译、不要求 LaTeX 环境；save 只做终态复核，不当第一个检查器用）。**图表三件套与逐条编号纪律**见 `文档/论文写作.md`（图前引导句、图后解释段；模型假设/评价逐条编号），本文件不重复示例。
+6. **真实运行与落盘**：图片和数值写入 `results/图片/` 与 `results/数据/`；出图必须经 `mm_style` 共享导出（有效字号/遮挡闸门内置，裸 `plt.savefig` 拦截），`code/*.py` 过 `validate_figure`（0 FAIL）与英文标签扫描；运行出错按 §失败恢复链 分级处理；健全性检查 6 条逐项过，不通过不得写入论文。
+7. **生成论文**：按 Step 7 规范入口读 `文档/论文写作.md`，按「章节写法路由表」在写某一章前才读该章范式。论文按目标篇幅与结构要求组织（章源 `.paper_work/NN_*.md`，整章一次性写入 docx、同一章只写一次），**篇幅与结构最终由统一质量门禁裁定**——`pf.preflight_check(outline)` 预检、`save_document()` 内 `validate_paper_structure` 终检，写作过程不设逐章断点。执行链：`pf.preflight_check(outline)` 预检 → 逐章写入（动笔前读对应范式与去AI味指南）→ **全量自检清零**（`validate_paper_structure` 硬错误+预警全修复、重建重跑至 0 issue）→ `save_document` 一次发布（同快照先落 `.tex`；save 只做终态复核）。**图表三件套与逐条编号纪律**见 `文档/论文写作.md`（图前引导句、图后解释段；模型假设/评价逐条编号），本文件不重复示例。
 8. **数学验证（论文生成后、评审前）**：独立检查已生成论文与真实结果的一致性（公式-符号/数值-来源/跨段落/图表-正文/假设-检验/Model Contract 验收/参考文献-登记对应/LaTeX 完整性），逐项核对，不通过回 Step 7 修正。此步不改论文不重新建模，只查一致性。
 9. **评审—修改循环与收尾**：生成评审文件（`results/论文评审与分析.md`），依据评审修改并重新校验。最终 DOCX 写入并通过终态校验后，才清理中间文件；保存时输出的每条软预警必须逐条修复或人工确认，未清零不得进入收尾。**收尾证据语言**：验证状态只允许引用 `project_audit.py` 与 `self_check.py` 的 exit code 和结论输出；禁止以任何叙述（"已通过/已完成/已核对"）作为完成依据。
 
