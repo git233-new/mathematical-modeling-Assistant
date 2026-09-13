@@ -25,20 +25,6 @@ def _missing(mods):
     return [m for m in mods if importlib.util.find_spec(m) is None]
 
 
-def _pandoc_path():
-    if env := os.environ.get("PANDOC"):
-        env_p = Path(env)
-        if env_p.is_file():
-            return str(env_p)
-    if executable := shutil.which("pandoc"):
-        return executable
-    if sys.platform.startswith("win"):
-        candidate = Path.home() / "AppData" / "Local" / "Pandoc" / "pandoc.exe"
-        if candidate.is_file():
-            return str(candidate)
-    return None
-
-
 def main() -> int:
     core = _missing(CORE_MODULES)
     flow = _missing(WORKFLOW_MODULES)
@@ -65,10 +51,6 @@ def main() -> int:
     elif not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         print("警告: 当前无显示环境，仅有 LibreOffice；渲染最多等待 60 秒，失败后请改用有 Word 的 Windows 环境")
 
-    if pandoc := _pandoc_path():
-        print("可选工具 OK: pandoc (" + pandoc + ")")
-    else:
-        print("可选工具缺失: pandoc（仅 Markdown 整篇转 docx 时需要）")
     return 0
 
 
