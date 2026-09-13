@@ -32,7 +32,7 @@ from tools.docx.ingest import extract_docx_content, render_docx_pages
 
 ## 数学建模论文推荐流程
 
-采用 python-docx 编程生成（默认）：`pf.new_project_document()` 创建文档，样式与页面由 `_ensure_paper_styles` + `setup_page` 统一注入，公式为 Word 原生 OMML；`save_document()` 从同一内容快照原子发布 DOCX，并同时落 `.tex`（LaTeX 源码交付件，不编译、不要求 LaTeX 环境）。论文生成不依赖 Word/LaTeX 模板。若需 pandoc 版 LaTeX→DOCX 转换，见 `latex2docx.py`（可选，非默认）。
+采用 python-docx 编程生成（默认）：`pf.new_project_document()` 创建文档，样式与页面由 `_ensure_paper_styles` + `setup_page` 统一注入，公式为 Word 原生 OMML；`save_document()` 从同一内容快照原子发布 DOCX，并同时落 `.tex`（LaTeX 源码交付件，不编译、不要求 LaTeX 环境）。论文生成不依赖 Word/LaTeX 模板与 pandoc。
 
 ```python
 from pathlib import Path
@@ -140,8 +140,7 @@ python scripts/office/validate.py "<PROJECT_ROOT>/完整论文.docx"
 - `python scripts/validate_paper_json.py <docx> --project-root <project>`：输出 `STRUCT_ISSUES`、`STRUCT_WARNINGS` 和 `METRICS`，不依赖终端中文显示。
 - `python scripts/export_paper_structure.py <docx> --output structure.json`：导出标题层级、图/表/公式位置和文档顺序。
 - `python scripts/extract_docx_content.py <docx> --asset-dir <tmp/assets> --manifest <tmp/docx_manifest.json> --render-dir <tmp/pages>`：无 OCR 提取赛题 DOCX 的原生文本、表格、WMF/EMF、VML 和 OLE 公式对象，并将完整页面渲染为 PNG 供视觉检查；提取的资产和页面均为临时文件，验收后删除。
-- `save_latex_first(builder, project_root, ...)`：可选 LaTeX-first 路径（需 pandoc）——先写 `.tex`，再经 pandoc 转 `.docx`。
 
-默认生成链为 python-docx 编程：`pf.new_document()` 逐章把整块正文一次性写入 → `pf.save_document()`（写暂存 DOCX → 重开校验 → 原子发布 DOCX）。LaTeX-first（`save_latex_first`）为可选路径，其 `PaperLatexBuilder` 同样按整章一次性写入。
+默认生成链为 python-docx 编程：`pf.new_document()` 逐章把整块正文一次性写入 → `pf.save_document()`（写暂存 DOCX → 重开校验 → 原子发布 DOCX）。LaTeX 源码由 `save_document` 与 DOCX 同快照导出。
 
 Windows 环境 checklist：覆盖前关闭正在打开目标 DOCX 的 Word。

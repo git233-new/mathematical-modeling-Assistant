@@ -1124,44 +1124,6 @@ def save_document(
                       'cleanup_preview': cleanup_preview}), file=sys.stderr, flush=True)
     return output
 
-def save_latex_first(
-    builder,
-    project_root,
-    filename='完整论文.docx',
-    overwrite=False,
-    reference_doc=None,
-    graphics_dir='results/图片',
-):
-    """LaTeX-first 保存：builder → .tex → pandoc → .docx。
-
-    与 save_document() 互斥使用。跳过 DOCX 级校验（force_black_fonts 等），
-    由 LaTeX 源码本身保证结构正确性。
-    """
-    from .latex2docx import latex_to_docx
-
-    project = Path(project_root).resolve()
-    if is_within(project, SKILL_ROOT):
-        raise ValueError('PROJECT_ROOT 不能位于 SKILL_ROOT 内部')
-    output = (project / filename).resolve()
-    if not is_within(output, project):
-        raise ValueError('论文输出必须位于 PROJECT_ROOT 内部')
-    if output.exists() and not overwrite:
-        raise FileExistsError(f'输出已存在，未覆盖: {output}')
-
-    tex_path = output.with_suffix('.tex')
-    if tex_path.exists() and not overwrite:
-        raise FileExistsError(f'输出已存在，未覆盖: {tex_path}')
-
-    output.parent.mkdir(parents=True, exist_ok=True)
-    builder.save_latex(tex_path, graphics_dir=graphics_dir)
-    if reference_doc is not None:
-        latex_to_docx(tex_path, output, reference_doc=reference_doc)
-    else:
-        latex_to_docx(tex_path, output)
-    print(json.dumps({'stage': 'delivered_latex_first',
-                      'tex': str(tex_path), 'docx': str(output)}),
-          file=sys.stderr, flush=True)
-    return output
 # endregion ── 保存与发布 ──
 
 # region ── 委托与重导出 ──
