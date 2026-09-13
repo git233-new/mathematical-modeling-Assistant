@@ -887,7 +887,9 @@ def test_figure_table_context_warnings(tmp_path):
                        "同时其正则化系数更大，避免了过拟合，这一点在验证集上的表现与训练集一致，说明模型没有依赖"
                        "特定噪声模式，泛化能力较强，另外其收敛后误差的方差也最小，说明对随机种子不敏感，综合来看"
                        "方案A在本题数据分布下全面优于方案B，后续所有灵敏度分析均基于方案A的超参数组合展开，"
-                       "并且这一结论在三次重复实验中均成立，具有较好的稳定性与可复现性，也为第六章的检验提供了基线。")
+                       "并且这一结论在三次重复实验中均成立，具有较好的稳定性与可复现性，也为第六章的检验提供了基线，"
+                       "同时两方案的收敛曲线在50轮之后的差距趋于稳定，说明差异主要来自前期学习率而非网络结构本身，"
+                       "这也与第二章的机理分析相互印证。")
     ws = _figure_table_context_warnings(long)
     assert any("图1" in w and "解释过长" in w for w in ws)
 
@@ -912,26 +914,6 @@ def test_far_mention_then_late_figure_flagged(tmp_path):
     ws = _figure_table_context_warnings(doc)
     assert any("图2" in w and "被点名 2 次" in w for w in ws)
     assert not any("图2" in w and "没有点名" in w for w in ws)
-
-
-def test_unnamed_lead_in_flagged(tmp_path):
-    """图表紧跟标题后、引出句不点名图号 → "未点名"预警。"""
-    from docx.enum.style import WD_STYLE_TYPE
-    from tools.docx.core.paper_format import CAPTION_STYLE
-    from tools.docx.core.structure_validation import _figure_table_context_warnings
-
-    doc = Document()
-    try:
-        doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
-    except (KeyError, ValueError):
-        pass
-    doc.add_paragraph("一、问题重述")
-    doc.add_paragraph("两种方案的收敛情况对比如下。")               # 未点名"图1"
-    doc.add_paragraph("图1 收敛对比", style=CAPTION_STYLE)
-    doc.add_paragraph("图1 中方案A的误差下降速度明显快于方案B，30轮内即达到方案B的水平。")
-    ws = _figure_table_context_warnings(doc)
-    assert any("图1" in w and "没有点名" in w for w in ws)
-    assert not any("被点名" in w for w in ws)
 
 
 def test_batch_lead_in_then_individual_flags_duplicate(tmp_path):

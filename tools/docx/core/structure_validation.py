@@ -1651,7 +1651,7 @@ def _figure_table_context_warnings(doc):
       引出句只写"对比如下"式指代，都属此列）；
     - 重复引出：向前回溯到上一张同类题注为止，本图号被 ≥2 个正文段点名
       （"第一次提及 + 引出句"双写、"总起 + 逐张引出"都属此列）。
-    图表后须有一段读出核心含义的解释（40–200 字）。符号说明表整条豁免（H10 禁止其表后写描述
+    图表后须有一段读出核心含义的解释（40–250 字，复杂图解释多、简单图解释少）。符号说明表整条豁免（H10 禁止其表后写描述
     段）；附录图表不检查。
     """
     symbol_tbl = _find_symbol_table(doc)
@@ -1727,7 +1727,7 @@ def _figure_table_context_warnings(doc):
                 issues.append(
                     f'{label} 被点名 {mentions} 次：删掉引出句以外的所有"{label}"字样（含更早分析文字里的预告），'
                     f'全文只在图表紧前的引出句点名一次，图表紧跟引出出现')
-        # 后解释：图——下一非空段；表——跳过表格实体后的第一非空段；须为核心含义解释（40–200 字、非题注）
+        # 后解释：图——下一非空段；表——跳过表格实体后的第一非空段；须为核心含义解释（40–250 字、非题注）
         after = seq[idx + 1:]
         skip_table = False
         nxt = None
@@ -1744,16 +1744,16 @@ def _figure_table_context_warnings(doc):
         if nxt is None or is_heading(nxt[1]):
             issues.append(f'{label} 缺少解释：图/表后需一段读数分析（关键数字/差异与原因），不能只写"如图N所示"或连续堆图')
         else:
-            # 解释长度校准：40 字以下读不出核心含义，200 字以上就是重复正文的大段分析
+            # 解释长度校准：40 字以下读不出核心含义，250 字以上是重复正文的大段分析（复杂图可长、简单图应短）
             expl_len = len(nxt[0])
             if expl_len < 40:
                 issues.append(
                     f'{label} 解释过少（仅 {expl_len} 字）：图/表后要读出核心含义——'
                     f'一句关键读数、一句差异/原因、落到本问结论')
-            elif expl_len > 200:
+            elif expl_len > 250:
                 issues.append(
                     f'{label} 解释过长（{expl_len} 字）：图后解释点到核心含义即可'
-                    f'（读数、原因、结论各一句），展开分析移到后续正文段落')
+                    f'（复杂图可多几句，简单图一两句），展开分析移到后续正文段落')
     return issues
 
 

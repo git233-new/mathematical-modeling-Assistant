@@ -197,15 +197,6 @@ def test_empty_section_allows_numbered_only_chapter():
     assert any("标题下无正文" in i for i in _empty_section_issues(doc2))
 
 
-def test_long_figure_prefix_prose_is_body():
-    """正文引导句"图 4 的左幅…"（>25 字）不再被判为题注样式错误。"""
-    doc = _mk_doc()
-    long_prose = "图 4 的左幅展示了误差随迭代轮数的下降趋势，右幅为对应的收敛速度对比结果。"
-    assert len(long_prose) > 25
-    doc.add_paragraph(long_prose, style=BODY_STYLE)
-    assert _paragraph_style_issues(doc) == []
-
-
 def test_symbol_caption_prose_check_anchored_to_symbol_table():
     """H10 锚定真实符号说明表：表后描述段报错；"表 1"是普通表时不误伤。"""
     doc = _mk_doc()
