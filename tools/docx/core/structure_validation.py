@@ -1143,12 +1143,12 @@ _ABSTRACT_QUESTION_RE = re.compile(r'问题\s*([一二三四五六七八九十0-
 
 
 def _symbol_orphan_issues(doc):
-    """符号表孤儿符号：符号表中列出的每个符号都必须在正文、公式或表格中出现。
+    """符号表符号必须出现在正文数学公式（OMML）中——仅写在文字/表格不算。
 
-    摆设符号（符号表有、全文不用）说明符号表与建模脱节——删除该行，或统一
-    正文使用的符号名。比对范围 = 全文档（正文段落 + 公式 OMML 文本 + 表格
-    单元格），排除符号表自身；符号按去空格后的子串匹配（下标在公式中拆分
-    的相邻 m:t 拼接后仍可命中）。
+    数学建模论文的符号表是公式变量表：每个列出的符号都应在模型公式中使用。
+    公式文本按 OMML m:t 拼接、去空格后做子串匹配（下标拆分的相邻 m:t
+    仍可命中，如 x_i ↔ "x"+"i"）。未在公式中出现 → 拒存：在模型公式里
+    使用该符号，或从符号表删除该行。
     """
     table = _find_symbol_table(doc)
     if table is None:
@@ -1160,26 +1160,17 @@ def _symbol_orphan_issues(doc):
             symbols.append(s)
     if not symbols:
         return []
-    corpus_parts = []
+    formula_text = ''
     for para in doc.paragraphs:
-        corpus_parts.append(para.text)
         for mt in para._p.findall('.//' + qn('m:t')):
-            corpus_parts.append(mt.text or '')
-    for t in doc.tables:
-        if t._tbl is table._tbl:  # 比较底层 XML 元素：doc.tables 每次迭代返回新代理对象
-            continue
-        for row in t.rows:
-            for cell in row.cells:
-                corpus_parts.append(cell.text)
-    corpus = re.sub(r'\s+', '', ''.join(corpus_parts))
+            formula_text += (mt.text or '')
+    formula_corpus = re.sub(r'\s+', '', formula_text)
     issues = []
     for s in symbols:
-        if s not in corpus:
-            issues.append(f'符号 {s} 列入符号说明表但未在正文、公式或表格中出现——'
-                          f'删除摆设符号，或统一正文使用的符号名')
+        if s not in formula_corpus:
+            issues.append(f'符号 {s} 未在正文数学公式中出现——符号表符号应在模型公式中使用'
+                          f'（仅写在文字或表格不算），请在公式里使用该符号，或从符号表删除该行')
     return issues
-
-
 def _abstract_paragraph_issues(doc):
     """摘要分问分段 + 量化结果硬闸门。
 
