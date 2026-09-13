@@ -1084,37 +1084,6 @@ def _docx_geometry_issues(doc):
     return issues
 
 
-def _appendix_size_issues(doc, project_root=None, *args, **kwargs):
-    paragraphs = list(doc.paragraphs)
-    start = next((i for i, p in enumerate(paragraphs) if _is_appendix_start(p.text)), None)
-    if start is None:
-        return ['缺少附录章节']
-    para_texts = [p.text for p in paragraphs[start + 1:] if p.text.strip()]
-    cell_texts = []
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                t = cell.text.strip()
-                if t:
-                    cell_texts.append(t)
-    appendix_text = '\n'.join(para_texts + cell_texts)
-    # 2026 口径：附录只保留附录A 支撑材料清单，代码不入论文（全部在 code/ 目录）。
-    # 支撑材料清单条目以"· "开头，由 pf.append_code_files 渲染（也可人工写"· "条目）。
-    if not appendix_text:
-        return ['附录为空；须含附录A 支撑材料清单（由 pf.append_code_files 自动生成）']
-    has_support = any(p.text.strip().startswith('· ') for p in paragraphs[start + 1:])
-    if not has_support:
-        # 附录A 清单合法形态：'· '条目段落，或两列三线表（表头：文件名 | 功能与作用；亦接受表头'文件/路径'）
-        for table in doc.tables:
-            cells = table.rows[0].cells if table.rows and table.rows[0].cells else []
-            if cells and cells[0].text.strip() in {'文件/路径', '文件名'}:
-                has_support = True
-                break
-    if not has_support:
-        return ['附录缺少附录A 支撑材料清单（由 pf.append_code_files 自动生成，或人工写"· "条目/两列清单表）']
-    return []
-
-
 # ===================== 图片/版面闸门（见 文档/图片闸门配置与绘图规范.md）=====================
 # H 类 = 硬闸门（error，阻断交付）；W 类 = 预警（前缀"预警："，不阻断）。
 
@@ -1434,28 +1403,6 @@ def _symbol_table_rows_issues(doc):
 
 
 # H12 附录表格闭合方框（与正文三线表区分）
-def _appendix_boxed_table_issues(doc):
-    issues = []
-    starts = [i for i, p in enumerate(doc.paragraphs) if _is_appendix_start(p.text)]
-    if not starts:
-        return []
-    appx_el = doc.paragraphs[starts[0]]._p
-    for ti, table in enumerate(doc.tables, start=1):
-        if doc.element.body.index(table._tbl) <= doc.element.body.index(appx_el):
-            continue
-        borders = table._tbl.tblPr.find(qn('w:tblBorders'))
-        vals = {}
-        if borders is not None:
-            vals = {node.tag.rsplit('}', 1)[-1]: node.get(qn('w:val')) for node in borders}
-        three_line = (
-            vals.get('top') == 'single' and vals.get('bottom') == 'single'
-            and vals.get('left') in (None, 'none', 'nil') and vals.get('right') in (None, 'none', 'nil')
-        )
-        if not three_line:
-            issues.append(f'附录表 {ti} 须为三线表（附录只保留支撑材料清单，仅允许三线表）')
-    return issues
-
-
 # H13 题注格式统一（图N/表N 后须有分隔符：冒号或空格，全文统一风格）
 def _caption_format_issues(doc):
     issues = []
@@ -2270,7 +2217,6 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_body_filename_issues(doc))
     errors.extend(_symbol_variant_issues(doc))
     errors.extend(_symbol_table_issues(doc))
-    errors.extend(_appendix_size_issues(doc, project_root))
     # 图片/版面硬闸门（见 文档/图片闸门配置与绘图规范.md）
     errors.extend(_abstract_paragraph_issues(doc))
     errors.extend(_section_order_issues(doc))
@@ -2284,12 +2230,10 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_claim_strength_issues(doc))
     errors.extend(_symbol_caption_no_prose_issues(doc))
     errors.extend(_symbol_table_rows_issues(doc))
-    errors.extend(_appendix_boxed_table_issues(doc))
     errors.extend(_caption_format_issues(doc))
     errors.extend(_meta_narrative_issues(doc))
     errors.extend(_anonymity_issues(doc))
     errors.extend(_empty_section_issues(doc))
-    errors.extend(_appendix_numbering_issues(doc))
     errors.extend(_abstract_opening_issues(doc))
     errors.extend(_abstract_body_number_consistency_issues(doc))
     errors.extend(_conclusion_new_number_issues(doc))
@@ -2305,17 +2249,23 @@ def _empty_section_issues(doc):
     标题后紧跟下一级子标题不算空（如"七、模型评价"下直接是"7.1 优点"编号列表，
     该章只允许编号条目，无独立正文段）：穿过下级标题继续向后找，下级的正文
     即视为本节的实质内容；只有遇同级/上级标题仍无正文才判空。
+    附录不设规定：附录区（附录标题起）不做空节检测。
     """
     _PLACEHOLDER = re.compile(r'XXX|xxx|TODO|待填|待补|占位', re.IGNORECASE)
     level_of = {HEADING1_STYLE: 1, HEADING2_STYLE: 2, HEADING3_STYLE: 3}
     heading_styles = set(level_of)
     issues = []
     paras = list(doc.paragraphs)
+    in_appendix = False
     for i, p in enumerate(paras):
         style = p.style.name if p.style else ''
         if style not in heading_styles:
             continue
         text = p.text.strip()
+        if re.match(r'^附录$', text):
+            in_appendix = True
+        if in_appendix:
+            continue
         if not text:
             continue
         if _PLACEHOLDER.search(text):
@@ -2335,16 +2285,6 @@ def _empty_section_issues(doc):
                 break
         if not has_body:
             issues.append(f'标题下无正文: "{text[:30]}"——补充内容或删除空标题')
-    return issues
-
-
-def _appendix_numbering_issues(doc):
-    """附录不得编号（如"九、附录"属层级错位）。"""
-    issues = []
-    for p in doc.paragraphs:
-        text = p.text.strip()
-        if re.match(r'^[一二三四五六七八九十]+、\s*附录', text):
-            issues.append(f'附录不得编号: "{text}"——去掉序号，直接写"附录"')
     return issues
 
 

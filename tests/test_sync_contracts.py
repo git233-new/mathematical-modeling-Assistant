@@ -14,8 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 
-from tools.docx.core.paper_format import append_code_files, HEADING3_STYLE
-from tools.docx.core.structure_validation import _appendix_size_issues
+from tools.docx.core.paper_format import HEADING3_STYLE
 from tools.project_ops.project_cleanup import CODE_KEEP_RE, PROTECTED_ITEMS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -144,52 +143,3 @@ def _mk_doc():
 
 
 
-class TestAppendCodeFilesAppendixAOnly:
-    def test_appendix_a_placeholder_rendered(self, tmp_path):
-        """附录A 占位提示渲染。"""
-        doc = _mk_doc()
-        append_code_files(doc, str(tmp_path))
-        headings = [p.text for p in doc.paragraphs if p.text]
-        assert '附录A 支撑材料' in headings
-        texts = [p.text for p in doc.paragraphs]
-        assert any('code/' in t and 'results/' in t for t in texts)
-
-
-class TestAppendixSupportMaterialsGate:
-    def _mkdoc_with_appendix(self, paras=(), table_rows=None):
-        doc = _mk_doc()
-        try:
-            doc.add_paragraph("附录", style="一级标题")
-        except (KeyError, ValueError):
-            doc.add_paragraph("附录")
-        for t in paras:
-            doc.add_paragraph(t)
-        if table_rows:
-            tb = doc.add_table(rows=len(table_rows), cols=len(table_rows[0]))
-            for ri, row in enumerate(table_rows):
-                for ci, val in enumerate(row):
-                    tb.rows[ri].cells[ci].text = val
-        return doc
-
-    def test_empty_appendix_fatal(self, tmp_path):
-        doc = self._mkdoc_with_appendix()
-        issues = _appendix_size_issues(doc, str(tmp_path))
-        assert issues and "支撑材料" in issues[0]
-
-    def test_text_without_support_list_fatal(self, tmp_path):
-        doc = self._mkdoc_with_appendix(paras=["这里是附录文字说明"])
-        issues = _appendix_size_issues(doc, str(tmp_path))
-        assert issues and "支撑材料" in issues[0]
-
-    def test_support_materials_table_passes(self, tmp_path):
-        doc = self._mkdoc_with_appendix(table_rows=[
-            ["文件名", "功能与作用"],
-            ["Q1_求解.py", "第1问求解脚本"],
-            ["q1_结果.csv", "第1问结果数据"],
-        ])
-        assert _appendix_size_issues(doc, str(tmp_path)) == []
-
-    def test_support_materials_dot_items_pass(self, tmp_path):
-        doc = self._mkdoc_with_appendix(paras=[
-            "· Q1_求解.py（第1问求解脚本）", "· q1_结果.csv（第1问结果数据）"])
-        assert _appendix_size_issues(doc, str(tmp_path)) == []

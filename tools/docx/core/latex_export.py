@@ -12,7 +12,7 @@ DOCX 权威见 ``文档/样式统一规定.md``；本导出器只做结构级映
   无侧通道时回退拼接 m:oMath 文本，不转义）
 - 图片           → figure 环境 + \\includegraphics（文件名来自 DOCX 关系部件）
 - 题注           → \\caption*{图N …}，编号文字原样保留
-- 三线表         → booktabs 表格（附录仅支撑材料清单，无代码方框表）
+- 三线表         → booktabs 表格
 - 参考文献       → thebibliography 环境
 """
 import re

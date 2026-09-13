@@ -54,7 +54,7 @@ from .rendering import (
 )
 BODY_LINE_SPACING = 1.25  # 全文统一行距：多倍 1.25（float 赋值即 MULTIPLE）
 FORMULA_CONTEXT_GAP_PT = 27  # 公式与上下文段间距留白（磅），与行距解耦
-_REQUIRED_HEADING1_CANONICAL = {'问题重述': '一、问题重述', '问题分析': '二、问题分析', '模型假设': '三、模型假设', '符号说明': '四、符号说明', '模型建立': '五、模型建立与求解', '模型检验': '六、模型检验与分析', '模型优缺点': '七、模型评价与改进', 'AI工具使用声明': 'AI工具使用声明', '参考文献': '参考文献', '附录': '附录'}
+_REQUIRED_HEADING1_CANONICAL = {'问题重述': '一、问题重述', '问题分析': '二、问题分析', '模型假设': '三、模型假设', '符号说明': '四、符号说明', '模型建立': '五、模型建立与求解', '模型检验': '六、模型检验与分析', '模型优缺点': '七、模型评价与改进', 'AI工具使用声明': 'AI工具使用声明', '参考文献': '参考文献'}
 # endregion ── 常量与导入 ──
 
 # region ── 页面设置与样式 ──
@@ -862,17 +862,6 @@ def three_line_table(doc, rows):
             _reorder_tcpr(cell._tc.get_or_add_tcPr())
     _reorder_tblpr(table._tbl.tblPr)
     return table
-
-
-def append_code_files(doc, project_root):
-    """渲染论文附录：只写附录A 支撑材料清单。
-
-    各小问核心代码全部保留在 PROJECT_ROOT/code/ 目录
-    （Q<序号>_*.py + solve_common.py 等），此处仅留空提示。
-    """
-    heading2(doc, '附录A 支撑材料')
-    paragraph(doc, '（可运行源码与数据文件清单见 code/ 与 results/ 目录；核心代码以文件形式保留于 code/ 目录，不随论文排版）',
-              style_name=BODY_STYLE)
 
 
 def _assign_three_line_widths(table, doc):

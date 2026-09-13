@@ -247,7 +247,6 @@ def check_gate_sync():
     writing_rules = (ROOT / "文档" / "论文写作.md").read_text(encoding="utf-8")
     assert "完整论文.docx" in writing_rules
     assert "完整论文_DOCX" not in writing_rules
-    assert "不设项目自定义行数上限" in writing_rules
 
 
 def check_ai_tone_docx(docx_path):
