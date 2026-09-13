@@ -202,7 +202,7 @@ def make_figure(output_stem: Path) -> None:
     all_data = np.vstack([train, test])
     corr = spearman_corr(all_data)
 
-    fig = plt.figure(figsize=(13.8, 4.6))
+    fig = plt.figure(figsize=(6.3, 2.1))
     cax = fig.add_axes([0.024, 0.165, 0.018, 0.72])
     ax_corr = fig.add_axes([0.075, 0.135, 0.355, 0.77])
     draw_lower_corr(ax_corr, corr)
@@ -235,7 +235,7 @@ def make_figure(output_stem: Path) -> None:
     ]
     fig.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.725, 0.022), ncol=2, frameon=False)
 
-    save_panel(fig, output_stem)
+    save_panel(fig, output_stem, print_width_cm=14)
 
 
 def main() -> None:

@@ -251,7 +251,7 @@ def plot_multiclass_shap_combo(
 
     n_features = len(FEATURES)
     y_positions = np.arange(n_features)
-    fig = plt.figure(figsize=(11.8, 7.2), constrained_layout=False)
+    fig = plt.figure(figsize=(6.3, 3.84), constrained_layout=False)
 
     left, bottom, width, height = 0.075, 0.165, 0.820, 0.735
     ax_imp = fig.add_axes([left, bottom, width, height])
@@ -263,7 +263,7 @@ def plot_multiclass_shap_combo(
     _add_feature_colorbar(fig, norm, bottom, height)
     _add_class_legend(fig)
 
-    save_panel(fig, output_stem)
+    save_panel(fig, output_stem, print_width_cm=14)
 
 
 

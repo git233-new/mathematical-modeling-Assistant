@@ -147,7 +147,7 @@ def add_header_and_caption(fig: plt.Figure) -> None:
 
 def make_figure(output_stem: Path) -> None:
     configure_matplotlib()
-    fig = plt.figure(figsize=(10.8, 5.7))
+    fig = plt.figure(figsize=(6.3, 3.32))
 
     lefts = [0.115, 0.405, 0.695]
     labels = ["a", "b", "c"]
@@ -158,7 +158,7 @@ def make_figure(output_stem: Path) -> None:
 
     add_header_and_caption(fig)
 
-    save_panel(fig, output_stem)
+    save_panel(fig, output_stem, print_width_cm=14)
 
 
 def main() -> None:

@@ -715,10 +715,9 @@ def _in_assumption_section(doc):
 def _validate_assumption_format(text):
     if not re.match(r'^假设\d+[:：]', text):
         raise ValueError(f'假设须以"假设N："开头，当前："{text[:30]}"')
-    if '依据' not in text:
-        raise ValueError(f'"{text[:20]}..." 缺少"依据："环节（假设三链：依据→检验→回退）')
-    if '检验' not in text:
-        raise ValueError(f'"{text[:20]}..." 缺少"检验："环节（假设三链：依据→检验→回退）')
+    if re.search(r'题目(?:给出|规定|所给|要求)|由题意|根据题目', text):
+        raise ValueError(f'"{text[:20]}..." 疑似复述题目规定条件——模型假设写所选模型/算法采用的假设，'
+                         f'题目给定条件在问题重述与条件使用中交代，不列为假设')
     if len(text) > 150:
         raise ValueError(f'"{text[:20]}..." 过长（{len(text)}字）——假设须短句，不写长段解释')
 

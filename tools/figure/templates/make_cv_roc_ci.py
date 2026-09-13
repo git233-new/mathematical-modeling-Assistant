@@ -117,7 +117,7 @@ def make_figure(output_stem: Path) -> None:
     configure_matplotlib()
     grid = np.linspace(0.0, 1.0, 101)
 
-    fig = plt.figure(figsize=(7.4, 7.8))
+    fig = plt.figure(figsize=(6.3, 6.64))
     ax = fig.add_axes([0.17, 0.255, 0.70, 0.70])
 
     legend_handles = []
@@ -179,7 +179,7 @@ def make_figure(output_stem: Path) -> None:
 
     add_caption_and_table(fig)
 
-    save_panel(fig, output_stem)
+    save_panel(fig, output_stem, print_width_cm=14)
 
 
 def main() -> None:

@@ -251,7 +251,7 @@ def make_figure(output_stem: Path) -> None:
     theta = np.deg2rad(start_angle + (np.arange(n_items) + 0.5) * step_angle)
     width = np.deg2rad(step_angle * 0.96)
 
-    fig = plt.figure(figsize=(13.6, 12.6), facecolor="white")
+    fig = plt.figure(figsize=(6.3, 5.84), facecolor="white")
     ax = fig.add_axes([0.005, 0.025, 0.805, 0.950], projection="polar")
     ax.set_theta_zero_location("E")
     ax.set_theta_direction(1)
@@ -285,7 +285,7 @@ def make_figure(output_stem: Path) -> None:
     add_center_legend(fig)
     add_trait_colorbar_stack(fig, cmaps, norm)
 
-    save_panel(fig, output_stem, pad_inches=0.02)
+    save_panel(fig, output_stem, pad_inches=0.02, print_width_cm=14)
 
 
 def main() -> None:

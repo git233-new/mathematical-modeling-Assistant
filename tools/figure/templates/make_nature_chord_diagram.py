@@ -256,7 +256,7 @@ def make_figure(output_stem: Path) -> None:
     flows = build_flows(NODES)
     color_lookup = {node.label: node.color for node in NODES}
 
-    fig, ax = plt.subplots(figsize=(10.6, 10.6), facecolor="white")
+    fig, ax = plt.subplots((6.3, 6.3), facecolor="white")
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_xlim(-1.38, 1.38)
@@ -293,7 +293,7 @@ def make_figure(output_stem: Path) -> None:
     draw_sector_ring(ax, layout, NODES)
     draw_labels(ax, layout, NODES)
 
-    save_panel(fig, output_stem, pad_inches=0.03)
+    save_panel(fig, output_stem, pad_inches=0.03, print_width_cm=14)
 
 
 def main() -> None:

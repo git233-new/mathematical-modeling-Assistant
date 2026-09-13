@@ -1169,15 +1169,32 @@ def _abstract_paragraphs(doc):
     return list(doc.paragraphs)[b[0] + 1:b[1]]
 
 
-# H1 摘要三段式
-def _abstract_three_part_issues(doc):
+# H1 摘要按问题分段
+_ABSTRACT_QUESTION_RE = re.compile(r'问题\s*([一二三四五六七八九十0-9]+)')
+
+
+def _abstract_paragraph_issues(doc):
+    """摘要分问分段 + 量化结果硬闸门。
+
+    - 每个问题独立成段：任一段落同时覆盖两个及以上"问题N"即拒存；
+    - 摘要点名 >=2 个问题时，正文段数不得少于问题数（每问至少一段）；
+    - 至少一个带单位/百分比的量化指标，避免"效果良好"式空话。
+    """
     paras = _abstract_paragraphs(doc)
     if not paras:
         return []
     non_empty = [p for p in paras if p.text.strip()]
-    if len(non_empty) != 3:
-        return [f'摘要须为三段式（虎头/猪肚/豹尾），当前 {len(non_empty)} 段']
-    # H1b 摘要须含量化结果：至少一个带单位/百分比的指标或关键数值，
+    issues = []
+    marker_count = {}
+    for idx, p in enumerate(non_empty, start=1):
+        marks = sorted(set(_ABSTRACT_QUESTION_RE.findall(p.text)))
+        if len(marks) >= 2:
+            issues.append(f'摘要第 {idx} 段同时覆盖问题{"、问题".join(marks)}——按问题分段，每问独立一段')
+        for m in marks:
+            marker_count.setdefault(m, idx)
+    if len(marker_count) >= 2 and len(non_empty) < len(marker_count):
+        issues.append(f'摘要点名了 {len(marker_count)} 个问题但仅 {len(non_empty)} 段——每问独立成段')
+    # 摘要须含量化结果：至少一个带单位/百分比的指标或关键数值，
     # 避免"效果良好""精度提升"等空话。纯理论赛题可用准确率/误差上限等量化描述。
     text = '\n'.join(p.text for p in paras)
     quantified = re.findall(
@@ -1186,8 +1203,29 @@ def _abstract_three_part_issues(doc):
         text,
     )
     if not quantified:
-        return ['摘要缺少量化结果（指标/单位/数值），请给出具体数字而非"效果良好"等空话']
-    return []
+        issues.append('摘要缺少量化结果（指标/单位/数值），请给出具体数字而非"效果良好"等空话')
+    return issues
+
+
+def _section_order_issues(doc):
+    """一级标题顺序硬闸门：AI工具使用声明（如有）→ 参考文献 → 附录。"""
+    by_name = {}
+    for i, p in enumerate(doc.paragraphs):
+        t = re.sub(r'\s+', '', p.text.strip())
+        if t in {'AI工具使用声明', 'AI工具使用详情'} and 'AI工具使用声明' not in by_name:
+            by_name['AI工具使用声明'] = i
+        elif t == '参考文献' and '参考文献' not in by_name:
+            by_name['参考文献'] = i
+        elif t == '附录' and '附录' not in by_name:
+            by_name['附录'] = i
+    issues = []
+    ref, app = by_name.get('参考文献'), by_name.get('附录')
+    if ref is not None and app is not None and ref > app:
+        issues.append('章节顺序错误：参考文献必须在附录之前（AI工具使用声明 → 参考文献 → 附录）')
+    ai = by_name.get('AI工具使用声明')
+    if ai is not None and ref is not None and ai > ref:
+        issues.append('章节顺序错误：AI工具使用声明必须在参考文献之前')
+    return issues
 
 
 # H2 摘要不含图、不含英文翻译
@@ -1335,10 +1373,9 @@ def _model_assumption_issues(doc):
     issues = []
     for p in assumes:
         text = p.text.strip()
-        if '依据' not in text:
-            issues.append(f'"{text[:20]}..." 缺少"依据："环节（假设三链：依据→检验→回退）')
-        if '检验' not in text:
-            issues.append(f'"{text[:20]}..." 缺少"检验："环节（假设三链：依据→检验→回退）')
+        if re.search(r'题目(?:给出|规定|所给|要求)|由题意|根据题目', text):
+            issues.append(f'"{text[:20]}..." 疑似复述题目规定条件——模型假设写所选模型/算法采用的假设，'
+                          f'题目给定条件在问题重述与条件使用中交代，不列为假设')
         if len(text) > 150:
             issues.append(f'"{text[:20]}..." 过长（{len(text)}字）——假设须短句，不写长段解释')
     return issues
@@ -2249,7 +2286,8 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_symbol_table_issues(doc))
     errors.extend(_appendix_size_issues(doc, project_root))
     # 图片/版面硬闸门（见 文档/图片闸门配置与绘图规范.md）
-    errors.extend(_abstract_three_part_issues(doc))
+    errors.extend(_abstract_paragraph_issues(doc))
+    errors.extend(_section_order_issues(doc))
     errors.extend(_abstract_no_figure_issues(doc))
     errors.extend(_abstract_one_page_issues(doc))
     errors.extend(_model_section_formula_issues(doc))

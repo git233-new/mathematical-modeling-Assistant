@@ -35,7 +35,6 @@ FIGURES = {
     "prediction_marginal_grid": {"title": "预测边际分布网格", "desc": "预测 vs 实际边际直方图"},
     "rf_tpe_surface": {"title": "RF-TPE 超参曲面", "desc": "随机森林 + TPE 参数响应面"},
     "taylor_diagram": {"title": "泰勒图", "desc": "模型性能综合评估"},
-    "urban_park_cooling_combo": {"title": "城市公园降温组合图", "desc": "降温强度 / 范围 / 指数 / 梯度组合"},
 }
 
 

@@ -197,7 +197,7 @@ def draw_scatter_panel(
 
 def make_figure(output_stem: Path) -> None:
     configure_matplotlib()
-    fig = plt.figure(figsize=(10.4, 8.2))
+    fig = plt.figure(figsize=(6.3, 4.97))
     outer = fig.add_gridspec(
         2,
         2,
@@ -212,7 +212,7 @@ def make_figure(output_stem: Path) -> None:
     for idx, panel in enumerate(PANELS):
         draw_model_panel(fig, outer[idx // 2, idx % 2], panel, seed=PANEL_SEED_BASE + idx * PANEL_SEED_STEP)
 
-    save_panel(fig, output_stem)
+    save_panel(fig, output_stem, print_width_cm=14)
 
 
 def main() -> None:

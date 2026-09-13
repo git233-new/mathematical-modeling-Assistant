@@ -265,7 +265,7 @@ def _add_raincloud_legend(fig) -> None:
 def make_figure(output_stem: Path) -> None:
     configure_matplotlib()
     data = synthetic_sepal_width_data()
-    fig, ax = plt.subplots(figsize=(8.2, 7.8))
+    fig, ax = plt.subplots(figsize=(6.3, 5.99))
     fig.subplots_adjust(left=0.13, right=0.78, bottom=0.22, top=0.90)
 
     positions = _raincloud_positions()
@@ -274,7 +274,7 @@ def make_figure(output_stem: Path) -> None:
     _style_axes_and_labels(ax)
     _add_raincloud_legend(fig)
 
-    save_panel(fig, output_stem)
+    save_panel(fig, output_stem, print_width_cm=14)
 
 
 

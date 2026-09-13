@@ -138,7 +138,7 @@ def make_figure(output_stem: Path) -> None:
     cmap = mpl.colormaps[CMAP_CORR]
     norm = correlation_norm()
 
-    fig = plt.figure(figsize=(10.8, 10.2))
+    fig = plt.figure(figsize=(6.3, 5.95))
     grid = fig.add_gridspec(
         n_vars,
         n_vars,
@@ -167,7 +167,7 @@ def make_figure(output_stem: Path) -> None:
     cax = fig.add_axes([0.925, 0.145, 0.028, 0.79])
     correlation_colorbar(fig, cax, tickfmt="{:.2f}", labelsize=FONT_SMALL, tick_width=0.45, linewidth=0.45)
 
-    save_panel(fig, output_stem)
+    save_panel(fig, output_stem, print_width_cm=14)
 
 
 def main() -> None:

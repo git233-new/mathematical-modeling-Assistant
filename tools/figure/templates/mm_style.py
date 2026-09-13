@@ -192,13 +192,78 @@ def verify_outputs(output_stem) -> None:
         raise RuntimeError(f"图表输出为空：{output_stem} 的 {empty}")
 
 
-def save_panel(fig, output_stem, *, pad_inches: float | None = None) -> None:
-    """统一三格式导出（png 300dpi / pdf / svg）+ 关闭 fig + 输出非空校验。
+DEFAULT_PRINT_WIDTH_CM = 12.0  # 版面插图默认宽 12cm（文档/样式统一规定.md §六）
 
-    所有 figure 共用，取代各模板手写 ``mkdir + 3×savefig + close``。
+
+MIN_EFFECTIVE_FONT_PT = 9.0  # 版面有效字号下限（11pt 基线经缩放后的兜底线）
+
+
+def effective_font_pt(fig, print_width_cm: float = DEFAULT_PRINT_WIDTH_CM) -> float:
+    """图内文字的版面有效字号：设定字号 × 版面插入宽/画布宽。
+
+    Word 以固定宽度（默认 12cm ≈ 4.72 英寸）插图并整图缩放——画布 13.8 英寸宽的
+    11pt 文字印出来只有约 3.8pt（"图内字体一直很小"的根因）。画布宽度必须与
+    版面插入宽度一致（单栏 12cm≈4.7in，通栏 14cm≈5.5in）。
     """
     import matplotlib.pyplot as plt
 
+    fig_w = float(fig.get_size_inches()[0])
+    target = float(print_width_cm) / 2.54
+    if target <= 0 or fig_w <= 0:
+        return 0.0
+    return float(plt.rcParams["font.size"]) * target / fig_w
+
+
+def ensure_print_font_size(fig, print_width_cm: float = DEFAULT_PRINT_WIDTH_CM,
+                           min_pt: float = MIN_EFFECTIVE_FONT_PT) -> float:
+    """有效字号闸门：低于 min_pt 即抛错，要求按版面宽度重设 figsize。"""
+    import matplotlib.pyplot as plt
+
+    eff = effective_font_pt(fig, print_width_cm)
+    if eff < min_pt:
+        fig_w = float(fig.get_size_inches()[0])
+        suggest = (float(plt.rcParams["font.size"]) * (float(print_width_cm) / 2.54) / min_pt)
+        raise ValueError(
+            f"图内文字版面有效字号仅 {eff:.1f}pt（<{min_pt}pt）——画布 {fig_w:.1f} 英寸宽、"
+            f"按 {print_width_cm}cm 插入会整图缩小。请把 figsize 宽度改为版面插入宽度"
+            f"（单栏 12cm≈4.7in，通栏 14cm≈5.5in，本图建议 ≤{suggest:.1f}in）后按该尺寸设计布局；"
+            f"确认按更大版面插入时可显式传 print_width_cm=实际插入宽度")
+    return eff
+
+
+def ensure_no_overlap(fig, *, ratio: float = 0.35, min_area_px: float = 24.0) -> None:
+    """导出前遮挡检查：可见文本两两包围盒重叠即抛错（不许带遮挡出图）。"""
+    import sys
+
+    try:
+        from figure_safety import text_overlap_issues
+    except ImportError:
+        runtime_dir = Path(__file__).resolve().parents[1] / "runtime"
+        if str(runtime_dir) not in sys.path:
+            sys.path.insert(0, str(runtime_dir))
+        from figure_safety import text_overlap_issues
+    issues = text_overlap_issues(fig, ratio=ratio, min_area_px=min_area_px)
+    if issues:
+        detail = "；".join("'{}'×'{}'".format(a, b) for a, b, _ in issues[:6])
+        raise ValueError(
+            "图内文本遮挡 {} 处：{}——调整布局/字号/刻度密度后重出；"
+            "确认无碍可在导出时传 check_overlap=False 豁免单图".format(len(issues), detail))
+
+
+def save_panel(fig, output_stem, *, pad_inches: float | None = None,
+               print_width_cm: float = DEFAULT_PRINT_WIDTH_CM,
+               check_overlap: bool = True) -> None:
+    """统一三格式导出（png 300dpi / pdf / svg）+ 关闭 fig + 输出非空校验。
+
+    所有 figure 共用，取代各模板手写 ``mkdir + 3×savefig + close``。
+    导出前自动：① 按版面宽度缩放字号（有效字号达标）；② 文本遮挡检查
+    （check_overlap=False 可对单图豁免）。
+    """
+    import matplotlib.pyplot as plt
+
+    ensure_print_font_size(fig, print_width_cm)
+    if check_overlap:
+        ensure_no_overlap(fig)
     output_stem.parent.mkdir(parents=True, exist_ok=True)
     kwargs = {"bbox_inches": "tight"}
     if pad_inches is not None:
@@ -219,6 +284,8 @@ def finalize_figure(
     pad: float = 1.0,
     bbox_inches: str | None = "tight",
     close: bool = True,
+    print_width_cm: float = DEFAULT_PRINT_WIDTH_CM,
+    check_overlap: bool = True,
 ) -> list[Path]:
     """收紧布局后导出出版级图件。
 
@@ -238,6 +305,9 @@ def finalize_figure(
         raise ValueError("formats 不能为空")
 
     fig.tight_layout(pad=pad)
+    ensure_print_font_size(fig, print_width_cm)
+    if check_overlap:
+        ensure_no_overlap(fig)
     outputs: list[Path] = []
     for fmt in normalized:
         path = output_stem.with_suffix(f".{fmt}")

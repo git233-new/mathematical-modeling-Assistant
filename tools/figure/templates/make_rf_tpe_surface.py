@@ -24,7 +24,7 @@ def make_figure(output_stem: Path) -> None:
     noise_term = 0.015 * np.abs(X - 12) / 40.0
     Z = np.clip(base + depth_term + tree_term + noise_term, 0.37, 0.66)
 
-    fig = plt.figure(figsize=(9.0, 7.0))
+    fig = plt.figure(figsize=(6.3, 4.9))
     ax = fig.add_subplot(111, projection="3d")
     surf = ax.plot_surface(X, Y, Z, cmap="viridis", linewidth=0.3, antialiased=True, rstride=1, cstride=1)
 
@@ -55,7 +55,7 @@ def make_figure(output_stem: Path) -> None:
     cbar.ax.tick_params()
     cbar.outline.set_linewidth(0.75)
 
-    save_panel(fig, output_stem)
+    save_panel(fig, output_stem, print_width_cm=14)
 
 
 def main() -> None:

@@ -18,7 +18,6 @@ SCRIPT_MAP = {
     "rf-tpe-surface": "make_rf_tpe_surface.py",
     "grouped-corr-split-violin": "make_grouped_corr_split_violin.py",
     "grouped-circular-heatmap": "make_grouped_circular_heatmap.py",
-    "urban-park-cooling-combo": "make_urban_park_cooling_combo.py",
     "nature-chord-diagram": "make_nature_chord_diagram.py",
 }
 
@@ -37,7 +36,6 @@ ALIASES = {
     "tpe": "rf-tpe-surface",
     "split-violin": "grouped-corr-split-violin",
     "circular-heatmap": "grouped-circular-heatmap",
-    "urban-cooling": "urban-park-cooling-combo",
     "chord": "nature-chord-diagram",
     "circos": "nature-chord-diagram",
 }
@@ -56,8 +54,6 @@ CJK_HINTS = {
     "曲面": "rf-tpe-surface",
     "半边小提琴": "grouped-corr-split-violin",
     "环形热图": "grouped-circular-heatmap",
-    "城市公园": "urban-park-cooling-combo",
-    "堆叠": "urban-park-cooling-combo",
     "和弦": "nature-chord-diagram",
     "circos": "nature-chord-diagram",
 }

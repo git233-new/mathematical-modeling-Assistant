@@ -1,6 +1,6 @@
 """图表模板生成烟雾测试（不依赖外部服务）。
 
-锁定 make_urban_park_cooling_combo.make_figure 的「绘图 + 输出校验」行为：
+锁定 make_paired_raincloud.make_figure 的「绘图 + 输出校验」行为（含有效字号与文本遮挡闸门）：
 - 调用后必须生成 png/pdf/svg 三种格式；
 - 每个文件必须存在且非空（即 _verify_outputs_exist 不抛错）。
 """
@@ -18,13 +18,13 @@ import pytest
 _REPO = Path(__file__).resolve().parents[1]
 _RUNTIME = _REPO / "tools" / "figure" / "runtime"
 _TEMPLATES = _REPO / "tools" / "figure" / "templates"
-_TEMPLATE = _TEMPLATES / "make_urban_park_cooling_combo.py"
+_TEMPLATE = _TEMPLATES / "make_paired_raincloud.py"
 
 
 def _load_module() -> object:
     sys.path.insert(0, str(_TEMPLATES))
     try:
-        spec = importlib.util.spec_from_file_location("make_urban_park_cooling_combo", _TEMPLATE)
+        spec = importlib.util.spec_from_file_location("make_paired_raincloud", _TEMPLATE)
         assert spec is not None and spec.loader is not None
         module = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = module
@@ -51,7 +51,7 @@ def _load_script_module(name: str, base: Path | None = None) -> object:
 def test_make_figure_generates_nonempty_outputs() -> None:
     mod = _load_module()
     with TemporaryDirectory() as tmp:
-        stem = Path(tmp) / "smoke_urban_park"
+        stem = Path(tmp) / "smoke_raincloud"
         mod.make_figure(stem)
         for suffix in (".png", ".pdf", ".svg"):
             out = stem.with_suffix(suffix)
@@ -59,13 +59,12 @@ def test_make_figure_generates_nonempty_outputs() -> None:
             assert out.stat().st_size > 0, f"输出文件为空：{out}"
 
 
-@pytest.mark.skipif(not _TEMPLATE.exists(), reason="图表模板文件缺失")
 def test_verify_outputs_exist_detects_missing() -> None:
-    mod = _load_module()
+    style = _load_script_module("mm_style", _TEMPLATES)
     with TemporaryDirectory() as tmp:
         stem = Path(tmp) / "smoke_missing"
         with pytest.raises(RuntimeError, match="未创建|为空"):
-            mod._verify_outputs_exist(stem)
+            style.verify_outputs(stem)
 
 
 def test_publication_helpers_export_and_validate_shapes() -> None:
