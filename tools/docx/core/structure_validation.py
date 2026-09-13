@@ -1104,8 +1104,7 @@ def _appendix_size_issues(doc, project_root=None, *args, **kwargs):
         return ['附录为空；须含附录A 支撑材料清单（由 pf.append_code_files 自动生成）']
     has_support = any(p.text.strip().startswith('· ') for p in paragraphs[start + 1:])
     if not has_support:
-        # 附录A 清单合法形态：'· '条目段落，或 _appendix_support_materials 生成的三线表
-        # （两列表头：文件名 | 功能与作用；兼容旧版表头'文件/路径'）
+        # 附录A 清单合法形态：'· '条目段落，或两列三线表（表头：文件名 | 功能与作用；兼容旧版表头'文件/路径'）
         for table in doc.tables:
             cells = table.rows[0].cells if table.rows and table.rows[0].cells else []
             if cells and cells[0].text.strip() in {'文件/路径', '文件名'}:

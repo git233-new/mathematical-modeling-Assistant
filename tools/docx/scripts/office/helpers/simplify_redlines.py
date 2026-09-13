@@ -19,8 +19,6 @@ try:
 except ImportError:  # office/helpers 裸目录运行（unpack.py 的 flat 导入方式）
     from dom_utils import find_elements, is_element
 
-WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-
 
 def simplify_redlines(input_dir: str) -> tuple[int, str]:
     doc_xml = Path(input_dir) / "word" / "document.xml"

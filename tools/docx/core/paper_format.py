@@ -301,7 +301,6 @@ def _claim_template_slot(doc, role, text):
     chosen['state'] = 'used'
     doc._mathmodeling_insert_cursor = chosen['element']
     return paragraph
-_CN_CHAPTER_NUM = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
 def _appendix_is_active(doc):
     for paragraph in reversed(doc.paragraphs):
         text = paragraph.text.strip()

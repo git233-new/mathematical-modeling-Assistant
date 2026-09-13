@@ -271,8 +271,6 @@ def draw_panel_a(ax: plt.Axes) -> None:
     style_axis(ax)
 
 
-FIGURE_SUFFIXES = (".png", ".pdf", ".svg")
-
 
 def _verify_outputs_exist(output_stem: Path) -> None:
     """生成后校验输出文件；统一委托 mm_style.verify_outputs。"""

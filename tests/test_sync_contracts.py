@@ -144,18 +144,6 @@ def _mk_doc():
     return doc
 
 
-def _spss_csv(tmp_path, stats, tool="SPSS 27 手动"):
-    import csv
-    datadir = tmp_path / "results" / "数据"
-    datadir.mkdir(parents=True, exist_ok=True)
-    with (datadir / "spss_outputs.csv").open("w", encoding="utf-8-sig", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=["name", "unit", "value", "required", "tool"])
-        writer.writeheader()
-        for stat in stats:
-            row = dict(stat)
-            row.setdefault("tool", tool)
-            writer.writerow(row)
-
 
 class TestAppendCodeFilesAppendixAOnly:
     def test_appendix_a_placeholder_rendered(self, tmp_path):

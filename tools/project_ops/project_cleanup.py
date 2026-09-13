@@ -59,11 +59,8 @@ PROCESS_NAME_MARKERS = (
 # 与 SKILL.md 交付契约保持一致。
 CODE_KEEP_RE = re.compile(r"^(Q\d+(?:_.+)?\.py|solve_common\.py|viz\.py|requirements\.txt)$")
 # 解题公共模块名：仅被 Q<序号>.py 复用，非解答脚本不得依赖
-SOLUTION_COMMON_NAME = "solve_common.py"
 # 统一生图配置模块：绘图参数（配色/字号/尺寸/导出）唯一入口，各问只调不各写
-VIZ_MODULE_NAME = "viz.py"
 # 赛题原件目录：赛题文件与原附录存放处，清理器绝对不触碰
-FILES_DIR_NAME = "files"
 # 交付契约保留项（相对项目根）：清理器永不触碰；与 SKILL.md / 文档/代码规范.md 保持一致。
 # 库函数与 CLI --apply 必须使用同一份清单，杜绝双路径守卫强度不一致。
 # 完整论文.tex 是 LaTeX 源码版交付物（save_document 与 DOCX 同快照写出），与 DOCX 同级保护。
