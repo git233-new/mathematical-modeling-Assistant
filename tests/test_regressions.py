@@ -973,6 +973,21 @@ def test_caption_style_by_position_not_prefix(tmp_path):
     assert not any("图5给出" in i for i in issues)
 
 
+def test_abstract_title_h1_not_flagged_as_inserted_heading():
+    """摘 要 标题自身是 Heading 1：开篇检查区间从标题下一段起，不再自伤；
+    摘要正文区插入别的一级标题仍然拒存。"""
+    from tools.docx.core.structure_validation import _abstract_first_page_issues
+
+    doc = paper_format.new_document()
+    paper_format.title(doc, "测试论文题目")
+    paper_format.abstract_title(doc)
+    paper_format.body(doc, "本文建立某模型求解某问题，结果收敛且误差可控，灵敏度分析表明参数扰动影响有限，模型稳健可用。" * 4)
+    assert _abstract_first_page_issues(doc) == []
+
+    paper_format.heading1(doc, "一、问题重述")   # 关键词之前插了一级标题（未写关键词，区间含它）
+    assert _abstract_first_page_issues(doc) != []
+
+
 def test_rebuild_extracts_title_and_ai_declaration_heading():
     """rebuild 提炼器：首个文本段 → title；AI工具使用声明 → heading1（防标题变 body）。"""
     from docx import Document as D

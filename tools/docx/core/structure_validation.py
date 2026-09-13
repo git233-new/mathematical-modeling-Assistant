@@ -1274,10 +1274,15 @@ def _model_section_formula_issues(doc):
 
 # H5 摘要独占开篇（代理：摘要区内不得插入一级标题）
 def _abstract_first_page_issues(doc):
+    """摘要独占开篇（代理检查）：摘要正文区（标题之后、关键词之前）不得插入一级标题。
+
+    区间从标题段的下一段开始——"摘 要"标题自身是一级标题（pf.abstract_title），
+    不能把自己算进"区内插入的一级标题"。
+    """
     b = _abstract_bounds(doc)
     if b is None:
         return []
-    paras = list(doc.paragraphs)[b[0]:b[1]]
+    paras = list(doc.paragraphs)[b[0] + 1:b[1]]
     if any(p.style.name == HEADING1_STYLE for p in paras):
         return ['摘要区内不得插入一级标题，摘要须紧接论文标题独占开篇']
     return []
