@@ -1142,6 +1142,44 @@ def _abstract_paragraphs(doc):
 _ABSTRACT_QUESTION_RE = re.compile(r'问题\s*([一二三四五六七八九十0-9]+)')
 
 
+def _symbol_orphan_issues(doc):
+    """符号表孤儿符号：符号表中列出的每个符号都必须在正文、公式或表格中出现。
+
+    摆设符号（符号表有、全文不用）说明符号表与建模脱节——删除该行，或统一
+    正文使用的符号名。比对范围 = 全文档（正文段落 + 公式 OMML 文本 + 表格
+    单元格），排除符号表自身；符号按去空格后的子串匹配（下标在公式中拆分
+    的相邻 m:t 拼接后仍可命中）。
+    """
+    table = _find_symbol_table(doc)
+    if table is None:
+        return []
+    symbols = []
+    for row in table.rows[1:]:
+        s = re.sub(r'\s+', '', row.cells[0].text.strip())
+        if s:
+            symbols.append(s)
+    if not symbols:
+        return []
+    corpus_parts = []
+    for para in doc.paragraphs:
+        corpus_parts.append(para.text)
+        for mt in para._p.findall('.//' + qn('m:t')):
+            corpus_parts.append(mt.text or '')
+    for t in doc.tables:
+        if t._tbl is table._tbl:  # 比较底层 XML 元素：doc.tables 每次迭代返回新代理对象
+            continue
+        for row in t.rows:
+            for cell in row.cells:
+                corpus_parts.append(cell.text)
+    corpus = re.sub(r'\s+', '', ''.join(corpus_parts))
+    issues = []
+    for s in symbols:
+        if s not in corpus:
+            issues.append(f'符号 {s} 列入符号说明表但未在正文、公式或表格中出现——'
+                          f'删除摆设符号，或统一正文使用的符号名')
+    return issues
+
+
 def _abstract_paragraph_issues(doc):
     """摘要分问分段 + 量化结果硬闸门。
 
@@ -2422,6 +2460,7 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_body_filename_issues(doc))
     errors.extend(_symbol_variant_issues(doc))
     errors.extend(_symbol_table_issues(doc))
+    errors.extend(_symbol_orphan_issues(doc))
     # 图片/版面硬闸门（见 文档/图片闸门配置与绘图规范.md）
     errors.extend(_abstract_paragraph_issues(doc))
     errors.extend(_fabricated_number_issues(doc, project_root))

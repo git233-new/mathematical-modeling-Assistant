@@ -240,3 +240,48 @@ def test_text_overlap_detection():
     ax2.text(0.8, 0.2, "分离文本乙")
     assert not text_overlap_issues(fig2)
     plt.close(fig2)
+
+def test_symbol_orphan_symbols_rejected(tmp_path):
+    """符号表孤儿符号：列入符号表但正文/公式/表格全程未用的符号 → 拒存。"""
+    from tools.docx.core.structure_validation import _symbol_orphan_issues
+
+    doc = _mk_doc()
+    pf.heading1(doc, "三、模型假设")
+    pf.body(doc, "本文采用模型求解，加速度 α 与阻尼系数 β 由实验数据拟合得到。" + "该问的求解流程与参数设置均在正文交代。" * 8)
+    pf.heading1(doc, "四、符号说明")
+    table = doc.add_table(rows=4, cols=3)
+    for row, cells in zip(table.rows, (
+        ("符号", "说明", "单位"),
+        ("α", "加速度", "m/s2"),
+        ("β", "阻尼系数", "-"),
+        ("γ", "全程未用的摆设符号", "-"),
+    )):
+        for cell, t in zip(row.cells, cells):
+            cell.text = t
+    pf.heading1(doc, "五、模型建立与求解")
+    pf.body(doc, "模型中 β 与摩擦系数 μ 共同决定响应特性，推导详见公式。" + "该章说明。" * 6)
+    issues = _symbol_orphan_issues(doc)
+    assert any("γ" in i for i in issues)
+    assert not any("α" in i for i in issues)
+    assert not any("β" in i for i in issues)
+
+
+def test_symbol_used_in_formula_passes(tmp_path):
+    """符号仅在公式（OMML）中出现也算已使用 → 不预警。"""
+    from docx.oxml.ns import qn
+    from tools.docx.core.structure_validation import _symbol_orphan_issues
+
+    doc = _mk_doc()
+    pf.heading1(doc, "四、符号说明")
+    table = doc.add_table(rows=2, cols=3)
+    table.rows[0].cells[0].text = "符号"
+    table.rows[1].cells[0].text = "δ"
+    pf.heading1(doc, "五、模型建立与求解")
+    p = doc.add_paragraph()
+    omml = p._p.get_or_add_pPr().makeelement(qn('m:oMath'), {})
+    mt = omml.makeelement(qn('m:t'), {})
+    mt.text = "δ"
+    omml.append(mt)
+    p._p.append(omml)
+    pf.body(doc, "公式的推导说明文字，解释该符号的含义与取值来源。" * 3)
+    assert _symbol_orphan_issues(doc) == []
