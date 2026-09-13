@@ -830,7 +830,7 @@ def test_plot_pitfall_warnings_flag_bare_legend_and_best(tmp_path):
 
 
 def test_figure_table_context_warnings(tmp_path):
-    """W10 图表引出与解释：缺引出/缺解释 → 预警；逐张引出+读数解释不触发。"""
+    """W10 图表引出与解释：缺引出/未点名/缺解释 → 预警；逐张引出+读数解释不触发。"""
     from docx.enum.style import WD_STYLE_TYPE
     from tools.docx.core.paper_format import CAPTION_STYLE
     from tools.docx.core.structure_validation import _figure_table_context_warnings
@@ -843,7 +843,7 @@ def test_figure_table_context_warnings(tmp_path):
             pass
         return doc
 
-    # 坏例：图表紧跟（无引出）、无解释
+    # 坏例：图表紧跟（引出句不点名）、无解释
     bad = _doc()
     bad.add_paragraph("一、问题重述")
     bad.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
@@ -852,11 +852,12 @@ def test_figure_table_context_warnings(tmp_path):
     tb.rows[0].cells[0].text = "方法"
     tb.rows[1].cells[0].text = "x"
     ws = _figure_table_context_warnings(bad)
+    assert any("图1" in w and "没有点名" in w for w in ws)
     assert any("图1" in w and "缺少解释" in w for w in ws)
     assert any("表1" in w and "缺少引出" in w for w in ws)
     assert any("表1" in w and "缺少解释" in w for w in ws)
 
-    # 好例：逐张引出 + 各自读数解释
+    # 好例：逐张引出（引出句点名、图表紧跟）+ 各自读数解释
     good = _doc()
     good.add_paragraph("一、问题重述")
     good.add_paragraph("图1 给出两种方案收敛速度的对比。")
@@ -869,6 +870,48 @@ def test_figure_table_context_warnings(tmp_path):
     tb2.rows[1].cells[0].text = "x"
     good.add_paragraph("表1 显示方案A在四项指标中三项占优，综合性能最好。")
     assert _figure_table_context_warnings(good) == []
+
+
+def test_far_mention_then_late_figure_flagged(tmp_path):
+    """正文先点名"图2"预告、真图隔段才出现 → "重复引出"预警（唯一点名规则）。"""
+    from docx.enum.style import WD_STYLE_TYPE
+    from tools.docx.core.paper_format import CAPTION_STYLE
+    from tools.docx.core.structure_validation import _figure_table_context_warnings
+
+    doc = Document()
+    try:
+        doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
+    except (KeyError, ValueError):
+        pass
+    doc.add_paragraph("一、问题重述")
+    doc.add_paragraph("对比结果如图2所示，方案A整体略优。")          # 远处首次点名
+    doc.add_paragraph("方案B的收敛行为则有明显不同。")               # 中间隔段
+    doc.add_paragraph("图2 给出两方案的完整对比。")                  # 图表紧前引出（第二次点名）
+    doc.add_paragraph("图2 对比结果", style=CAPTION_STYLE)
+    doc.add_paragraph("图2 中两方案差异集中在第30轮之后。")
+    ws = _figure_table_context_warnings(doc)
+    assert any("图2" in w and "被点名 2 次" in w for w in ws)
+    assert not any("图2" in w and "没有点名" in w for w in ws)
+
+
+def test_unnamed_lead_in_flagged(tmp_path):
+    """图表紧跟标题后、引出句不点名图号 → "未点名"预警。"""
+    from docx.enum.style import WD_STYLE_TYPE
+    from tools.docx.core.paper_format import CAPTION_STYLE
+    from tools.docx.core.structure_validation import _figure_table_context_warnings
+
+    doc = Document()
+    try:
+        doc.styles.add_style(CAPTION_STYLE, WD_STYLE_TYPE.PARAGRAPH)
+    except (KeyError, ValueError):
+        pass
+    doc.add_paragraph("一、问题重述")
+    doc.add_paragraph("两种方案的收敛情况对比如下。")               # 未点名"图1"
+    doc.add_paragraph("图1 收敛对比", style=CAPTION_STYLE)
+    doc.add_paragraph("图1 中方案A的误差下降速度明显快于方案B。")
+    ws = _figure_table_context_warnings(doc)
+    assert any("图1" in w and "没有点名" in w for w in ws)
+    assert not any("被点名" in w for w in ws)
 
 
 def test_batch_lead_in_then_individual_flags_duplicate(tmp_path):
@@ -890,7 +933,7 @@ def test_batch_lead_in_then_individual_flags_duplicate(tmp_path):
     doc.add_paragraph("图2 时间对比", style=CAPTION_STYLE)
     doc.add_paragraph("图2 中两方案的耗时差异主要来自迭代次数不同。")
     ws = _figure_table_context_warnings(doc)
-    assert any("图2" in w and "重复引出" in w for w in ws)
+    assert any("图2" in w and "被点名 2 次" in w for w in ws)
     assert not any("图1" in w for w in ws)
 
 

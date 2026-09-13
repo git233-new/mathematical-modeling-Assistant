@@ -1607,12 +1607,19 @@ _CAPTION_RE = re.compile(r'^([图表])\s*(\d+)')
 
 
 def _figure_table_context_warnings(doc):
-    """图表引出/解释检查（预警级）：前有引出、后有解释、不重复引出。
+    """图表引出/解释检查（预警级）：唯一点名、紧贴图表、后有解释。
 
-    - 引出：图表前一非空段须是正文引出句（说明展示什么，自然融入行文）；
-    - 不重复引出：同一图/表号被 ≥2 个正文段点名（总起 + 逐张引出）即预警；
-    - 解释：图表后须有 ≥15 字读数分析。
-    符号说明表整条豁免（H10 禁止其表后写描述段）；附录图表不检查。
+    唯一口径（见 文档/论文写作.md「图表引出」）：图/表编号在全文正文中
+    **只允许点名一次**，位置就是图表紧前的引出句——首次提及即引出句，
+    图表（图片/表格实体）紧跟其后出现，图下解释只做读数归因、不复述引出。
+    据此三条检查：
+    - 缺引出：图表前一非空段不是正文段（紧跟标题/另一图表/文首）；
+    - 未点名：引出句里没有本图号（正文更早处先提过、图表放到很后面，或
+      引出句只写"对比如下"式指代，都属此列）；
+    - 重复引出：向前回溯到上一张同类题注为止，本图号被 ≥2 个正文段点名
+      （"第一次提及 + 引出句"双写、"总起 + 逐张引出"都属此列）。
+    图表后须有 ≥15 字读数解释。符号说明表整条豁免（H10 禁止其表后写描述
+    段）；附录图表不检查。
     """
     symbol_tbl = _find_symbol_table(doc)
     seq = []
@@ -1651,7 +1658,9 @@ def _figure_table_context_warnings(doc):
         cap_match = _CAPTION_RE.match(text)
         cap_kind, cap_num = cap_match.group(1), cap_match.group(2)
         label = f'{cap_kind}{cap_num}'
-        # 前引导：上一个非空条目必须是普通正文段（不能是题注、标题、另一张表或开头）
+        label_re = re.compile(rf'{cap_kind}\s*{cap_num}(?!\d)')
+        # 前引导：上一个非空条目必须是普通正文段，且句中点名本图号
+        # （唯一点名规则：首次提及=引出句，图表紧跟，禁止隔段预告）
         prev = None
         for e in reversed(seq[:idx]):
             if e[1] or e[0] == 'tbl':
@@ -1660,9 +1669,12 @@ def _figure_table_context_warnings(doc):
         if prev is None or prev[0] != 'p' or is_caption(prev[0], prev[1], prev[2]) or is_heading(prev[2]):
             issues.append(f'{label} 缺少引出：图/表前需要一句正文引出（说明该图表展示什么、回答什么问题），不能紧跟标题或另一图表')
         else:
-            # 重复引出：向前回溯（至标题或上一张同类题注为止），统计点名本图的正文段数；
-            # ≥2 段即"总起 + 逐张引出"的重复——主要写法是逐张单独引出，删掉总起句
-            label_re = re.compile(rf'{cap_kind}\s*{cap_num}(?!\d)')
+            if not label_re.search(re.sub(r'\s+', '', prev[1])):
+                issues.append(
+                    f'{label} 的引出句没有点名"{label}"：全文对{label}的点名只允许出现在图表紧前的这句引出里'
+                    f'——正文更早处不要先提、图表也不要隔段才出现')
+            # 重复引出：向前回溯到上一张同类题注为止（不按标题截断——隔了小节仍算重复），
+            # 统计点名本图号的正文段数；≥2 即"首次提及 + 引出句"双写或"总起 + 逐张引出"
             mentions = 0
             passed_same_caption = False
             for e in reversed(seq[:idx]):
@@ -1676,12 +1688,12 @@ def _figure_table_context_warnings(doc):
                     if m_prev and m_prev.group(1) == cap_kind:
                         passed_same_caption = True
                     continue
-                if is_heading(e[2]):
-                    break
                 if e[1] and label_re.search(re.sub(r'\s+', '', e[1])):
                     mentions += 1
             if mentions >= 2:
-                issues.append(f'{label} 被重复引出：总起/预告句已点名过{label}，图表前又有单独引出——保留逐张单独引出，删掉总起句')
+                issues.append(
+                    f'{label} 被点名 {mentions} 次：删掉引出句以外的所有"{label}"字样（含更早分析文字里的预告），'
+                    f'全文只在图表紧前的引出句点名一次，图表紧跟引出出现')
         # 后解释：图——下一非空段；表——跳过表格实体后的第一非空段；须为实质解释（≥15 字、非题注）
         after = seq[idx + 1:]
         skip_table = False
