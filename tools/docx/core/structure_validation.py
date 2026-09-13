@@ -1533,7 +1533,7 @@ def _plot_pitfall_warnings(project_root):
     if not code_dir.is_dir():
         return []
     checks = (
-        (r'plt\.savefig\s*\(', 'P21 裸 plt.savefig——绕过 mm_style 共享导出，有效字号/遮挡闸门被跳过；改用 save_panel 或 finalize_figure'),
+        (r'\bplt\.savefig\s*\(', 'P21 裸 plt.savefig——绕过 mm_style 共享导出，有效字号/遮挡闸门被跳过；改用 save_panel 或 finalize_figure'),
         (r'twinx\s*\(', 'P2 双 Y 轴——两轴尺度可任意调，对比结论不可信；改散点或上下双子图'),
         (r'\.pie\s*\(', 'P3 饼图——人眼辨长度比角度准，改横向柱状/堆叠柱状'),
         (r"projection\s*=\s*['\"]3d['\"]", 'P3 3D 图——视角扭曲数值，改 2D 热力图/平面投影'),

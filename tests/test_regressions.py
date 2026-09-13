@@ -827,6 +827,24 @@ def test_plot_pitfall_warnings_flag_bare_legend_and_best(tmp_path):
     assert sum("P20" in w for w in ws) >= 2
 
 
+def test_plot_pitfall_warnings_flags_raw_savefig(tmp_path):
+    """W6 扩展：裸 plt.savefig 绕过 mm_style 共享导出（有效字号/遮挡闸门被跳过）→ P21 预警。"""
+    from tools.docx.core.structure_validation import _plot_pitfall_warnings
+    code = tmp_path / "code"
+    code.mkdir()
+    (code / "Q1.py").write_text(
+        "import matplotlib.pyplot as plt\nplt.savefig('out.png', dpi=300)\n",
+        encoding="utf-8",
+    )
+    (code / "Q2.py").write_text(
+        "from mm_style import save_panel\nsave_panel(fig, output_stem)\n",
+        encoding="utf-8",
+    )
+    ws = _plot_pitfall_warnings(tmp_path)
+    assert any("Q1" in w and "P21" in w for w in ws)
+    assert not any("Q2" in w for w in ws)
+
+
 def test_figure_table_context_warnings(tmp_path):
     """W10 图表引出与解释：缺引出/未点名/缺解释 → 预警；逐张引出+读数解释不触发。"""
     from docx.enum.style import WD_STYLE_TYPE
