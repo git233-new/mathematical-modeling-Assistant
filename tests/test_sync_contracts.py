@@ -159,7 +159,7 @@ def _spss_csv(tmp_path, stats, tool="SPSS 27 手动"):
 
 class TestAppendCodeFilesAppendixAOnly:
     def test_appendix_a_placeholder_rendered(self, tmp_path):
-        """附录A 占位提示渲染（不再依赖 run_manifest）。"""
+        """附录A 占位提示渲染。"""
         doc = _mk_doc()
         append_code_files(doc, str(tmp_path))
         headings = [p.text for p in doc.paragraphs if p.text]

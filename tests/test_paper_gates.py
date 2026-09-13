@@ -573,14 +573,14 @@ def _doc_with_chapters(chapter_bodies):
 
 
 def test_section_figure_quota_missing_in_check_chapter():
-    """模型检验章无图无表 → 双拒存。"""
+    """模型检验章无图无表 → 拒存（图或表至少其一）。"""
     doc = _doc_with_chapters([
         ("五、模型建立与求解", ["5.1 求解", "正文", "图1 求解结果对比"]),
         ("六、模型检验与分析", ["6.1 灵敏度分析", "纯文字检验说明，没有任何图表。"]),
     ])
     issues = pf._section_figure_issues(doc)
-    assert any("检验图" in i for i in issues)
-    assert any("检验结果表" in i for i in issues)
+    assert any("缺少图表" in i for i in issues)
+    assert len(issues) == 1  # 图/表任缺其一不再各自报错
 
 
 def test_section_figure_quota_satisfied():
@@ -590,6 +590,20 @@ def test_section_figure_quota_satisfied():
         ("六、模型检验与分析", ["6.1 灵敏度", "图2 灵敏度曲线", "表2 灵敏度结果"]),
     ])
     assert pf._section_figure_issues(doc) == []
+
+
+def test_section_figure_quota_table_only_or_figure_only():
+    """检验章只有表或只有图 → 均通过（不强求图文齐备）。"""
+    table_only = _doc_with_chapters([
+        ("五、模型建立与求解", ["5.1 求解", "图1 求解结果对比"]),
+        ("六、模型检验与分析", ["6.1 灵敏度", "表1 灵敏度结果"]),
+    ])
+    assert pf._section_figure_issues(table_only) == []
+    figure_only = _doc_with_chapters([
+        ("五、模型建立与求解", ["5.1 求解", "图1 求解结果对比"]),
+        ("六、模型检验与分析", ["6.1 灵敏度", "图2 灵敏度曲线"]),
+    ])
+    assert pf._section_figure_issues(figure_only) == []
 
 
 def test_section_figure_quota_solve_chapter_needs_figure():

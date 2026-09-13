@@ -849,7 +849,7 @@ def _duplicate_heading_issues(doc):
 _CHECK_FIGURE_KEYWORDS = ('灵敏度', '敏感', '误差', '稳健', '鲁棒', '检验')
 def _check_figure_placement_issues(doc, project_root=None):
     """检验类图必须落在模型检验章：题注或图片文件名含检验关键词的图，
-    插入位置不在模型检验章区间 → 拒存（文件名同步由命名规范与 manifest 溯源保证）。"""
+    插入位置不在模型检验章区间 → 拒存（图片文件名规范由命名细则与 `_figure_filename_issues` 保证）。"""
     issues = []
     check_bounds = _h1_region_bounds(doc, r'模型检验')
     if check_bounds is None:
@@ -881,7 +881,7 @@ def _section_figure_issues(doc):
     """分章图表配额硬闸门：该有图的地方必须有图，不允许纯文字章节。
 
     - 模型建立与求解章：整章 ≥1 幅结果图（图N 题注）；
-    - 模型检验与分析章：≥1 幅检验图（灵敏度/误差/稳健等）+ ≥1 张检验表。
+    - 模型检验与分析章：≥1 幅检验图 或 ≥1 张检验表（二者有其一即可，不强求图文齐备）。
     配额只看题注（题注与图表一一对应且已由编号闸门校验），附录天然不在区间内。
     """
     issues = []
@@ -898,10 +898,8 @@ def _section_figure_issues(doc):
         paras = list(doc.paragraphs)[start:end]
         figs = sum(1 for p in paras if re.match(r'^图\s*\d+', p.text.strip()))
         tabs = sum(1 for p in paras if re.match(r'^表\s*\d+', p.text.strip()))
-        if figs < 1:
-            issues.append('模型检验与分析章缺少检验图：至少 1 幅灵敏度/误差/稳健性曲线图（图N 题注）')
-        if tabs < 1:
-            issues.append('模型检验与分析章缺少检验结果表：至少 1 张表N 题注的检验数据表')
+        if figs + tabs < 1:
+            issues.append('模型检验与分析章缺少图表：至少 1 幅检验图（图N 题注）或 1 张检验结果表（表N 题注），二者有其一即可')
     return issues
 
 

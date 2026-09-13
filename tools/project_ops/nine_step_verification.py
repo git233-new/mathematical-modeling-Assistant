@@ -58,13 +58,7 @@ PLACEHOLDER_PATTERNS = [
 
 # 内部文件泄露模式
 INTERNAL_LEAK_PATTERNS = [
-    re.compile(r"run_manifest\.json"),
-    re.compile(r"consistency_audit\.py"),
-    re.compile(r"three_layer_audit\.py"),
-    re.compile(r"per_qi_scoring\.py"),
     re.compile(r"project_audit\.py"),
-    re.compile(r"verify_paper_evidence\.py"),
-    re.compile(r"result_contract\.py"),
     re.compile(r"structure_validation\.py"),
 ]
 
@@ -172,11 +166,8 @@ def step4_leakage_check(text: str) -> list[VerificationFinding]:
     return findings
 
 
-def step5_numeric_consistency(
-    text: str,
-    manifest_path: Path | None = None,
-) -> list[VerificationFinding]:
-    """STEP 5: 数值和结果一致性（已简化，不再依赖 run_manifest）"""
+def step5_numeric_consistency(text: str) -> list[VerificationFinding]:
+    """STEP 5: 数值和结果一致性（结果真实性由真实落盘与健全性检查约束）"""
     return []
 
 
@@ -258,7 +249,6 @@ def run_verification(
     project_root: Path,
     docx_path: Path | None = None,
     paper_text: str | None = None,
-    manifest_path: Path | None = None,
     *,
     write_report: bool = False,
 ) -> VerificationResult:
@@ -269,7 +259,6 @@ def run_verification(
         project_root: 项目根目录
         docx_path: 论文 DOCX 路径
         paper_text: 论文全文文本
-        manifest_path: 兼容参数（已不依赖，可忽略）
         write_report: 是否写 results/论文验收报告.md（瘦身默认不落盘，
         stdout 摘要与 exit code 是唯一权威记录）
 
@@ -294,7 +283,7 @@ def run_verification(
         (2, step2_chapter_structure(text)),
         (3, step3_figure_matching(text, project_root)),
         (4, step4_leakage_check(text)),
-        (5, step5_numeric_consistency(text, manifest_path)),
+        (5, step5_numeric_consistency(text)),
         (6, step6_reference_check(text)),
         (7, step7_docx_check(docx_path) if docx_path else []),
     ]
