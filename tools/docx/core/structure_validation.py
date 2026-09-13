@@ -1170,6 +1170,134 @@ def _abstract_paragraph_issues(doc):
     return issues
 
 
+# 摘要数值溯源：带单位/百分比的量化值与全部小数都必须能在
+# results/结果文件或 code/ 字面量中找到来源（支持舍入与百分数换算）
+_QUANT_TOKEN_RE = re.compile(
+    r'(?<![A-Za-z0-9%])-?\d+(?:\.\d+)?\s*(?:%|％|m|cm|mm|km|kg|g|s|h|min|°|元|辆|台|人|天|倍|dB|Hz|m/s|W|kW)'
+)
+_DECIMAL_RE = re.compile(r'(?<![A-Za-z0-9%.])-?\d+\.\d+(?!\d)')
+_GROUND_NUM_RE = re.compile(r'-?\d+(?:\.\d+)?')
+_YEAR_RE = re.compile(r'^(?:19|20)\d{2}$')
+_COUNTING_UNITS = ('个', '次', '位', '项', '类', '轮', '分')
+
+
+def _collect_ground_numbers(project_root):
+    """收集溯源底册：results/ 数据文件（csv/xlsx/md/txt）+ code/ 源码字面量中的全部数值。"""
+    root = Path(project_root)
+    values = set()
+    texts = []
+    data_dir = root / 'results'
+    if data_dir.is_dir():
+        for f in data_dir.rglob('*'):
+            if f.suffix.lower() in {'.csv', '.md', '.txt'} and f.is_file():
+                try:
+                    texts.append(f.read_text(encoding='utf-8', errors='replace'))
+                except OSError:
+                    continue
+            elif f.suffix.lower() == '.xlsx' and f.is_file():
+                try:
+                    from openpyxl import load_workbook
+                    wb = load_workbook(f, read_only=True, data_only=True)
+                    for ws in wb.worksheets:
+                        for row in ws.iter_rows(values_only=True):
+                            for v in row:
+                                if v is not None:
+                                    texts.append(str(v))
+                except Exception:
+                    continue
+    code_dir = root / 'code'
+    if code_dir.is_dir():
+        for f in code_dir.glob('*.py'):
+            try:
+                texts.append(f.read_text(encoding='utf-8', errors='replace'))
+            except OSError:
+                continue
+    for t in texts:
+        for m in _GROUND_NUM_RE.finditer(t.replace(',', '')):
+            s = m.group(0)
+            try:
+                values.add(float(s))
+            except ValueError:
+                continue
+            values.add(s.lstrip('-').rstrip('.'))
+    return values
+
+
+def _value_matches(claim, ground, has_percent=False):
+    """claim 数值可从底册溯源：精确/舍入一致，或百分数↔小数互换后一致。"""
+    d = max(0, len(claim.rstrip('0').split('.')[-1]) if '.' in claim else 0)
+    c = float(claim)
+    tol = 0.5 * (10 ** -d) + 1e-9
+    variants = (c,)
+    if has_percent:
+        variants = (c, c / 100, c * 100)
+    for variant in variants:
+        for g in ground:
+            if isinstance(g, str):
+                continue
+            if abs(variant - g) <= tol:
+                return True
+            gd = len(repr(g).split('.')[-1]) if '.' in repr(g) else 0
+            if round(g, d) == round(variant, d):
+                return True
+            if abs(round(g, min(gd, 6)) - round(variant, min(gd, 6))) < 1e-9:
+                return True
+    return False
+
+
+def _fabricated_number_issues(doc, project_root):
+    """摘要数值溯源硬闸门：摘要里的结果数值必须能在真实产物中找到来源。
+
+    校对对象：摘要中的全部小数、带单位数值与百分数（纯小整数计数、
+    年份豁免）。比对底册 = results/ 结果文件 + code/ 源码字面量，
+    支持舍入匹配（论文 3.14 ↔ 结果 3.14159）与百分数换算（12.3% ↔ 0.123）。
+    找不到来源即拒存——摘要数值禁止编造。
+    """
+    if project_root is None:
+        return []
+    b = _abstract_bounds(doc)
+    if b is None:
+        return []
+    paras = list(doc.paragraphs)[b[0] + 1:b[1]]
+    text = '\n'.join(p.text for p in paras)
+    text = re.sub(r'(?<=\d),(?=\d)', '', text)  # 千分位
+    claims = []
+    seen = set()
+    for m in _QUANT_TOKEN_RE.finditer(text):
+        tok = re.sub(r'\s+', '', m.group(0))
+        num = _GROUND_NUM_RE.search(tok)
+        if not num:
+            continue
+        s = num.group(0)
+        if _YEAR_RE.match(s):
+            continue  # 年份豁免
+        unit_tail = tok[len(num.group(0)):].lstrip()
+        if '.' not in s and s.lstrip('-').isdigit() and (
+                not unit_tail or unit_tail.startswith(_COUNTING_UNITS)):
+            continue  # 计数类纯整数豁免；物理/货币单位整数（如 5000 元）仍须溯源
+        if s not in seen:
+            seen.add(s)
+            claims.append((tok, s))
+    for m in _DECIMAL_RE.finditer(text):
+        s = m.group(0)
+        if _YEAR_RE.match(s) or s not in seen:
+            if s not in seen and not _YEAR_RE.match(s):
+                seen.add(s)
+                claims.append((s, s))
+    if not claims:
+        return []
+    ground = _collect_ground_numbers(project_root)
+    if not ground:
+        return [f'摘要含 {len(claims)} 个结果数值但 results/ 无任何数值产物——'
+                f'先运行代码落盘真实结果，再写摘要（禁止凭空编造数值）']
+    issues = []
+    for tok, s in claims:
+        if not _value_matches(s, ground, has_percent='%' in tok or '％' in tok):
+            issues.append(f'摘要数值 {tok} 未在 results/ 结果文件或 code/ 中找到来源——'
+                          f'摘要数值禁止编造：补跑实验落盘该值、写入结果文件，或删除/改写该数值')
+    return issues
+
+
 def _section_order_issues(doc):
     """一级标题顺序硬闸门：AI工具使用声明（如有）→ 参考文献。"""
     by_name = {}
@@ -2216,6 +2344,7 @@ def _deep_quality_issues(doc, project_root):
     errors.extend(_symbol_table_issues(doc))
     # 图片/版面硬闸门（见 文档/图片闸门配置与绘图规范.md）
     errors.extend(_abstract_paragraph_issues(doc))
+    errors.extend(_fabricated_number_issues(doc, project_root))
     errors.extend(_section_order_issues(doc))
     errors.extend(_abstract_no_figure_issues(doc))
     errors.extend(_abstract_one_page_issues(doc))
