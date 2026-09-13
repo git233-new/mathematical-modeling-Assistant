@@ -145,7 +145,7 @@ def test_render_template_syncs_shared_runtime(tmp_path: Path) -> None:
 
 def test_figure_layout_is_single_chain() -> None:
     root = _REPO / "tools" / "figure"
-    # mm_style 与模板同目录：模板直接运行即可 from mm_style import，不再依赖 runtime 目录 hack
+    # mm_style 与模板同目录：模板直接运行即可 from mm_style import
     assert (root / "templates" / "mm_style.py").is_file()
     assert not (root / "runtime" / "mm_style.py").exists()
     assert (root / "runtime" / "render_template.py").is_file()

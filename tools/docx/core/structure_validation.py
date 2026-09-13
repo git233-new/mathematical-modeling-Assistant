@@ -1104,7 +1104,7 @@ def _appendix_size_issues(doc, project_root=None, *args, **kwargs):
         return ['附录为空；须含附录A 支撑材料清单（由 pf.append_code_files 自动生成）']
     has_support = any(p.text.strip().startswith('· ') for p in paragraphs[start + 1:])
     if not has_support:
-        # 附录A 清单合法形态：'· '条目段落，或两列三线表（表头：文件名 | 功能与作用；兼容旧版表头'文件/路径'）
+        # 附录A 清单合法形态：'· '条目段落，或两列三线表（表头：文件名 | 功能与作用；亦接受表头'文件/路径'）
         for table in doc.tables:
             cells = table.rows[0].cells if table.rows and table.rows[0].cells else []
             if cells and cells[0].text.strip() in {'文件/路径', '文件名'}:
@@ -1394,8 +1394,8 @@ def _claim_strength_issues(doc):
 def _symbol_caption_no_prose_issues(doc):
     """符号说明表之后、下一级标题之前不得再写描述段。
 
-    以实际符号说明表定位（表头含"符号"列），不再假设它是"表 1"——老项目
-    （brownfield）里"表 1"可能是任何表；没有符号说明表则整条检查跳过。
+    以实际符号说明表定位（表头含"符号"列），不依赖题注编号——brownfield
+    场景下"表 1"可能是任何表；没有符号说明表则整条检查跳过。
     """
     table = _find_symbol_table(doc)
     if table is None:
@@ -1452,7 +1452,7 @@ def _appendix_boxed_table_issues(doc):
             and vals.get('left') in (None, 'none', 'nil') and vals.get('right') in (None, 'none', 'nil')
         )
         if not three_line:
-            issues.append(f'附录表 {ti} 须为三线表（附录只保留支撑材料清单，方框代码表已取消）')
+            issues.append(f'附录表 {ti} 须为三线表（附录只保留支撑材料清单，仅允许三线表）')
     return issues
 
 
@@ -1785,7 +1785,7 @@ def _model_eval_bullet_format_issues(doc):
       视为禁止的"大段话"，拒存（与模型假设、符号说明"不写解释长段"同纪律）。
     - 按子标题分区计数：含"优点/优势/长处"的 7.x 下编号条目 ≥5；含
       "局限/不足/缺点/改进"等的 7.x（及后续分区）下编号条目 ≥4。
-      评价章不写推广/扩展/迁移（用户口径：改进落到本题局限即可）。
+      评价章不写推广/扩展/迁移——改进落到本题局限即可。
     """
     paras = [p.text.strip() for p in doc.paragraphs]
     start = next(
@@ -1847,8 +1847,8 @@ def _soft_quality_warnings(doc, project_root):
     """聚合 W 类预警，统一加"预警："前缀（不阻断交付）。
 
     图表引出/解释只由 `_figure_table_context_warnings`（W10）一处检查：
-    引出点名、总起多图、重复引出、缺解释都在其中，不再设并列的引出检查，
-    避免同一张图被多个检查项重复报错。
+    引出点名、总起多图、重复引出、缺解释都在其中，避免同一张图被
+    多个检查项重复报错。
     """
     ws = []
     ws += _no_duplicate_figure_warnings(doc)
@@ -2423,7 +2423,7 @@ def validate_paper_structure(doc, contest='cumcm', *, quality_checks=True, min_c
     if not quality_checks:
         return errors
     # brownfield（老项目）宽松口径：`.paper_work/brownfield` 标记存在时，
-    # 图/表/公式/流程图数量下限不再强制——避免为凑数给成熟作品硬加无效图表。
+    # brownfield 下图/表/公式/流程图数量下限不强制——不为凑数硬加无效图表。
     brownfield = False
     if project_root is not None:
         from tools.common.reproducibility import is_brownfield

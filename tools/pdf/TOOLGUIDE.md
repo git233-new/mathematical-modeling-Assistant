@@ -1,6 +1,6 @@
 ---
 name: mathmodel-pdf
-description: 数学建模流程中的 PDF 读取与提取：赛题 PDF 文本/表格提取、扫描版 OCR、提取图像。本项目不生成、不交付 PDF（见根 SKILL.md），创建/水印/加密/表单类能力已移除。
+description: 数学建模流程中的 PDF 读取与提取：赛题 PDF 文本/表格提取、扫描版 OCR、提取图像。本项目不生成、不交付 PDF（见根 SKILL.md），只做读取、文本/表格提取与页面渲染。
 license: Proprietary. LICENSE.txt has complete terms
 ---
 

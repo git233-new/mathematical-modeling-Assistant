@@ -118,7 +118,7 @@ description: 数学建模竞赛高级队友 Skill。模拟高水平建模队伍�
 ```
 
 - **交付时清理只预览、不自动删除**：`save_document` 发布后仅打印待清理清单；实际清理只走 `python tools/project_ops/project_cleanup.py <项目> --apply`（删除前自动整体备份到 `.paper_work/trash/<时间戳>/`，可完整回滚，逐路径打日志）。瘦身白名单只作用于 `code/`（保留 `Q<序号>.py`、`Q<序号>_<描述>.py`、`solve_common.py`、`viz.py`、`requirements.txt`）；`results/`（数据=论文证据）与 `files/`、项目根层、`.paper_work/` 永不适用白名单、绝不触碰。
-- **brownfield（老项目）兼容**：项目已有成熟代码/论文时，在 `.paper_work/brownfield` 放置标记文件开启宽松模式——skill 只管理自己生成的脚本（`Q<序号>*.py`/`solve_common.py`/`viz.py`，用户文件只检不改、风格红线降级为预警），图/表/公式/流程图数量下限不再强制（不为凑数制造无效图表）；篇幅与页数闸门不豁免。
+- **brownfield（老项目）兼容**：项目已有成熟代码/论文时，在 `.paper_work/brownfield` 放置标记文件开启宽松模式——skill 只管理自己生成的脚本（`Q<序号>*.py`/`solve_common.py`/`viz.py`，用户文件只检不改、风格红线降级为预警），图/表/公式/流程图数量下限不强制（不为凑数制造无效图表）；篇幅与页数闸门不豁免。
 - `SKILL_ROOT`（本目录）只读，绝不写入任何过程文件；`PROJECT_ROOT` 是用户题目与产物目录，未指定时在题目同级新建 `math_modeling_<题号或简称>/`。
 - **写前守卫**：写入前用 `os.path.realpath()` 规范化目标与 `PROJECT_ROOT`、`SKILL_ROOT`，确认目标位于 `PROJECT_ROOT` 之内且不在 `SKILL_ROOT` 之内；否则停止并请用户指定（唯一实现 `tools/common/path_utils.is_within`，fail-closed）。
 - **禁止 skill 痕迹**：`PROJECT_ROOT` 不得出现 `tools/`、`docx/`、`pdf/`、`SKILL.md`、`paper_format.py` 副本等 skill 内部结构；误带痕迹由 `tools/project_ops/project_cleanup.py` 检出预警。

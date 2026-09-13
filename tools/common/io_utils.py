@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""io_utils: 文件与 IO 安全工具（不含哈希；全仓库已移除 SHA-256 计算）。"""
+"""io_utils: 文件与 IO 安全工具（不含哈希计算）。"""
 import sys
 from pathlib import Path
 

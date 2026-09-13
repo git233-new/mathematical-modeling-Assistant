@@ -865,9 +865,9 @@ def three_line_table(doc, rows):
 
 
 def append_code_files(doc, project_root):
-    """渲染论文附录：只写附录A 支撑材料清单（2026 口径，代码附录已取消）。
+    """渲染论文附录：只写附录A 支撑材料清单。
 
-    各小问核心代码**不再进入论文**，全部保留在 PROJECT_ROOT/code/ 目录
+    各小问核心代码全部保留在 PROJECT_ROOT/code/ 目录
     （Q<序号>_*.py + solve_common.py 等），此处仅留空提示。
     """
     heading2(doc, '附录A 支撑材料')
@@ -1076,8 +1076,8 @@ def save_document(
 ):
     """论文保存编排：写守卫 → 预检闸门 → 暂存发布（其余硬错误仍拒存）。
 
-    保存过程绝不改写 code/ 源文件、绝不删除任何项目文件（自动清扫已取消，
-    代码痕迹由可复现性硬闸门在保存前拒存兜底）；发布后仅打印清理预览，
+    保存过程绝不改写 code/ 源文件、绝不删除任何项目文件（代码痕迹由
+    可复现性硬闸门在保存前拒存兜底）；发布后仅打印清理预览，
     实际删除只走 tools/project_ops/project_cleanup.py --apply（带 trash 备份）。
     """
     # 校验子系统的硬闸门函数：函数内惰性导入，避免本模块加载期与

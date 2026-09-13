@@ -516,7 +516,7 @@ def test_sanitize_text_blocks_trace_words():
 
 
 def test_sanitize_text_allows_subject_words():
-    """我们/本文/该模型/本研究 已移出硬闸门——交由去AI味指南软约束。"""
+    """我们/本文/该模型/本研究 由去AI味指南软约束。"""
     for ok in ("我们通过实验验证了模型", "本文建立双层优化模型", "该模型收敛较快", "本研究采用控制变量法"):
         assert pf.sanitize_text(ok) == ok  # 无替换逻辑，原样通过
 
@@ -535,7 +535,7 @@ def _appendix_doc_with_table(borders_kwargs):
 
 
 def test_appendix_boxed_table_fails_h10():
-    """方框代码表已取消：附录表只认三线表。"""
+    """附录表只认三线表。"""
     doc = _appendix_doc_with_table(dict(
         top='single', bottom='single', left='single', right='single',
         insideH='single', insideV='nil'))

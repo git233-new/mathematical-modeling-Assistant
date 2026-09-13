@@ -96,13 +96,13 @@
 ## 七、机器扫描入口（交付前必跑）
 
 ```python
-# AI 味模式扫描（命中即拒绝保存，已并入 validate_paper_structure 致命错误）
+# AI 味模式扫描（命中即拒绝保存——validate_paper_structure 致命错误）
 from tools.docx.core.paper_format import scan_ai_taste_patterns
 hits = scan_ai_taste_patterns(doc)
 for label, snippet in hits:
     print(f'[{label}] {snippet[:60]}')
 
-# 禁用词扫描（命中即拒绝保存，已并入 validate_paper_structure 致命错误）
+# 禁用词扫描（命中即拒绝保存——validate_paper_structure 致命错误）
 from tools.docx.core.paper_format import scan_forbidden_words
 hits = scan_forbidden_words(doc)
 for matched, snippet in hits:

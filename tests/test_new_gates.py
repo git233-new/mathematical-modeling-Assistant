@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""2026-09 用户口径新增闸门的单元测试。
+"""写作闸门的单元测试。
 
 覆盖：模型假设复述拦截、摘要分问分段、一级标题顺序、题目一行、
 表后段前一行、三线表自适应列宽、有效字号闸门、文本遮挡检测。
@@ -32,7 +32,7 @@ def _add_assumptions(doc, texts):
         doc.add_paragraph(t, style=pf.BODY_STYLE)
 
 
-# ── 1. 模型假设：复述题目拦截、不再要求三链 ──
+# ── 1. 模型假设：复述题目拦截 ──
 
 def test_assumption_restatement_rejected():
     doc = _mk_doc()
@@ -41,7 +41,7 @@ def test_assumption_restatement_rejected():
     _add_assumptions(doc, texts)
     issues = _model_assumption_issues(doc)
     assert any("复述题目规定条件" in i for i in issues)
-    assert not any("依据：" in i for i in issues)  # 三链字样不再要求
+    assert not any("依据：" in i for i in issues)  # 假设不含三链字样
 
 
 def test_assumption_clean_passes_without_sanchain():
@@ -56,7 +56,7 @@ def test_assumption_write_time_guard():
         _validate_assumption_format("假设 1（数据）：题目给出的数据完整无缺失。")
     with pytest.raises(ValueError, match="过长"):
         _validate_assumption_format("假设 1（过长）：" + "细节" * 80)
-    # 不再要求 依据/检验 字样
+    # 假设不写 依据/检验 字样
     assert _validate_assumption_format("假设 1（正态）：扰动项服从独立同分布正态噪声。") is None
 
 
@@ -195,7 +195,7 @@ def _twips(col):
 
 
 def test_three_line_widths_equal_split_fills_body_width():
-    """三线表列宽为等分铺满版心（用户口径：维持原实现，不做自适应）。"""
+    """三线表列宽为等分铺满版心。"""
     doc = _mk_doc()
     table = doc.add_table(rows=3, cols=4)
     for r in range(3):

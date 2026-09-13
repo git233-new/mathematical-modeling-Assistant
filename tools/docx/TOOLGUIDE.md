@@ -32,7 +32,7 @@ from tools.docx.ingest import extract_docx_content, render_docx_pages
 
 ## 数学建模论文推荐流程
 
-采用 python-docx 编程生成（默认）：`pf.new_project_document()` 创建文档，样式与页面由 `_ensure_paper_styles` + `setup_page` 统一注入，公式为 Word 原生 OMML；`save_document()` 从同一内容快照原子发布 DOCX，并同时落 `.tex`（LaTeX 源码交付件，不编译、不要求 LaTeX 环境）。不再依赖 Word/LaTeX 论文模板。若需 pandoc 版 LaTeX→DOCX 转换，见 `latex2docx.py`（可选，非默认）。
+采用 python-docx 编程生成（默认）：`pf.new_project_document()` 创建文档，样式与页面由 `_ensure_paper_styles` + `setup_page` 统一注入，公式为 Word 原生 OMML；`save_document()` 从同一内容快照原子发布 DOCX，并同时落 `.tex`（LaTeX 源码交付件，不编译、不要求 LaTeX 环境）。论文生成不依赖 Word/LaTeX 模板。若需 pandoc 版 LaTeX→DOCX 转换，见 `latex2docx.py`（可选，非默认）。
 
 ```python
 from pathlib import Path
