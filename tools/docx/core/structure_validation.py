@@ -1747,8 +1747,19 @@ def _figure_table_context_warnings(doc):
                 continue
             nxt = (atext, astyle)
             break
-        if nxt is None or is_heading(nxt[1]) or len(nxt[0]) < 15:
-            issues.append(f'{label} 缺少解释：图/表后需一段读数分析（关键数字/差异与原因，≥15 字），不能只写"如图N所示"或连续堆图')
+        if nxt is None or is_heading(nxt[1]):
+            issues.append(f'{label} 缺少解释：图/表后需一段读数分析（关键数字/差异与原因），不能只写"如图N所示"或连续堆图')
+        else:
+            # 解释长度校准：40 字以下读不出核心含义，200 字以上就是重复正文的大段分析
+            expl_len = len(nxt[0])
+            if expl_len < 40:
+                issues.append(
+                    f'{label} 解释过少（仅 {expl_len} 字）：图/表后要读出核心含义——'
+                    f'一句关键读数、一句差异/原因、落到本问结论')
+            elif expl_len > 200:
+                issues.append(
+                    f'{label} 解释过长（{expl_len} 字）：图后解释点到核心含义即可'
+                    f'（读数、原因、结论各一句），展开分析移到后续正文段落')
     return issues
 
 

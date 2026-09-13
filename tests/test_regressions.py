@@ -862,14 +862,36 @@ def test_figure_table_context_warnings(tmp_path):
     good.add_paragraph("一、问题重述")
     good.add_paragraph("图1 给出两种方案收敛速度的对比。")
     good.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
-    good.add_paragraph("从图1看，方案A误差下降最快，原因是学习率设置更保守。")
+    good.add_paragraph("从图1看，方案A在前10轮误差就降到0.8%以下且30轮后收敛，"
+                       "原因是其学习率设置更保守，更适合本题的稀疏数据结构，因此后续求解均采用方案A参数。")
     good.add_paragraph("两方案各指标的逐项数值对比见表1。")
     good.add_paragraph("表1 方法对比", style=CAPTION_STYLE)
     tb2 = good.add_table(rows=2, cols=2)
     tb2.rows[0].cells[0].text = "方法"
     tb2.rows[1].cells[0].text = "x"
-    good.add_paragraph("表1 显示方案A在四项指标中三项占优，综合性能最好。")
+    good.add_paragraph("表1 显示方案A在四项指标中三项占优，仅运行时间一项略高，综合精度与效率取舍后仍以方案A最优。")
     assert _figure_table_context_warnings(good) == []
+
+    # 解释过少（<40 字）/过长（>300 字）→ 预警
+    thin = _doc()
+    thin.add_paragraph("一、问题重述")
+    thin.add_paragraph("图1 给出两种方案收敛速度的对比。")
+    thin.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
+    thin.add_paragraph("从图1看，方案A误差下降最快，原因是学习率更保守。")
+    ws = _figure_table_context_warnings(thin)
+    assert any("图1" in w and "解释过少" in w for w in ws)
+
+    long = _doc()
+    long.add_paragraph("一、问题重述")
+    long.add_paragraph("图1 给出两种方案收敛速度的对比。")
+    long.add_paragraph("图1 测试对比", style=CAPTION_STYLE)
+    long.add_paragraph("从图1看，方案A误差下降最快，原因是学习率更保守，这使得其在训练初期不会跳过最优点，"
+                       "同时其正则化系数更大，避免了过拟合，这一点在验证集上的表现与训练集一致，说明模型没有依赖"
+                       "特定噪声模式，泛化能力较强，另外其收敛后误差的方差也最小，说明对随机种子不敏感，综合来看"
+                       "方案A在本题数据分布下全面优于方案B，后续所有灵敏度分析均基于方案A的超参数组合展开，"
+                       "并且这一结论在三次重复实验中均成立，具有较好的稳定性与可复现性，也为第六章的检验提供了基线。")
+    ws = _figure_table_context_warnings(long)
+    assert any("图1" in w and "解释过长" in w for w in ws)
 
 
 def test_far_mention_then_late_figure_flagged(tmp_path):
@@ -908,7 +930,7 @@ def test_unnamed_lead_in_flagged(tmp_path):
     doc.add_paragraph("一、问题重述")
     doc.add_paragraph("两种方案的收敛情况对比如下。")               # 未点名"图1"
     doc.add_paragraph("图1 收敛对比", style=CAPTION_STYLE)
-    doc.add_paragraph("图1 中方案A的误差下降速度明显快于方案B。")
+    doc.add_paragraph("图1 中方案A的误差下降速度明显快于方案B，30轮内即达到方案B的水平。")
     ws = _figure_table_context_warnings(doc)
     assert any("图1" in w and "没有点名" in w for w in ws)
     assert not any("被点名" in w for w in ws)
@@ -928,10 +950,10 @@ def test_batch_lead_in_then_individual_flags_duplicate(tmp_path):
     doc.add_paragraph("一、问题重述")
     doc.add_paragraph("图1与图2分别给出误差曲线与时间开销对比。")   # 总起句
     doc.add_paragraph("图1 误差对比", style=CAPTION_STYLE)
-    doc.add_paragraph("图1 显示方案A在前10轮误差下降最快。")        # 图1 解释
+    doc.add_paragraph("图1 显示方案A在前10轮误差即下降至1%以下且30轮后完全收敛，收敛速度明显快于方案B，源于其更保守的学习率。")        # 图1 解释
     doc.add_paragraph("图2 显示方案A节省约30%运行时间。")           # 图2 单独引出
     doc.add_paragraph("图2 时间对比", style=CAPTION_STYLE)
-    doc.add_paragraph("图2 中两方案的耗时差异主要来自迭代次数不同。")
+    doc.add_paragraph("图2 中两方案耗时差异集中在30轮之后，主要来自迭代次数与内存访问模式不同。")
     ws = _figure_table_context_warnings(doc)
     assert any("图2" in w and "被点名 2 次" in w for w in ws)
     assert not any("图1" in w for w in ws)
