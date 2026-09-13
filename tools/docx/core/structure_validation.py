@@ -1237,11 +1237,8 @@ def _value_matches(claim, ground, has_percent=False):
                 continue
             if abs(variant - g) <= tol:
                 return True
-            gd = len(repr(g).split('.')[-1]) if '.' in repr(g) else 0
-            if round(g, d) == round(variant, d):
-                return True
-            if abs(round(g, min(gd, 6)) - round(variant, min(gd, 6))) < 1e-9:
-                return True
+            if round(variant, d) == round(g, d):
+                return True  # 舍入一致（论文 3.14 ↔ 底册 3.14159）
     return False
 
 
@@ -1364,10 +1361,9 @@ def _derived_numbers(ground_floats):
             claims.append((tok, s))
     for m in _DECIMAL_RE.finditer(text):
         s = m.group(0)
-        if _YEAR_RE.match(s) or s not in seen:
-            if s not in seen and not _YEAR_RE.match(s):
-                seen.add(s)
-                claims.append((s, s))
+        if not _YEAR_RE.match(s) and s not in seen:
+            seen.add(s)
+            claims.append((s, s))
     if not claims:
         return []
     ground = _collect_ground_numbers(project_root)
