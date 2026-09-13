@@ -3,8 +3,6 @@ import json
 
 from docx.oxml.ns import qn
 import pathlib
-import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest

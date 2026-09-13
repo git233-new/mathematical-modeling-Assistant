@@ -209,11 +209,6 @@ def test_non_model_section_without_formula_clean():
 # 可复现性硬闸门：skill 痕迹/绝对路径拒存；软红线不阻断
 # ---------------------------------------------------------------------------
 
-def _code_project(tmp_path):
-    (tmp_path / "code").mkdir(exist_ok=True)
-    return tmp_path
-
-
 def test_repro_gate_blocks_skill_trace(tmp_path):
     (tmp_path / "code").mkdir(exist_ok=True)
     (tmp_path / "code" / "solve_common.py").write_text(

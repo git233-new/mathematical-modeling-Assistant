@@ -3,7 +3,6 @@
 
 合并自 test_doc_code_sync.py + test_naming_contract.py。
 """
-import json
 import re
 import sys
 import pathlib
@@ -15,7 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 
-from tools.docx.core.paper_format import append_code_files, FORBIDDEN_WORDS, HEADING3_STYLE
+from tools.docx.core.paper_format import append_code_files, HEADING3_STYLE
 from tools.docx.core.structure_validation import _appendix_size_issues
 from tools.project_ops.project_cleanup import CODE_KEEP_RE, PROTECTED_ITEMS
 

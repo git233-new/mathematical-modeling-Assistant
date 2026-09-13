@@ -1177,7 +1177,6 @@ def _abstract_paragraph_issues(doc):
     """摘要分问分段 + 量化结果硬闸门。
 
     - 每个问题独立成段：任一段落同时覆盖两个及以上"问题N"即拒存；
-    - 摘要点名 >=2 个问题时，正文段数不得少于问题数（每问至少一段）；
     - 至少一个带单位/百分比的量化指标，避免"效果良好"式空话。
     """
     paras = _abstract_paragraphs(doc)
@@ -1185,15 +1184,10 @@ def _abstract_paragraph_issues(doc):
         return []
     non_empty = [p for p in paras if p.text.strip()]
     issues = []
-    marker_count = {}
     for idx, p in enumerate(non_empty, start=1):
         marks = sorted(set(_ABSTRACT_QUESTION_RE.findall(p.text)))
         if len(marks) >= 2:
             issues.append(f'摘要第 {idx} 段同时覆盖问题{"、问题".join(marks)}——按问题分段，每问独立一段')
-        for m in marks:
-            marker_count.setdefault(m, idx)
-    if len(marker_count) >= 2 and len(non_empty) < len(marker_count):
-        issues.append(f'摘要点名了 {len(marker_count)} 个问题但仅 {len(non_empty)} 段——每问独立成段')
     # 摘要须含量化结果：至少一个带单位/百分比的指标或关键数值，
     # 避免"效果良好""精度提升"等空话。纯理论赛题可用准确率/误差上限等量化描述。
     text = '\n'.join(p.text for p in paras)
@@ -1657,7 +1651,7 @@ def _figure_table_context_warnings(doc):
       引出句只写"对比如下"式指代，都属此列）；
     - 重复引出：向前回溯到上一张同类题注为止，本图号被 ≥2 个正文段点名
       （"第一次提及 + 引出句"双写、"总起 + 逐张引出"都属此列）。
-    图表后须有 ≥15 字读数解释。符号说明表整条豁免（H10 禁止其表后写描述
+    图表后须有一段读出核心含义的解释（40–200 字）。符号说明表整条豁免（H10 禁止其表后写描述
     段）；附录图表不检查。
     """
     symbol_tbl = _find_symbol_table(doc)
@@ -1733,7 +1727,7 @@ def _figure_table_context_warnings(doc):
                 issues.append(
                     f'{label} 被点名 {mentions} 次：删掉引出句以外的所有"{label}"字样（含更早分析文字里的预告），'
                     f'全文只在图表紧前的引出句点名一次，图表紧跟引出出现')
-        # 后解释：图——下一非空段；表——跳过表格实体后的第一非空段；须为实质解释（≥15 字、非题注）
+        # 后解释：图——下一非空段；表——跳过表格实体后的第一非空段；须为核心含义解释（40–200 字、非题注）
         after = seq[idx + 1:]
         skip_table = False
         nxt = None

@@ -365,7 +365,7 @@ def body(doc, text):
     stripped = text.strip()
     if stripped:
         _validate_body_claim(doc, stripped)
-        if _in_assumption_section(doc) and re.match(r'^假设\d+[:：]', stripped):
+        if _in_assumption_section(doc) and _ASSUMPTION_RE.match(stripped):
             _validate_assumption_format(stripped)
     p = paragraph(doc, text, style_name=BODY_STYLE, preserve_line_breaks=_appendix_is_active(doc))
     prev = p._p.getprevious()
@@ -720,8 +720,11 @@ def _in_assumption_section(doc):
     return False
 
 
+_ASSUMPTION_RE = re.compile(r'^假设\s*\d+(?:[（(][^）)]{0,14}[）)])?\s*[:：]')
+
+
 def _validate_assumption_format(text):
-    if not re.match(r'^假设\d+[:：]', text):
+    if not _ASSUMPTION_RE.match(text):
         raise ValueError(f'假设须以"假设N："开头，当前："{text[:30]}"')
     if re.search(r'题目(?:给出|规定|所给|要求)|由题意|根据题目', text):
         raise ValueError(f'"{text[:20]}..." 疑似复述题目规定条件——模型假设写所选模型/算法采用的假设，'
@@ -919,15 +922,30 @@ def _assign_three_line_widths(table, doc):
     needs = [d + pad for d in demands]
     total_need = sum(needs)
     floor_twips = int(1.6 * 240)  # 保底 1.6 字（12pt 字宽=240 twips）
-    if total_need * 240 >= available_twips - floor_twips * n:
-        # 内容普遍偏长：按需求比例分满版心（含保底）
-        widths = [max(floor_twips, int(available_twips * need / total_need)) for need in needs]
+    widths = [max(floor_twips, int(available_twips * need / total_need)) for need in needs]
+    excess = sum(widths) - available_twips
+    if excess > 0:
+        # 保底把总额顶破版心：从高于保底的列按超额比例收回，不出负宽
+        shrinkable = [w - floor_twips for w in widths]
+        pool = sum(shrinkable)
+        if pool >= excess:
+            taken = 0
+            for i, s in enumerate(shrinkable):
+                take = int(excess * s / pool) if pool else 0
+                widths[i] -= take
+                taken += take
+            widths[-1] -= excess - taken
+        else:
+            # 列数过多、全保底仍超版心：整体等比缩到版心
+            k = available_twips / sum(widths)
+            widths = [max(1, int(w * k)) for w in widths]
     else:
         # 内容不长：需求比例分配，剩余宽度平摊
-        base = [int(need * 240) for need in needs]
-        leftover = available_twips - sum(base)
-        widths = [b + leftover // n + (1 if i < leftover % n else 0) for i, b in enumerate(base)]
+        leftover = -excess
+        for i in range(n):
+            widths[i] += leftover // n + (1 if i < leftover % n else 0)
     widths[-1] += available_twips - sum(widths)  # 余数归末列，保证总宽精确
+    widths = [max(1, w) for w in widths]
     tbl = table._tbl
     tbl_grid = tbl.find(qn('w:tblGrid'))
     if tbl_grid is None:

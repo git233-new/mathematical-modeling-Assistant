@@ -10,14 +10,13 @@
 """
 import sys
 import pathlib
-from types import SimpleNamespace
 
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
-import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+from tools.common.reproducibility import is_brownfield
 from tools.docx.core import paper_format
 from tools.docx.core.paper_workflow import preflight_check
 from tools.docx.core.structure_validation import (
@@ -27,7 +26,6 @@ from tools.docx.core.structure_validation import (
     _reference_registry_issues,
     _symbol_caption_no_prose_issues,
 )
-from tools.common.reproducibility import is_brownfield, scan_code_files
 
 HEADING1_STYLE = paper_format.HEADING1_STYLE
 HEADING2_STYLE = paper_format.HEADING2_STYLE
