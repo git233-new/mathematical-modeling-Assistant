@@ -1171,7 +1171,7 @@ def _abstract_paragraph_issues(doc):
 
 
 def _section_order_issues(doc):
-    """一级标题顺序硬闸门：AI工具使用声明（如有）→ 参考文献 → 附录。"""
+    """一级标题顺序硬闸门：AI工具使用声明（如有）→ 参考文献。"""
     by_name = {}
     for i, p in enumerate(doc.paragraphs):
         t = re.sub(r'\s+', '', p.text.strip())
@@ -1179,12 +1179,8 @@ def _section_order_issues(doc):
             by_name['AI工具使用声明'] = i
         elif t == '参考文献' and '参考文献' not in by_name:
             by_name['参考文献'] = i
-        elif t == '附录' and '附录' not in by_name:
-            by_name['附录'] = i
     issues = []
-    ref, app = by_name.get('参考文献'), by_name.get('附录')
-    if ref is not None and app is not None and ref > app:
-        issues.append('章节顺序错误：参考文献必须在附录之前（AI工具使用声明 → 参考文献 → 附录）')
+    ref = by_name.get('参考文献')
     ai = by_name.get('AI工具使用声明')
     if ai is not None and ref is not None and ai > ref:
         issues.append('章节顺序错误：AI工具使用声明必须在参考文献之前')

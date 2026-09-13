@@ -120,30 +120,19 @@ def test_abstract_without_quantified_result_rejected():
     assert any("量化结果" in i for i in _abstract_paragraph_issues(doc))
 
 
-# ── 3. 一级标题顺序：AI声明 → 参考文献 → 附录 ──
+# ── 3. 一级标题顺序：AI声明 → 参考文献 ──
 
 def test_section_order_correct_passes():
     doc = _mk_doc()
     pf.heading1(doc, "AI工具使用声明")
     pf.heading1(doc, "参考文献")
-    pf.heading1(doc, "附录")
     assert _section_order_issues(doc) == []
-
-
-def test_section_order_appendix_before_references_rejected():
-    doc = _mk_doc()
-    pf.heading1(doc, "AI工具使用声明")
-    pf.heading1(doc, "附录")
-    pf.heading1(doc, "参考文献")
-    issues = _section_order_issues(doc)
-    assert any("参考文献必须在附录之前" in i for i in issues)
 
 
 def test_section_order_ai_after_references_rejected():
     doc = _mk_doc()
     pf.heading1(doc, "参考文献")
     pf.heading1(doc, "AI工具使用声明")
-    pf.heading1(doc, "附录")
     issues = _section_order_issues(doc)
     assert any("AI工具使用声明必须在参考文献之前" in i for i in issues)
 
