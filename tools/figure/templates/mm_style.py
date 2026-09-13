@@ -545,39 +545,6 @@ def kde_1d(values, grid, *, bw_floor: float = 1e-6, normalize: str = "integral")
     return density
 
 
-def ensure_chinese_font() -> str:
-    """返回系统中可用的中文字体名；SimHei 缺失时回退到任一 CJK 字体。
-
-    返回结果可用于日志提示，但不会自动修改 rcParams（样式由
-    `configure_chinese_style` 统一设置）。
-    """
-    import matplotlib.font_manager as fm
-
-    available = {f.name for f in fm.fontManager.ttflist}
-    if CHINESE_FONT in available:
-        return CHINESE_FONT
-    for candidate in CHINESE_FONT_FALLBACK:
-        if candidate in available:
-            return candidate
-    return CHINESE_FONT  # 兜底：调用方应确保在 Windows 上已安装 SimHei
-
-
-def available_chinese_fonts() -> list[str]:
-    """列出当前环境可用、能渲染中文的字体名（用于自检/排错）。"""
-    import matplotlib.font_manager as fm
-
-    cjk_hints = ("Hei", "YaHei", "SimSun", "Song", "Microsoft", "CJK", "Noto", "Source Han")
-    return sorted({f.name for f in fm.fontManager.ttflist if any(h in f.name for h in cjk_hints)})
-
-
-# ---------------------------------------------------------------------------
-# 图库共享绘图 helper（相关性色条 / 极坐标标签旋转 / 盒须统计）
-# ---------------------------------------------------------------------------
-
-# 相关性色图：蓝-白-红（负相关 → 正相关），两份相关图模板共用
-CMAP_CORR = "RdBu_r"
-
-
 def correlation_norm():
     """相关性归一化：固定 (-1, 1)。"""
     import matplotlib as mpl
@@ -615,18 +582,3 @@ def text_rotation(angle_deg: float) -> tuple[float, str]:
     return angle_deg - 90, "left"
 
 
-def box_stats(values) -> tuple[float, float, float, float, float]:
-    """四分位 + 1.5×IQR 须线统计；返回 ``(q1, med, q3, lo, hi)``。"""
-    import numpy as np
-
-    q1, med, q3 = np.percentile(values, [25, 50, 75])
-    iqr = q3 - q1
-    lo = float(np.min(values[values >= q1 - 1.5 * iqr]))
-    hi = float(np.max(values[values <= q3 + 1.5 * iqr]))
-    return q1, med, q3, lo, hi
-
-
-if __name__ == "__main__":
-    configure_chinese_style()
-    print("已加载国赛中文图表样式。当前中文字体：", ensure_chinese_font())
-    print("可用中文字体：", available_chinese_fonts())

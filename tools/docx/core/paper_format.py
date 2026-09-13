@@ -1110,10 +1110,6 @@ def save_document(
     filename='完整论文.docx',
     contest='cumcm',
     overwrite=False,
-    rendered_pages=None,
-    body_pages=None,
-    pdf_backend=None,
-    soffice_timeout=None,
 ):
     """论文保存编排：写守卫 → 预检闸门 → 暂存发布（其余硬错误仍拒存）。
 
