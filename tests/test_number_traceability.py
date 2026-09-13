@@ -90,3 +90,40 @@ def test_no_project_root_skips_check():
         "针对问题一建立回归模型，预测精度达 91.7%。",
     ])
     assert _fabricated_number_issues(doc, None) == []
+
+
+def _doc_with_ch5(paras):
+    abstract = "本文建立模型求解，结果收敛且误差可控。" + _FILLER * 12
+    doc = pf.new_document()
+    pf.title(doc, "测试论文题目")
+    pf.abstract_title(doc)
+    pf.body(doc, abstract)
+    pf.keywords(doc, "优化")
+    pf.heading1(doc, "一、问题重述")
+    pf.body(doc, "问题重述正文。" * 20)
+    pf.heading1(doc, "五、模型建立与求解")
+    for t in paras:
+        pf.body(doc, t)
+    return doc
+
+
+def test_body_derived_percent_passes(tmp_path):
+    """正文派生值（两底册值之差占基准的百分比）可溯源 → 通过。"""
+    doc = _doc_with_ch5([
+        "建立优化模型并求解，改进后较基准成本降低 15%，精度提升至 0.95。",
+    ])
+    project = _project_with_results(tmp_path, "阶段,成本\n基准,0.42\n改进后,0.483\n")
+    (project / "code").mkdir(exist_ok=True)
+    (project / "code" / "Q1.py").write_text("EPS = 0.95\n", encoding="utf-8")
+    assert _fabricated_number_issues(doc, project) == []
+
+
+def test_body_fabricated_number_rejected(tmp_path):
+    """正文第 5-7 章编造数值（底册与推导均无来源）→ 拒存。"""
+    doc = _doc_with_ch5([
+        "建立检验模型，交叉验证误差为 12.9%，预测精度达 98.3%。",
+    ])
+    project = _project_with_results(tmp_path, "阶段,成本\n基准,0.42\n")
+    issues = _fabricated_number_issues(doc, project)
+    assert any("正文" in i and "12.9%" in i for i in issues)
+    assert any("98.3%" in i for i in issues)

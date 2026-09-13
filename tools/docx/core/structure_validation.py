@@ -1246,20 +1246,104 @@ def _value_matches(claim, ground, has_percent=False):
 
 
 def _fabricated_number_issues(doc, project_root):
-    """摘要数值溯源硬闸门：摘要里的结果数值必须能在真实产物中找到来源。
+    """数值溯源硬闸门：摘要与五至七章的结果数值必须能在真实产物中找到来源。
 
-    校对对象：摘要中的全部小数、带单位数值与百分数（纯小整数计数、
-    年份豁免）。比对底册 = results/ 结果文件 + code/ 源码字面量，
-    支持舍入匹配（论文 3.14 ↔ 结果 3.14159）与百分数换算（12.3% ↔ 0.123）。
-    找不到来源即拒存——摘要数值禁止编造。
+    校对对象：摘要 + 五/六/七章正文段落中的全部小数、带单位数值与百分数
+    （纯小整数计数、年份豁免）。比对底册 = results/ 结果文件 + code/ 源码
+    字面量，支持舍入匹配（论文 3.14 ↔ 结果 3.14159）、百分数换算
+    （12.3% ↔ 0.123）与**双值推导**（底册两两作 ±/×/÷，覆盖误差率、
+    提升幅度等派生值）。找不到来源即拒存——正文数值禁止编造。
     """
     if project_root is None:
         return []
+    claims = []
+    seen = set()
     b = _abstract_bounds(doc)
-    if b is None:
+    if b is not None:
+        abstract_paras = list(doc.paragraphs)[b[0] + 1:b[1]]
+        claims += _claim_numbers('\n'.join(p.text for p in abstract_paras), seen, scope='摘要')
+    for keyword in (r'模型建立与求解|模型建立', r'模型检验', r'模型评价'):
+        region = _h1_region_bounds(doc, keyword)
+        if region:
+            body_paras = list(doc.paragraphs)[region[0]:region[1]]
+            claims += _claim_numbers('\n'.join(p.text for p in body_paras), seen, scope='正文')
+    if not claims:
         return []
-    paras = list(doc.paragraphs)[b[0] + 1:b[1]]
-    text = '\n'.join(p.text for p in paras)
+    ground = _collect_ground_numbers(project_root)
+    if not ground:
+        return ['results/ 无任何数值产物——先运行代码落盘真实结果，再写论文数值（禁止凭空编造）']
+    ground_strings = {g for g in ground if isinstance(g, str)}
+    ground_floats = sorted({g for g in ground if isinstance(g, float)}, key=abs)[:300]
+    derived = _derived_numbers(ground_floats)
+    issues = []
+    for tok, s, scope in claims:
+        if s in ground_strings:
+            continue
+        if _value_matches(s, ground, has_percent='%' in tok or '％' in tok):
+            continue
+        d = len(s.split('.')[-1]) if '.' in s else 0
+        c = float(s)
+        if any(round(v, d) == round(c, d) for v in derived):
+            continue
+        issues.append(f'{scope}数值 {tok} 未在 results/ 结果文件或 code/ 中找到来源'
+                      f'（含双值推导比对）——数值禁止编造：补跑实验落盘该值、'
+                      f'写入结果文件，或删除/改写该数值')
+    return issues
+
+
+def _claim_numbers(text, seen, scope):
+    """从一段文本中提取待溯源数值：量化值（带单位/%）+ 全部小数。
+
+    豁免：年份、计数类纯整数、公式段；返回 (token, 数字串, scope) 三元组。
+    """
+    claims = []
+    for m in _QUANT_TOKEN_RE.finditer(text):
+        tok = re.sub(r'\s+', '', m.group(0))
+        num = _GROUND_NUM_RE.search(tok)
+        if not num:
+            continue
+        s = num.group(0)
+        if _YEAR_RE.match(s):
+            continue
+        unit_tail = tok[len(num.group(0)):].lstrip()
+        if '.' not in s and s.lstrip('-').isdigit() and (
+                not unit_tail or unit_tail.startswith(_COUNTING_UNITS)):
+            continue  # 计数类纯整数豁免
+        if s not in seen:
+            seen.add(s)
+            claims.append((tok, s, scope))
+    for m in _DECIMAL_RE.finditer(text):
+        s = m.group(0)
+        if not _YEAR_RE.match(s) and s not in seen:
+            seen.add(s)
+            claims.append((s, s, scope))
+    return claims
+
+
+def _derived_numbers(ground_floats):
+    """底册数值两两推导集合：±/×/÷ 与相对变化率，覆盖派生值（提升 15% 等）。"""
+    derived = set()
+    n = len(ground_floats)
+    for i in range(n):
+        a = ground_floats[i]
+        if abs(a) > 1e12:
+            continue
+        derived.add(a * 100)
+        for j in range(n):
+            b = ground_floats[j]
+            if abs(b) > 1e12 or (i == j and a == 0):
+                continue
+            try:
+                derived.add(a - b)
+                derived.add(a + b)
+                derived.add(a * b)
+                derived.add(a / b)
+                if b != 0:
+                    derived.add((a - b) / b)
+                    derived.add((b - a) / b)
+            except (ZeroDivisionError, OverflowError):
+                continue
+    return {v for v in derived if abs(v) < 1e12}
     text = re.sub(r'(?<=\d),(?=\d)', '', text)  # 千分位
     claims = []
     seen = set()
