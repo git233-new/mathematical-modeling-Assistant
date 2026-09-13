@@ -338,6 +338,9 @@ def paragraph(doc, text='', align=None, first_line=False, line_spacing=1.25, sty
         set_run_font(p.add_run(sanitize_text(value)))
     return p
 def title(doc, text):
+    if len(text.strip()) > 24:
+        raise ValueError(f'论文题目 {len(text.strip())} 字超过 24 字（16pt 黑体一行约容 25 字）——'
+                         f'压缩为一句主标题放进一行；背景/方法细节留给摘要与引言')
     p = _claim_template_slot(doc, 'title', text) or paragraph(doc)
     p.style = BODY_STYLE
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -364,7 +367,12 @@ def body(doc, text):
         _validate_body_claim(doc, stripped)
         if _in_assumption_section(doc) and re.match(r'^假设\d+[:：]', stripped):
             _validate_assumption_format(stripped)
-    return paragraph(doc, text, style_name=BODY_STYLE, preserve_line_breaks=_appendix_is_active(doc))
+    p = paragraph(doc, text, style_name=BODY_STYLE, preserve_line_breaks=_appendix_is_active(doc))
+    prev = p._p.getprevious()
+    if prev is not None and prev.tag == qn('w:tbl'):
+        # 表格与下方解释文字之间空一行（段前 15pt = 12pt × 1.25 行距的一行）
+        p.paragraph_format.space_before = Pt(15)
+    return p
 def _latex2omml(latex):
     from .equations import latex2omml
     return latex2omml(latex)
@@ -871,15 +879,55 @@ def _set_table_fixed_layout(table):
         layout = OxmlElement('w:tblLayout')
         tbl_pr.append(layout)
     layout.set(qn('w:type'), 'fixed')
+def _column_demand_units(table):
+    """各列内容需求量（单位：12pt 字宽）：中文=1，ASCII/数字≈0.55。
+
+    表头行按 1.25 倍计权——表头是不允许换行的那一行。
+    """
+    def units(s):
+        value = 0.0
+        for ch in s:
+            value += 1.0 if ord(ch) > 0x2E80 else 0.55
+        return value
+
+    demands = []
+    for col in table.columns:
+        best = 0.0
+        for row_i, cell in enumerate(col.cells):
+            weight = 1.25 if row_i == 0 else 1.0
+            for para in cell.paragraphs:
+                best = max(best, units(para.text.strip()) * weight)
+        demands.append(max(best, 1.0))
+    return demands
+
+
 def _assign_three_line_widths(table, doc):
+    """三线表自适应列宽：按各列内容需求比例分配版心宽。
+
+    等宽分配会把长内容列挤成两行（表头首当其冲）。改为内容自适应：
+    - 每列需求 = 该列最长单元格字宽（含内边距余量 1.6 字）；
+    - 按需求比例分版心宽，短列保底 1.6 字宽，长列多占；
+    - 总宽仍铺满正文版心。
+    """
     n = len(table.columns)
     if n == 0:
         return
     section = doc.sections[0]
     available_twips = int((section.page_width - section.left_margin - section.right_margin) / 914400 * 1440)
-    # 三线表各列平均分布：等宽铺满正文宽（余数平分到前列）
-    base, extra = divmod(available_twips, n)
-    widths = [base + (1 if i < extra else 0) for i in range(n)]
+    demands = _column_demand_units(table)
+    pad = 1.6  # 单元格左右内边距合计，按字宽计
+    needs = [d + pad for d in demands]
+    total_need = sum(needs)
+    floor_twips = int(1.6 * 240)  # 保底 1.6 字（12pt 字宽=240 twips）
+    if total_need * 240 >= available_twips - floor_twips * n:
+        # 内容普遍偏长：按需求比例分满版心（含保底）
+        widths = [max(floor_twips, int(available_twips * need / total_need)) for need in needs]
+    else:
+        # 内容不长：需求比例分配，剩余宽度平摊
+        base = [int(need * 240) for need in needs]
+        leftover = available_twips - sum(base)
+        widths = [b + leftover // n + (1 if i < leftover % n else 0) for i, b in enumerate(base)]
+    widths[-1] += available_twips - sum(widths)  # 余数归末列，保证总宽精确
     tbl = table._tbl
     tbl_grid = tbl.find(qn('w:tblGrid'))
     if tbl_grid is None:

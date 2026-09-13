@@ -1763,7 +1763,7 @@ _EVAL_NUMBER_RE = re.compile(
 # 7.1 / 7.2 等二级子标题行（如"7.1 优点"）
 _EVAL_X_Y_RE = re.compile(r'^\s*\d+[.．]\d+\s+\S')
 _EVAL_PRO_KEYWORDS = ('优点', '优势', '长处')
-_EVAL_CONS_KEYWORDS = ('局限', '不足', '缺点', '劣势', '改进', '推广', '扩展', '延伸', '迁移')
+_EVAL_CONS_KEYWORDS = ('局限', '不足', '缺点', '劣势', '改进')
 MIN_EVAL_PROS_ITEMS = 5
 MIN_EVAL_CONS_ITEMS = 4
 
@@ -1779,7 +1779,8 @@ def _model_eval_bullet_format_issues(doc):
     - 整节唯一正文形态 = 7.x 子标题 + 编号条目；出现任何非编号正文段即
       视为禁止的"大段话"，拒存（与模型假设、符号说明"不写解释长段"同纪律）。
     - 按子标题分区计数：含"优点/优势/长处"的 7.x 下编号条目 ≥5；含
-      "局限/不足/缺点/改进/推广"等的 7.x（及后续分区）下编号条目 ≥4。
+      "局限/不足/缺点/改进"等的 7.x（及后续分区）下编号条目 ≥4。
+      评价章不写推广/扩展/迁移（用户口径：改进落到本题局限即可）。
     """
     paras = [p.text.strip() for p in doc.paragraphs]
     start = next(
@@ -1837,25 +1838,6 @@ def _model_eval_bullet_format_issues(doc):
     return issues
 
 
-_GENERALIZATION_KEYWORDS = re.compile(r'推广|应用(?:场景|前景|范围)?|扩展|迁移|适用|泛化')
-
-
-# W12 模型评价推广性讨论缺失预警
-def _model_eval_generalization_warning(doc):
-    paras = [p.text.strip() for p in doc.paragraphs]
-    start = next((i for i, tx in enumerate(paras) if re.match(r'^七、\s*模型评价', tx)), None)
-    if start is None:
-        return []
-    end = next(
-        (i for i, tx in enumerate(paras) if i > start and re.match(r'^[一二三四五六七八九十]+、', tx)),
-        len(paras),
-    )
-    section_text = ''.join(paras[start:end])
-    if not _GENERALIZATION_KEYWORDS.search(section_text):
-        return ['「模型评价与改进」缺少模型推广/适用性讨论——补充模型可推广到哪些场景、适用条件与边界']
-    return []
-
-
 def _soft_quality_warnings(doc, project_root):
     """聚合 W 类预警，统一加"预警："前缀（不阻断交付）。
 
@@ -1872,7 +1854,6 @@ def _soft_quality_warnings(doc, project_root):
     ws += _plot_font_warnings(project_root)
     ws += _plot_pitfall_warnings(project_root)
     ws += _data_file_warnings(project_root)
-    ws += _model_eval_generalization_warning(doc)
     return ['预警：' + w for w in ws]
 
 
