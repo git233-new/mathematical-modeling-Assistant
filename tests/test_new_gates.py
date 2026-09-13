@@ -194,31 +194,20 @@ def _twips(col):
     return int(col.cells[0]._tc.get_or_add_tcPr().find(qn('w:tcW')).get(qn('w:w')))
 
 
-def test_three_line_widths_adaptive_to_content():
+def test_three_line_widths_equal_split_fills_body_width():
+    """三线表列宽为等分铺满版心（用户口径：维持原实现，不做自适应）。"""
     doc = _mk_doc()
     table = doc.add_table(rows=3, cols=4)
     for r in range(3):
-        table.cell(r, 0).text = "方案"
-        table.cell(r, 1).text = "方案A极长描述内容很长很长很长很长很长"
-        table.cell(r, 2).text = "0.12"
-        table.cell(r, 3).text = "备注"
+        for c in range(4):
+            table.cell(r, c).text = f"内容{r}{c}"
     pf._assign_three_line_widths(table, doc)
     widths = [_twips(c) for c in table.columns]
-    assert sum(widths) <= 8310 and all(w > 0 for w in widths)
-    assert widths[1] == max(widths)          # 长内容列最宽
-    assert widths[1] > widths[2] * 2         # 明显高于窄列（不再等分）
-
-
-def test_three_line_widths_no_negative_with_many_short_columns():
-    doc = _mk_doc()
-    table = doc.add_table(rows=3, cols=10)
-    for r in range(3):
-        for c in range(10):
-            table.cell(r, c).text = "x" if c else "方案"
-    pf._assign_three_line_widths(table, doc)
-    widths = [_twips(c) for c in table.columns]
-    assert all(w > 0 for w in widths)
+    assert len(set(widths)) == 1             # 各列等宽
     assert abs(sum(widths) - 8300) <= 2      # 总宽精确铺满版心
+    from docx.oxml.ns import qn
+    grid = table._tbl.find(qn('w:tblGrid'))
+    assert len(grid.findall(qn('w:gridCol'))) == 4
 
 
 # ── 7. 图件导出闸门：有效字号 + 文本遮挡 ──

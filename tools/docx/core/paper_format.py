@@ -875,77 +875,15 @@ def append_code_files(doc, project_root):
               style_name=BODY_STYLE)
 
 
-def _set_table_fixed_layout(table):
-    tbl_pr = table._tbl.tblPr
-    layout = tbl_pr.find(qn('w:tblLayout'))
-    if layout is None:
-        layout = OxmlElement('w:tblLayout')
-        tbl_pr.append(layout)
-    layout.set(qn('w:type'), 'fixed')
-def _column_demand_units(table):
-    """各列内容需求量（单位：12pt 字宽）：中文=1，ASCII/数字≈0.55。
-
-    表头行按 1.25 倍计权——表头是不允许换行的那一行。
-    """
-    def units(s):
-        value = 0.0
-        for ch in s:
-            value += 1.0 if ord(ch) > 0x2E80 else 0.55
-        return value
-
-    demands = []
-    for col in table.columns:
-        best = 0.0
-        for row_i, cell in enumerate(col.cells):
-            weight = 1.25 if row_i == 0 else 1.0
-            for para in cell.paragraphs:
-                best = max(best, units(para.text.strip()) * weight)
-        demands.append(max(best, 1.0))
-    return demands
-
-
 def _assign_three_line_widths(table, doc):
-    """三线表自适应列宽：按各列内容需求比例分配版心宽。
-
-    等宽分配会把长内容列挤成两行（表头首当其冲）。改为内容自适应：
-    - 每列需求 = 该列最长单元格字宽（含内边距余量 1.6 字）；
-    - 按需求比例分版心宽，短列保底 1.6 字宽，长列多占；
-    - 总宽仍铺满正文版心。
-    """
     n = len(table.columns)
     if n == 0:
         return
     section = doc.sections[0]
     available_twips = int((section.page_width - section.left_margin - section.right_margin) / 914400 * 1440)
-    demands = _column_demand_units(table)
-    pad = 1.6  # 单元格左右内边距合计，按字宽计
-    needs = [d + pad for d in demands]
-    total_need = sum(needs)
-    floor_twips = int(1.6 * 240)  # 保底 1.6 字（12pt 字宽=240 twips）
-    widths = [max(floor_twips, int(available_twips * need / total_need)) for need in needs]
-    excess = sum(widths) - available_twips
-    if excess > 0:
-        # 保底把总额顶破版心：从高于保底的列按超额比例收回，不出负宽
-        shrinkable = [w - floor_twips for w in widths]
-        pool = sum(shrinkable)
-        if pool >= excess:
-            taken = 0
-            for i, s in enumerate(shrinkable):
-                take = int(excess * s / pool) if pool else 0
-                widths[i] -= take
-                taken += take
-            widths[-1] -= excess - taken
-        else:
-            # 列数过多、全保底仍超版心：整体等比缩到版心
-            k = available_twips / sum(widths)
-            widths = [max(1, int(w * k)) for w in widths]
-    else:
-        # 内容不长：需求比例分配，剩余宽度平摊
-        leftover = -excess
-        for i in range(n):
-            widths[i] += leftover // n + (1 if i < leftover % n else 0)
-    widths[-1] += available_twips - sum(widths)  # 余数归末列，保证总宽精确
-    widths = [max(1, w) for w in widths]
+    # 三线表各列平均分布：等宽铺满正文宽（余数平分到前列）
+    base, extra = divmod(available_twips, n)
+    widths = [base + (1 if i < extra else 0) for i in range(n)]
     tbl = table._tbl
     tbl_grid = tbl.find(qn('w:tblGrid'))
     if tbl_grid is None:
@@ -966,6 +904,13 @@ def _assign_three_line_widths(table, doc):
                 tc_pr.append(tc_w)
             tc_w.set(qn('w:w'), str(widths[col_i]))
             tc_w.set(qn('w:type'), 'dxa')
+def _set_table_fixed_layout(table):
+    tbl_pr = table._tbl.tblPr
+    layout = tbl_pr.find(qn('w:tblLayout'))
+    if layout is None:
+        layout = OxmlElement('w:tblLayout')
+        tbl_pr.append(layout)
+    layout.set(qn('w:type'), 'fixed')
 def _set_cell_vcenter(cell):
     tc_pr = cell._tc.get_or_add_tcPr()
     valign = tc_pr.find(qn('w:vAlign'))
